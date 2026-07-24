@@ -3,13 +3,14 @@ module github.com/drilonrecica/ninefold-sudoku/apps/server
 go 1.26.5
 
 require (
-	github.com/go-chi/chi/v5 v5.2.3
+	github.com/go-chi/chi/v5 v5.3.1
 	github.com/google/uuid v1.6.0
 	github.com/rivo/uniseg v0.4.7
 	golang.org/x/text v0.40.0
 )
 
 require (
+	github.com/drilonrecica/ninefold-sudoku/contracts/generated/go v0.0.0-20260724174024-f80e6b2de48d
 	github.com/gowebpki/jcs v1.0.1
 	github.com/pressly/goose/v3 v3.24.1
 	modernc.org/sqlite v1.52.0

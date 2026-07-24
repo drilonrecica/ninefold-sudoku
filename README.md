@@ -4,7 +4,7 @@ Ninefold Sudoku is a privacy-first multiplayer Sudoku web application for privat
 
 ## Project status
 
-This repository currently contains the canonical product, domain, architecture, and design specifications. Application implementation has not started.
+This repository currently contains the canonical product, domain, architecture, and design specifications plus the implementation task plan and version roadmap. Application implementation has not started.
 
 The current delivery target is the full `0.3.0` MVP:
 
@@ -29,3 +29,8 @@ Read the canonical documents in authority order:
 4. [Design specification](docs/DESIGN.md)
 
 See [AGENTS.md](AGENTS.md) for contributor rules and documentation authority.
+
+## Planning and delivery
+
+- [TASKS.md](TASKS.md) — sequential, one-commit-per-phase implementation ledger for the `0.3.0` MVP
+- [ROADMAP.md](ROADMAP.md) — release contracts from the internal prototype checkpoints through `1.0.0`

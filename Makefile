@@ -61,6 +61,7 @@ build:
 
 tla: tools/tla2tools.jar
 	cd specs/room && java -XX:+UseParallelGC -cp ../../tools/tla2tools.jar tlc2.TLC RoomLifecycle.tla
+	cd specs/match && java -XX:+UseParallelGC -cp ../../tools/tla2tools.jar tlc2.TLC Match.tla
 
 tools/tla2tools.jar:
 	mkdir -p tools

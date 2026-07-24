@@ -10,3 +10,10 @@ tools/
 coverage/
 playwright-report/
 test-results/
+specs/**/states/
+specs/**/*_TTrace_*
+specs/**/*.bin
+specs/**/*.st
+specs/**/*.fp
+specs/**/nodes_*
+specs/**/ptrs_*

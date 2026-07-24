@@ -36,6 +36,9 @@ const (
 	ErrMatchAlreadyExists       ErrorCode = "MATCH_ALREADY_EXISTS"
 	ErrMatchNotActive           ErrorCode = "MATCH_NOT_ACTIVE"
 	ErrMatchAlreadyCompleted    ErrorCode = "MATCH_ALREADY_COMPLETED"
+	ErrMatchPuzzleInvalid       ErrorCode = "MATCH_PUZZLE_INVALID"
+	ErrMatchRulesInvalid        ErrorCode = "MATCH_RULES_INVALID"
+	ErrMatchCommandInvalid      ErrorCode = "MATCH_COMMAND_INVALID"
 	ErrRoomStateInvalid         ErrorCode = "ROOM_STATE_INVALID"
 	ErrMatchStateInvalid        ErrorCode = "MATCH_STATE_INVALID"
 	ErrSettingsLocked           ErrorCode = "SETTINGS_LOCKED"
@@ -80,6 +83,7 @@ var allErrorCodes = []ErrorCode{
 	ErrHostTransferInvalid, ErrRoleChangeInvalid, ErrPlayerNotReady, ErrPlayersNotReady,
 	ErrInsufficientPlayers, ErrInvalidPlayerCount, ErrCountdownAlreadyStarted, ErrCountdownNotActive,
 	ErrMatchAlreadyStarted, ErrMatchAlreadyExists, ErrMatchNotActive, ErrMatchAlreadyCompleted,
+	ErrMatchPuzzleInvalid, ErrMatchRulesInvalid, ErrMatchCommandInvalid,
 	ErrRoomStateInvalid, ErrMatchStateInvalid, ErrSettingsLocked, ErrCellIndexInvalid, ErrDigitInvalid,
 	ErrCellFixed, ErrCellSoftLocked, ErrCellNotEditable, ErrInvalidValue, ErrValueRejectedByRules,
 	ErrNoteInvalid, ErrHintsDisabled, ErrHintLevelUnavailable, ErrActionNotAllowedForRole,

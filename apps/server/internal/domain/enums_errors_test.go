@@ -37,7 +37,7 @@ func TestCurrentEnums(t *testing.T) {
 
 func TestEveryCurrentErrorCode(t *testing.T) {
 	t.Parallel()
-	if len(AllErrorCodes()) != 62 {
+	if len(AllErrorCodes()) != 65 {
 		t.Fatalf("error catalog changed without updating its boundary test: %d", len(AllErrorCodes()))
 	}
 	for _, code := range AllErrorCodes() {

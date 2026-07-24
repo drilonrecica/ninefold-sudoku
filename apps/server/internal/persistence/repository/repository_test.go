@@ -647,3 +647,111 @@ func TestPublicReadMethodsDoNotReturnSolutions(t *testing.T) {
 	// The generated list row struct does not include a Solution field, so the solution cannot leak.
 	// (Compilation check: gen.ListActivePuzzlesByDifficultyRow has no Solution field.)
 }
+
+func TestMatchLifecyclePersistence(t *testing.T) {
+	repo := newTestRepo(t)
+	ctx := context.Background()
+	puzzle := createPuzzle(t, repo, "Medium")
+	room, participant := createRoomAndParticipant(t, repo, "AAAAAA")
+
+	matchID := newUUID(t)
+	match := gen.Match{
+		ID:                 matchID,
+		RoomID:             room.ID,
+		State:              "Prepared",
+		Version:            1,
+		Mode:               "Coop",
+		Difficulty:         "Medium",
+		ErrorPreset:        "Casual",
+		HintsEnabled:       1,
+		AutoRemoveNotes:    1,
+		RuleVersion:        1,
+		PuzzleID:           puzzle.ID,
+		PuzzleRevision:     puzzle.Revision,
+		TransformationSeed: 12345,
+		PuzzleDifficulty:   puzzle.Difficulty,
+		GeneratorVersion:   puzzle.GeneratorVersion,
+		SolverVersion:      puzzle.SolverVersion,
+		CreatedAtMs:        NowMs(),
+	}
+	matchParticipant := gen.MatchParticipant{
+		MatchID:       matchID,
+		ParticipantID: participant.ID,
+		Connected:     1,
+		Mistakes:      0,
+		HintsUsed:     0,
+	}
+	preparedEvent := gen.MatchEvent{
+		MatchID:           matchID,
+		EventNumber:       1,
+		AggregateVersion:  1,
+		PublicEventType:   "MatchPrepared",
+		PublicActorID:     sql.NullString{String: participant.ID, Valid: true},
+		RequestID:         newUUID(t),
+		OccurredAtMs:      NowMs(),
+		PublicPayloadJson: "{}",
+		PreviousHash:      []byte("seed"),
+		EventHash:         []byte("hash1"),
+	}
+
+	tx, txRepo, err := repo.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatalf("begin tx: %v", err)
+	}
+	if err := txRepo.CreateMatchTx(ctx, tx, match, []gen.MatchParticipant{matchParticipant}, []gen.MatchEvent{preparedEvent}, nil); err != nil {
+		t.Fatalf("create match: %v", err)
+	}
+	if err := TxCommit(tx); err != nil {
+		t.Fatalf("commit: %v", err)
+	}
+
+	updated := match
+	updated.State = "Active"
+	updated.Version = 2
+	updated.StartedAtMs = sql.NullInt64{Int64: NowMs(), Valid: true}
+
+	placedEvent := gen.MatchEvent{
+		MatchID:           matchID,
+		EventNumber:       2,
+		AggregateVersion:  2,
+		PublicEventType:   "ValuePlaced",
+		PublicActorID:     sql.NullString{String: participant.ID, Valid: true},
+		RequestID:         newUUID(t),
+		OccurredAtMs:      NowMs(),
+		PublicPayloadJson: `{"cell":0,"digit":1}`,
+		PreviousHash:      []byte("hash1"),
+		EventHash:         []byte("hash2"),
+	}
+	updatedParticipant := matchParticipant
+	updatedParticipant.Mistakes = 0
+	updatedParticipant.HintsUsed = 0
+
+	tx, txRepo, err = repo.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatalf("begin tx: %v", err)
+	}
+	if err := txRepo.UpdateMatchTx(ctx, tx, updated, 1, []gen.MatchParticipant{updatedParticipant}, []gen.MatchEvent{placedEvent}, nil, nil); err != nil {
+		t.Fatalf("update match: %v", err)
+	}
+	if err := TxCommit(tx); err != nil {
+		t.Fatalf("commit update: %v", err)
+	}
+
+	got, err := repo.GetMatchByID(ctx, matchID)
+	if err != nil {
+		t.Fatalf("get match: %v", err)
+	}
+	if got.State != "Active" || got.Version != 2 {
+		t.Fatalf("expected active version 2, got state=%s version=%d", got.State, got.Version)
+	}
+	events, err := repo.GetMatchEvents(ctx, matchID)
+	if err != nil {
+		t.Fatalf("get events: %v", err)
+	}
+	if len(events) != 2 {
+		t.Fatalf("expected 2 events, got %d", len(events))
+	}
+	if events[0].EventNumber != 1 || events[1].EventNumber != 2 {
+		t.Fatalf("events out of order: %+v", events)
+	}
+}

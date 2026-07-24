@@ -4,7 +4,7 @@
 
 **Execution model:** sequential phases, exactly one commit per completed phase
 
-**Current status:** documentation complete; application implementation has not started
+**Current status:** Phases 1–6 committed; Phase 7 (realtime transport) is next.
 
 ## 1. Authority and scope
 
@@ -340,30 +340,30 @@ Implement every current Co-op rule as deterministic domain commands and events, 
 
 ### Tasks
 
-- [ ] **P06-T01 — Enforce immutable MatchRules.** Load the Co-op mode, difficulty, puzzle revision/transformation, participants, error preset, hint policy, notes policy, and schema versions snapshotted when Phase 5 created the prepared Match. Reject any later mutation or activation mismatch.
-- [ ] **P06-T02 — Activate the prepared Match atomically.** Load the immutable puzzle assignment and MatchRules fixed when Phase 5 entered Countdown, reject any changed/stale preparation, and transition Room to InMatch plus Match to Active in one transaction. Never reassign at activation or include the solution in public state.
-- [ ] **P06-T03 — Implement board commands.** Validate clues, cell/digit ranges, role, Match state, expected version, and direct Sudoku conflicts. Accept placement and erase only through authoritative commands.
-- [ ] **P06-T04 — Implement correctness presets.** Implement Casual, Challenge, Blind, and Clean exactly as Domain §8.6 defines, including Challenge rejection, mistake count, and five-second shared penalty separated from active elapsed time.
-- [ ] **P06-T05 — Implement shared notes.** Add deterministic note toggles/sets, ownership attribution, clue/value constraints, and removal behavior. Do not add multiplayer undo.
-- [ ] **P06-T06 — Implement hints.** Add Nudge and Reveal authorization, deterministic selection, assistance flags, counts, and penalties. Do not expose Explain or standalone solution data.
-- [ ] **P06-T07 — Implement attribution and simultaneous-edit resolution.** Attribute accepted values/notes to participants, allow soft-lock override, process commands in actor order, reject stale expected versions, and return enough safe state for client reconciliation.
-- [ ] **P06-T08 — Split durable and ephemeral social behavior.** Persist targeted cell pings without incrementing MatchVersion when no authoritative state changes. Keep reactions, focus, soft locks, pointer motion, and animation out of SQLite and replay.
-- [ ] **P06-T09 — Implement server-authoritative elapsed time.** Store server start/pause/penalty intervals, generation-tag timers, and result values. Client timestamps may not affect acceptance, completion, or ordering.
-- [ ] **P06-T10 — Implement automatic completion.** Detect the accepted final correct move, finalize once, write the result and terminal event atomically, transition Room to Results, and prohibit completed-to-active transitions.
-- [ ] **P06-T11 — Implement deterministic event application.** Reconstruct Match state from assignment, rules, snapshot, and ordered events. Reject gaps, duplicates with different payloads, invalid schema versions, and invariant-breaking histories.
-- [ ] **P06-T12 — Implement Match TLA+ specification.** Model idempotency, stale versions/timers, actor ordering, persistence-before-broadcast as an ordering property, completion once, and no completed-to-active transition.
-- [ ] **P06-T13 — Add exhaustive domain tests.** Cover all commands, error presets, hint limits, notes, pings/reactions distinction, simultaneous placements, clues, unauthorized roles, completion, stale commands, duplicate RequestIDs, and deterministic reconstruction.
+- [x] **P06-T01 — Enforce immutable MatchRules.** Load the Co-op mode, difficulty, puzzle revision/transformation, participants, error preset, hint policy, notes policy, and schema versions snapshotted when Phase 5 created the prepared Match. Reject any later mutation or activation mismatch.
+- [x] **P06-T02 — Activate the prepared Match atomically.** Load the immutable puzzle assignment and MatchRules fixed when Phase 5 entered Countdown, reject any changed/stale preparation, and transition Room to InMatch plus Match to Active in one transaction. Never reassign at activation or include the solution in public state.
+- [x] **P06-T03 — Implement board commands.** Validate clues, cell/digit ranges, role, Match state, expected version, and direct Sudoku conflicts. Accept placement and erase only through authoritative commands.
+- [x] **P06-T04 — Implement correctness presets.** Implement Casual, Challenge, Blind, and Clean exactly as Domain §8.6 defines, including Challenge rejection, mistake count, and five-second shared penalty separated from active elapsed time.
+- [x] **P06-T05 — Implement shared notes.** Add deterministic note toggles/sets, ownership attribution, clue/value constraints, and removal behavior. Do not add multiplayer undo.
+- [x] **P06-T06 — Implement hints.** Add Nudge and Reveal authorization, deterministic selection, assistance flags, counts, and penalties. Do not expose Explain or standalone solution data.
+- [x] **P06-T07 — Implement attribution and simultaneous-edit resolution.** Attribute accepted values/notes to participants, allow soft-lock override, process commands in actor order, reject stale expected versions, and return enough safe state for client reconciliation.
+- [x] **P06-T08 — Split durable and ephemeral social behavior.** Persist targeted cell pings without incrementing MatchVersion when no authoritative state changes. Keep reactions, focus, soft locks, pointer motion, and animation out of SQLite and replay.
+- [x] **P06-T09 — Implement server-authoritative elapsed time.** Store server start/pause/penalty intervals, generation-tag timers, and result values. Client timestamps may not affect acceptance, completion, or ordering.
+- [x] **P06-T10 — Implement automatic completion.** Detect the accepted final correct move, finalize once, write the result and terminal event atomically, transition Room to Results, and prohibit completed-to-active transitions.
+- [x] **P06-T11 — Implement deterministic event application.** Reconstruct Match state from assignment, rules, snapshot, and ordered events. Reject gaps, duplicates with different payloads, invalid schema versions, and invariant-breaking histories.
+- [x] **P06-T12 — Implement Match TLA+ specification.** Model idempotency, stale versions/timers, actor ordering, persistence-before-broadcast as an ordering property, completion once, and no completed-to-active transition.
+- [x] **P06-T13 — Add exhaustive domain tests.** Cover all commands, error presets, hint limits, notes, pings/reactions distinction, simultaneous placements, clues, unauthorized roles, completion, stale commands, duplicate RequestIDs, and deterministic reconstruction.
 
 ### Phase gates
 
-- [ ] Domain tests use no network or database packages and cover every current Co-op command/event/error.
-- [ ] Persistence integration tests prove Match events/projections/results/receipts commit atomically.
-- [ ] Replay-application tests reconstruct byte-equivalent authoritative state from fixtures.
-- [ ] Tests prove pings are durable but version-neutral and reactions/focus never persist.
-- [ ] Tests prove a standalone solution cannot appear in public Match state, events, snapshots, errors, or logs.
-- [ ] TLC completes the Match model and required invariants.
-- [ ] Typical domain command processing benchmarks remain comfortably below the 20 ms server budget before I/O.
-- [ ] All cumulative checks pass.
+- [x] Domain tests use no network or database packages and cover every current Co-op command/event/error.
+- [x] Persistence integration tests prove Match events/projections/results/receipts commit atomically.
+- [x] Replay-application tests reconstruct byte-equivalent authoritative state from fixtures.
+- [x] Tests prove pings are durable but version-neutral and reactions/focus never persist.
+- [x] Tests prove a standalone solution cannot appear in public Match state, events, snapshots, errors, or logs.
+- [x] TLC completes the Match model and required invariants.
+- [x] Typical domain command processing benchmarks remain comfortably below the 20 ms server budget before I/O.
+- [x] All cumulative checks pass.
 
 ### Commit
 

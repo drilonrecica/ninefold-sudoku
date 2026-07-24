@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import Page from './+page.svelte';
 
 describe('home page', () => {
-  it('renders the current multiplayer entry points without a deferred Solo action', () => {
+  it('renders the current multiplayer and Solo entry points', () => {
     render(Page);
 
     expect(
@@ -11,6 +11,6 @@ describe('home page', () => {
     ).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Create a room' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Join with code' })).toBeTruthy();
-    expect(screen.queryByText(/Play Solo/i)).toBeNull();
+    expect(screen.getByRole('link', { name: 'Play Solo' })).toBeTruthy();
   });
 });

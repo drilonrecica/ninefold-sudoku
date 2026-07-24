@@ -64,22 +64,22 @@ func (e ReadinessStatus) Valid() bool {
 
 // Defines values for RoomDifficulty.
 const (
-	Easy   RoomDifficulty = "Easy"
-	Expert RoomDifficulty = "Expert"
-	Hard   RoomDifficulty = "Hard"
-	Medium RoomDifficulty = "Medium"
+	RoomDifficultyEasy   RoomDifficulty = "Easy"
+	RoomDifficultyExpert RoomDifficulty = "Expert"
+	RoomDifficultyHard   RoomDifficulty = "Hard"
+	RoomDifficultyMedium RoomDifficulty = "Medium"
 )
 
 // Valid indicates whether the value is a known member of the RoomDifficulty enum.
 func (e RoomDifficulty) Valid() bool {
 	switch e {
-	case Easy:
+	case RoomDifficultyEasy:
 		return true
-	case Expert:
+	case RoomDifficultyExpert:
 		return true
-	case Hard:
+	case RoomDifficultyHard:
 		return true
-	case Medium:
+	case RoomDifficultyMedium:
 		return true
 	default:
 		return false
@@ -161,6 +161,126 @@ func (e RoomState) Valid() bool {
 	case RoomStateLobby:
 		return true
 	case RoomStateResults:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SoloAssignmentResponseDifficulty.
+const (
+	SoloAssignmentResponseDifficultyEasy   SoloAssignmentResponseDifficulty = "Easy"
+	SoloAssignmentResponseDifficultyExpert SoloAssignmentResponseDifficulty = "Expert"
+	SoloAssignmentResponseDifficultyHard   SoloAssignmentResponseDifficulty = "Hard"
+	SoloAssignmentResponseDifficultyMedium SoloAssignmentResponseDifficulty = "Medium"
+)
+
+// Valid indicates whether the value is a known member of the SoloAssignmentResponseDifficulty enum.
+func (e SoloAssignmentResponseDifficulty) Valid() bool {
+	switch e {
+	case SoloAssignmentResponseDifficultyEasy:
+		return true
+	case SoloAssignmentResponseDifficultyExpert:
+		return true
+	case SoloAssignmentResponseDifficultyHard:
+		return true
+	case SoloAssignmentResponseDifficultyMedium:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SoloDifficulty.
+const (
+	SoloDifficultyEasy   SoloDifficulty = "Easy"
+	SoloDifficultyExpert SoloDifficulty = "Expert"
+	SoloDifficultyHard   SoloDifficulty = "Hard"
+	SoloDifficultyMedium SoloDifficulty = "Medium"
+	SoloDifficultyRandom SoloDifficulty = "Random"
+)
+
+// Valid indicates whether the value is a known member of the SoloDifficulty enum.
+func (e SoloDifficulty) Valid() bool {
+	switch e {
+	case SoloDifficultyEasy:
+		return true
+	case SoloDifficultyExpert:
+		return true
+	case SoloDifficultyHard:
+		return true
+	case SoloDifficultyMedium:
+		return true
+	case SoloDifficultyRandom:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SoloHintRequestLevel.
+const (
+	SoloHintRequestLevelNudge  SoloHintRequestLevel = "Nudge"
+	SoloHintRequestLevelReveal SoloHintRequestLevel = "Reveal"
+)
+
+// Valid indicates whether the value is a known member of the SoloHintRequestLevel enum.
+func (e SoloHintRequestLevel) Valid() bool {
+	switch e {
+	case SoloHintRequestLevelNudge:
+		return true
+	case SoloHintRequestLevelReveal:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SoloHintResponseLevel.
+const (
+	SoloHintResponseLevelNudge  SoloHintResponseLevel = "Nudge"
+	SoloHintResponseLevelReveal SoloHintResponseLevel = "Reveal"
+)
+
+// Valid indicates whether the value is a known member of the SoloHintResponseLevel enum.
+func (e SoloHintResponseLevel) Valid() bool {
+	switch e {
+	case SoloHintResponseLevelNudge:
+		return true
+	case SoloHintResponseLevelReveal:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SoloHintResponsePenaltyMs.
+const (
+	N20000 SoloHintResponsePenaltyMs = 20000
+)
+
+// Valid indicates whether the value is a known member of the SoloHintResponsePenaltyMs enum.
+func (e SoloHintResponsePenaltyMs) Valid() bool {
+	switch e {
+	case N20000:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SoloPlayStyle.
+const (
+	Classic SoloPlayStyle = "Classic"
+	Guided  SoloPlayStyle = "Guided"
+)
+
+// Valid indicates whether the value is a known member of the SoloPlayStyle enum.
+func (e SoloPlayStyle) Valid() bool {
+	switch e {
+	case Classic:
+		return true
+	case Guided:
 		return true
 	default:
 		return false
@@ -321,6 +441,77 @@ type RoomState string
 // SafeInteger defines model for SafeInteger.
 type SafeInteger = int64
 
+// SoloAssignmentRequest defines model for SoloAssignmentRequest.
+type SoloAssignmentRequest struct {
+	Difficulty      SoloDifficulty `json:"difficulty"`
+	PlayStyle       SoloPlayStyle  `json:"playStyle"`
+	RecentPuzzleIds []UUIDv7       `json:"recentPuzzleIds"`
+}
+
+// SoloAssignmentResponse defines model for SoloAssignmentResponse.
+type SoloAssignmentResponse struct {
+	AssignmentProof       string                           `json:"assignmentProof"`
+	AttemptId             UUIDv7                           `json:"attemptId"`
+	Clues                 string                           `json:"clues"`
+	Difficulty            SoloAssignmentResponseDifficulty `json:"difficulty"`
+	GeneratorVersion      string                           `json:"generatorVersion"`
+	IssuedAtMs            SafeInteger                      `json:"issuedAtMs"`
+	PuzzleId              UUIDv7                           `json:"puzzleId"`
+	Revision              int                              `json:"revision"`
+	SolverVersion         string                           `json:"solverVersion"`
+	TransformationSeed    SafeInteger                      `json:"transformationSeed"`
+	TransformationVersion string                           `json:"transformationVersion"`
+}
+
+// SoloAssignmentResponseDifficulty defines model for SoloAssignmentResponse.Difficulty.
+type SoloAssignmentResponseDifficulty string
+
+// SoloBoardRequest defines model for SoloBoardRequest.
+type SoloBoardRequest struct {
+	AssignmentProof string `json:"assignmentProof"`
+	Values          string `json:"values"`
+}
+
+// SoloCompletionResponse defines model for SoloCompletionResponse.
+type SoloCompletionResponse struct {
+	Complete       bool   `json:"complete"`
+	IncorrectCells *[]int `json:"incorrectCells,omitempty"`
+}
+
+// SoloDifficulty defines model for SoloDifficulty.
+type SoloDifficulty string
+
+// SoloHintRequest defines model for SoloHintRequest.
+type SoloHintRequest struct {
+	AssignmentProof string               `json:"assignmentProof"`
+	Level           SoloHintRequestLevel `json:"level"`
+	Values          string               `json:"values"`
+}
+
+// SoloHintRequestLevel defines model for SoloHintRequest.Level.
+type SoloHintRequestLevel string
+
+// SoloHintResponse defines model for SoloHintResponse.
+type SoloHintResponse struct {
+	AffectedCells *[]int                    `json:"affectedCells,omitempty"`
+	Cell          *int                      `json:"cell,omitempty"`
+	Level         SoloHintResponseLevel     `json:"level"`
+	PenaltyMs     SoloHintResponsePenaltyMs `json:"penaltyMs"`
+	Technique     *string                   `json:"technique,omitempty"`
+	UnitIndex     *int                      `json:"unitIndex,omitempty"`
+	UnitKind      *string                   `json:"unitKind,omitempty"`
+	Value         *int                      `json:"value,omitempty"`
+}
+
+// SoloHintResponseLevel defines model for SoloHintResponse.Level.
+type SoloHintResponseLevel string
+
+// SoloHintResponsePenaltyMs defines model for SoloHintResponse.PenaltyMs.
+type SoloHintResponsePenaltyMs int
+
+// SoloPlayStyle defines model for SoloPlayStyle.
+type SoloPlayStyle string
+
 // SuccessEnvelope defines model for SuccessEnvelope.
 type SuccessEnvelope struct {
 	Data struct {
@@ -356,6 +547,15 @@ type JoinRoomJSONRequestBody = JoinRoomRequest
 
 // LeaveRoomJSONRequestBody defines body for LeaveRoom for application/json ContentType.
 type LeaveRoomJSONRequestBody = LeaveRoomRequest
+
+// ValidateSoloCompletionJSONRequestBody defines body for ValidateSoloCompletion for application/json ContentType.
+type ValidateSoloCompletionJSONRequestBody = SoloBoardRequest
+
+// RequestSoloHintJSONRequestBody defines body for RequestSoloHint for application/json ContentType.
+type RequestSoloHintJSONRequestBody = SoloHintRequest
+
+// CreateSoloAssignmentJSONRequestBody defines body for CreateSoloAssignment for application/json ContentType.
+type CreateSoloAssignmentJSONRequestBody = SoloAssignmentRequest
 
 // AsErrorEnvelopeErrorDetails0 returns the union data inside the ErrorEnvelope_Error_Details_AdditionalProperties as a ErrorEnvelopeErrorDetails0
 func (t ErrorEnvelope_Error_Details_AdditionalProperties) AsErrorEnvelopeErrorDetails0() (ErrorEnvelopeErrorDetails0, error) {

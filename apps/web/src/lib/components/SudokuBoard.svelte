@@ -28,6 +28,7 @@
     pingedCell = null,
     participants,
     readOnly = false,
+    boardLabel = 'Shared Sudoku board',
     onselect,
     onvalue,
     onerase,
@@ -41,6 +42,7 @@
     pingedCell?: number | null;
     participants: Map<string, ParticipantView>;
     readOnly?: boolean;
+    boardLabel?: string;
     onselect: (index: number) => void;
     onvalue: (digit: Digit) => void;
     onerase: () => void;
@@ -114,7 +116,7 @@
 <div
   class="sudoku-board"
   role="grid"
-  aria-label="Shared Sudoku board"
+  aria-label={boardLabel}
   aria-rowcount="9"
   aria-colcount="9"
   tabindex="-1"

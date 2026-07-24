@@ -7,6 +7,31 @@ export type RoomParticipant = components['schemas']['RoomParticipant'];
 export type Difficulty = components['schemas']['RoomDifficulty'];
 export type ReplayCapabilityResponse = components['schemas']['ReplayCapabilityResponse'];
 
+export interface SoloAssignment {
+  attemptId: string;
+  assignmentProof: string;
+  clues: string;
+  puzzleId: string;
+  revision: number;
+  difficulty: 'Easy' | 'Medium' | 'Hard' | 'Expert';
+  generatorVersion: string;
+  solverVersion: string;
+  transformationVersion: string;
+  transformationSeed: number;
+  issuedAtMs: number;
+}
+
+export interface SoloHint {
+  level: 'Nudge' | 'Reveal';
+  penaltyMs: number;
+  technique?: string;
+  unitKind?: string;
+  unitIndex?: number;
+  affectedCells?: number[];
+  cell?: number;
+  value?: number;
+}
+
 type ErrorEnvelope = components['schemas']['ErrorEnvelope'];
 
 export class ApiError extends Error {
@@ -93,5 +118,39 @@ export function leaveRoom(code: string): Promise<void> {
 export function createReplayCapability(matchId: string): Promise<ReplayCapabilityResponse> {
   return request(`/replays/${encodeURIComponent(matchId)}/capabilities`, {
     method: 'POST',
+  });
+}
+
+export function createSoloAssignment(
+  difficulty: Difficulty | 'Random',
+  playStyle: 'Guided' | 'Classic',
+  recentPuzzleIds: string[],
+): Promise<SoloAssignment> {
+  return request('/solo/puzzles', {
+    method: 'POST',
+    body: JSON.stringify({ difficulty, playStyle, recentPuzzleIds }),
+  });
+}
+
+export function requestSoloHint(
+  attemptId: string,
+  assignmentProof: string,
+  values: string,
+  level: 'Nudge' | 'Reveal',
+): Promise<SoloHint> {
+  return request(`/solo/attempts/${encodeURIComponent(attemptId)}/hint`, {
+    method: 'POST',
+    body: JSON.stringify({ assignmentProof, values, level }),
+  });
+}
+
+export function validateSoloCompletion(
+  attemptId: string,
+  assignmentProof: string,
+  values: string,
+): Promise<{ complete: boolean; incorrectCells?: number[] }> {
+  return request(`/solo/attempts/${encodeURIComponent(attemptId)}/complete`, {
+    method: 'POST',
+    body: JSON.stringify({ assignmentProof, values }),
   });
 }

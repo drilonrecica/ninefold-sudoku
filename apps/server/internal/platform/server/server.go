@@ -21,6 +21,7 @@ import (
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/room/actor"
 	roomhttp "github.com/drilonrecica/ninefold-sudoku/apps/server/internal/room/transport/http"
 	roomws "github.com/drilonrecica/ninefold-sudoku/apps/server/internal/room/transport/websocket"
+	solohttp "github.com/drilonrecica/ninefold-sudoku/apps/server/internal/solo/transport/http"
 )
 
 type Server struct {
@@ -105,6 +106,9 @@ func New(address, buildVersion string, cfg config.Config, db *sqlite.DB, repo *r
 
 	replayHandler := replayhttp.NewHandler(repo, logger)
 	replayHandler.RegisterRoutes(router)
+
+	soloHandler := solohttp.NewHandler(repo, cfg.CookieSecret)
+	soloHandler.RegisterRoutes(router)
 
 	server.httpServer = &http.Server{
 		Addr:              address,

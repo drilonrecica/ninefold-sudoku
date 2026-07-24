@@ -195,6 +195,80 @@ paths:
           description: Replay access deleted
         '404':
           $ref: '#/components/responses/NotFound'
+  /solo/puzzles:
+    post:
+      operationId: createSoloAssignment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SoloAssignmentRequest'
+      responses:
+        '201':
+          description: Stateless signed Solo assignment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SoloAssignmentResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /solo/attempts/{attemptId}/hint:
+    post:
+      operationId: requestSoloHint
+      parameters:
+        - name: attemptId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUIDv7'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SoloHintRequest'
+      responses:
+        '200':
+          description: Deterministic Nudge or Reveal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SoloHintResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+  /solo/attempts/{attemptId}/complete:
+    post:
+      operationId: validateSoloCompletion
+      parameters:
+        - name: attemptId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUIDv7'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SoloBoardRequest'
+      responses:
+        '200':
+          description: Authoritative completion validation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SoloCompletionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
 components:
   securitySchemes:
     replayCapability:
@@ -235,6 +309,144 @@ components:
           type: string
           minLength: 1
           maxLength: 128
+    SoloPlayStyle:
+      type: string
+      enum: [Guided, Classic]
+    SoloDifficulty:
+      type: string
+      enum: [Easy, Medium, Hard, Expert, Random]
+    SoloAssignmentRequest:
+      type: object
+      additionalProperties: false
+      required: [difficulty, playStyle, recentPuzzleIds]
+      properties:
+        difficulty:
+          $ref: '#/components/schemas/SoloDifficulty'
+        playStyle:
+          $ref: '#/components/schemas/SoloPlayStyle'
+        recentPuzzleIds:
+          type: array
+          maxItems: 50
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/UUIDv7'
+    SoloAssignmentResponse:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          attemptId,
+          assignmentProof,
+          clues,
+          puzzleId,
+          revision,
+          difficulty,
+          generatorVersion,
+          solverVersion,
+          transformationVersion,
+          transformationSeed,
+          issuedAtMs,
+        ]
+      properties:
+        attemptId:
+          $ref: '#/components/schemas/UUIDv7'
+        assignmentProof:
+          type: string
+          minLength: 64
+          maxLength: 2048
+        clues:
+          type: string
+          pattern: '^[0-9]{81}$'
+        puzzleId:
+          $ref: '#/components/schemas/UUIDv7'
+        revision:
+          type: integer
+          minimum: 1
+        difficulty:
+          type: string
+          enum: [Easy, Medium, Hard, Expert]
+        generatorVersion:
+          type: string
+        solverVersion:
+          type: string
+        transformationVersion:
+          type: string
+        transformationSeed:
+          $ref: '#/components/schemas/SafeInteger'
+        issuedAtMs:
+          $ref: '#/components/schemas/SafeInteger'
+    SoloBoardRequest:
+      type: object
+      additionalProperties: false
+      required: [assignmentProof, values]
+      properties:
+        assignmentProof:
+          type: string
+          minLength: 64
+          maxLength: 2048
+        values:
+          type: string
+          pattern: '^[0-9]{81}$'
+    SoloHintRequest:
+      type: object
+      additionalProperties: false
+      required: [assignmentProof, values, level]
+      properties:
+        assignmentProof:
+          type: string
+          minLength: 64
+          maxLength: 2048
+        values:
+          type: string
+          pattern: '^[0-9]{81}$'
+        level:
+          type: string
+          enum: [Nudge, Reveal]
+    SoloHintResponse:
+      type: object
+      additionalProperties: false
+      required: [level, penaltyMs]
+      properties:
+        level:
+          type: string
+          enum: [Nudge, Reveal]
+        penaltyMs:
+          type: integer
+          const: 20000
+        technique:
+          type: string
+        unitKind:
+          type: string
+        unitIndex:
+          type: integer
+          minimum: 0
+        affectedCells:
+          type: array
+          items:
+            type: integer
+            minimum: 0
+            maximum: 80
+        cell:
+          type: integer
+          minimum: 0
+          maximum: 80
+        value:
+          type: integer
+          minimum: 1
+          maximum: 9
+    SoloCompletionResponse:
+      type: object
+      additionalProperties: false
+      required: [complete]
+      properties:
+        complete:
+          type: boolean
+        incorrectCells:
+          type: array
+          items:
+            type: integer
+            minimum: 0
+            maximum: 80
     SuccessEnvelope:
       type: object
       additionalProperties: false

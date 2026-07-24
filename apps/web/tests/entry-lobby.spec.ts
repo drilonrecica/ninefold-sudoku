@@ -16,7 +16,7 @@ test('SSR home is useful, keyboard reachable, private, and accessible', async ({
   ).toBeVisible();
   await expect(page.getByRole('link', { name: 'Create a room' })).toBeVisible();
   await expect(page.getByText('No accounts. No ads. No tracking.', { exact: true })).toBeVisible();
-  await expect(page.getByText(/Play Solo/i)).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Play Solo' })).toBeVisible();
   expect(externalRequests).toEqual([]);
   await context.close();
 });

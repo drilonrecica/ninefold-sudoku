@@ -37,6 +37,7 @@
         </div>
         <small id="code-help" class="muted">Six characters, without 0, 1, I, or O.</small>
       </form>
+      <a class="button secondary solo" href="/solo">Play Solo</a>
     </div>
   </section>
 
@@ -111,6 +112,10 @@
   }
   .create {
     min-width: 11rem;
+  }
+  .solo {
+    grid-column: 1 / -1;
+    justify-self: start;
   }
   .divider {
     color: var(--text-muted);

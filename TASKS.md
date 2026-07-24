@@ -4,7 +4,7 @@
 
 **Execution model:** sequential phases, exactly one commit per completed phase
 
-**Current status:** Phases 1–12 complete; Phase 13 (account-free online Solo) is next.
+**Current status:** Phases 1–13 complete; Phase 14 (MVP public experience and accessibility audit) is next.
 
 ## 1. Authority and scope
 
@@ -696,27 +696,27 @@ Provide server-validated online Solo puzzles while keeping personal progress, hi
 
 ### Tasks
 
-- [ ] **P13-T01 — Implement Solo entry and assignment API.** Enable the homepage Play Solo action and `/solo` route. Return clues, metadata, AttemptID, and a signed opaque assignment proof for Easy/Medium/Hard/Expert/Random. The proof binds revision, transformation, issue time, and format without containing the solution.
-- [ ] **P13-T02 — Validate Solo proof use.** Authenticate hint/completion requests with the proof, enforce request IDs and input limits, reject tampering or mismatched attempt/revision/transformation data, and keep request bodies/proofs out of logs. Do not invent an expiry policy absent from the canonical specification.
-- [ ] **P13-T03 — Implement Guided mode.** Show immediate incorrect-value feedback as authorized, support Check Board, notes, pause, Nudge/Reveal, and separate hint penalties.
-- [ ] **P13-T04 — Implement Classic mode.** Show direct Sudoku conflicts only until completion/check behavior allowed by the domain, while preserving notes, pause, hints, and authoritative completion validation.
-- [ ] **P13-T05 — Implement Solo timing.** Start on first editable interaction, exclude paused and closed-tab intervals, store local elapsed/penalty components, and never use client time to claim server-validated completion ordering.
-- [ ] **P13-T06 — Implement IndexedDB storage.** Persist active attempt values, notes, timer, hints, input preference, local history/statistics, recent-puzzle IDs, and local replay. Version and migrate the schema without losing a valid active attempt.
-- [ ] **P13-T07 — Implement Continue Last Puzzle.** Restore exactly one current attempt, recover after refresh/browser restart, handle retired/missing puzzle validation safely, and avoid cross-device/cloud claims.
-- [ ] **P13-T08 — Implement repetition control.** Prefer puzzles outside bounded device-local recent history, handle a small catalog deterministically, and never create a permanent server player profile.
-- [ ] **P13-T09 — Implement local completion/results.** Validate completion through the server, store only the personal result locally, display hints/mistakes/time accurately, and produce a device-local replay.
-- [ ] **P13-T10 — Implement local data clearing.** Clear IndexedDB Solo attempts/history/statistics/replays and related preferences after confirmation without implying that shared multiplayer replay is deleted.
-- [ ] **P13-T11 — Add Solo tests.** Cover proof tampering, wrong attempt/revision, Guided/Classic visibility, pause/closed-tab time, hints, Check Board, completion, migration, quota/storage failure, resume, repetition, local replay, and clear-data behavior.
+- [x] **P13-T01 — Implement Solo entry and assignment API.** Enable the homepage Play Solo action and `/solo` route. Return clues, metadata, AttemptID, and a signed opaque assignment proof for Easy/Medium/Hard/Expert/Random. The proof binds revision, transformation, issue time, and format without containing the solution.
+- [x] **P13-T02 — Validate Solo proof use.** Authenticate hint/completion requests with the proof, enforce request IDs and input limits, reject tampering or mismatched attempt/revision/transformation data, and keep request bodies/proofs out of logs. Do not invent an expiry policy absent from the canonical specification.
+- [x] **P13-T03 — Implement Guided mode.** Show immediate incorrect-value feedback as authorized, support Check Board, notes, pause, Nudge/Reveal, and separate hint penalties.
+- [x] **P13-T04 — Implement Classic mode.** Show direct Sudoku conflicts only until completion/check behavior allowed by the domain, while preserving notes, pause, hints, and authoritative completion validation.
+- [x] **P13-T05 — Implement Solo timing.** Start on first editable interaction, exclude paused and closed-tab intervals, store local elapsed/penalty components, and never use client time to claim server-validated completion ordering.
+- [x] **P13-T06 — Implement IndexedDB storage.** Persist active attempt values, notes, timer, hints, input preference, local history/statistics, recent-puzzle IDs, and local replay. Version and migrate the schema without losing a valid active attempt.
+- [x] **P13-T07 — Implement Continue Last Puzzle.** Restore exactly one current attempt, recover after refresh/browser restart, handle retired/missing puzzle validation safely, and avoid cross-device/cloud claims.
+- [x] **P13-T08 — Implement repetition control.** Prefer puzzles outside bounded device-local recent history, handle a small catalog deterministically, and never create a permanent server player profile.
+- [x] **P13-T09 — Implement local completion/results.** Validate completion through the server, store only the personal result locally, display hints/mistakes/time accurately, and produce a device-local replay.
+- [x] **P13-T10 — Implement local data clearing.** Clear IndexedDB Solo attempts/history/statistics/replays and related preferences after confirmation without implying that shared multiplayer replay is deleted.
+- [x] **P13-T11 — Add Solo tests.** Cover proof tampering, wrong attempt/revision, Guided/Classic visibility, pause/closed-tab time, hints, Check Board, completion, migration, quota/storage failure, resume, repetition, local replay, and clear-data behavior.
 
 ### Phase gates
 
-- [ ] No Solo solution or solution-bearing proof appears in frontend state, IndexedDB, logs, errors, or public fixtures.
-- [ ] Server stores no personal Solo progress, history, statistics, or replay.
-- [ ] Guided and Classic behavior differs exactly as documented and deferred Explain is absent.
-- [ ] IndexedDB migration, unavailable-storage, quota, corruption, clear, and restart tests pass.
-- [ ] Solo is online-only; there is no service worker or offline claim.
-- [ ] Solo keyboard, mobile, 200% zoom, screen-reader, pseudo-localization, and performance checks pass.
-- [ ] All cumulative checks pass.
+- [x] No Solo solution or solution-bearing proof appears in frontend state, IndexedDB, logs, errors, or public fixtures.
+- [x] Server stores no personal Solo progress, history, statistics, or replay.
+- [x] Guided and Classic behavior differs exactly as documented and deferred Explain is absent.
+- [x] IndexedDB migration, unavailable-storage, quota, corruption, clear, and restart tests pass.
+- [x] Solo is online-only; there is no service worker or offline claim.
+- [x] Solo keyboard, mobile, 200% zoom, screen-reader, pseudo-localization, and performance checks pass.
+- [x] All cumulative checks pass.
 
 ### Commit
 

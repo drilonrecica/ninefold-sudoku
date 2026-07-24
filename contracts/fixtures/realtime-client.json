@@ -7,6 +7,11 @@
     "id": "0190a7d3-8d9a-7f31-8d2a-1242f6f0d108",
     "expectedVersion": 9007199254740991
   },
-  "type": "sync.request",
-  "payload": {}
+  "type": "connection.initialize",
+  "payload": {
+    "roomCode": "7KMP4R",
+    "lastRoomVersion": 12,
+    "lastMatchId": "0190a7d3-8d9a-7f31-8d2a-1242f6f0d108",
+    "lastMatchEventNumber": 42
+  }
 }

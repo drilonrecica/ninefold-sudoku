@@ -17,6 +17,7 @@ import (
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/platform/config"
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/room/actor"
 	roomhttp "github.com/drilonrecica/ninefold-sudoku/apps/server/internal/room/transport/http"
+	roomws "github.com/drilonrecica/ninefold-sudoku/apps/server/internal/room/transport/websocket"
 )
 
 type Server struct {
@@ -75,6 +76,9 @@ func New(address, buildVersion string, cfg config.Config, db *sqlite.DB, repo *r
 	registry := actor.NewRegistry(repo, logger)
 	roomHandler := roomhttp.NewHandler(repo, registry, cfg, logger)
 	roomHandler.RegisterRoutes(router)
+
+	wsHandler := roomws.NewHandler(repo, registry, cfg, logger)
+	wsHandler.RegisterRoutes(router)
 
 	return &Server{
 		httpServer: &http.Server{

@@ -246,7 +246,7 @@ type CreateMatchEventParams struct {
 	AggregateVersion     int64          `json:"aggregate_version"`
 	PublicEventType      string         `json:"public_event_type"`
 	PublicActorID        sql.NullString `json:"public_actor_id"`
-	RequestID            string         `json:"request_id"`
+	RequestID            sql.NullString `json:"request_id"`
 	OccurredAtMs         int64          `json:"occurred_at_ms"`
 	PublicPayloadJson    string         `json:"public_payload_json"`
 	PrivatePayloadBlob   []byte         `json:"private_payload_blob"`
@@ -2151,10 +2151,20 @@ func (q *Queries) UpdateRoomSession(ctx context.Context, arg UpdateRoomSessionPa
 }
 
 const upsertRoomParticipant = `-- name: UpsertRoomParticipant :exec
-INSERT OR REPLACE INTO room_participants (
+INSERT INTO room_participants (
     id, room_id, display_name, role, is_host, is_ready, joined_at_ms,
     left_at_ms, removed_at_ms, removed_reason
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(id) DO UPDATE SET
+    room_id = excluded.room_id,
+    display_name = excluded.display_name,
+    role = excluded.role,
+    is_host = excluded.is_host,
+    is_ready = excluded.is_ready,
+    joined_at_ms = excluded.joined_at_ms,
+    left_at_ms = excluded.left_at_ms,
+    removed_at_ms = excluded.removed_at_ms,
+    removed_reason = excluded.removed_reason
 `
 
 type UpsertRoomParticipantParams struct {

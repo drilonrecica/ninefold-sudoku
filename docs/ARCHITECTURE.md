@@ -685,6 +685,11 @@ Maximum incoming WebSocket message:
 
 Most messages should remain under 2 KiB.
 
+Authoritative Room and Match snapshots may exceed 2 KiB because they include
+participant state and up to 81 public cell states. They remain bounded by the
+64 KiB protocol limit; ordinary commands, acknowledgements, and events retain
+the 2 KiB target.
+
 Unknown or oversized messages are rejected before reaching the actor.
 
 ### 11.5 Heartbeats

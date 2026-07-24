@@ -40,7 +40,7 @@ func Cookie(value string, secure bool, expires time.Time) *http.Cookie {
 	return &http.Cookie{
 		Name:     CookieName,
 		Value:    value,
-		Path:     "/api/v1",
+		Path:     "/",
 		Expires:  expires,
 		HttpOnly: true,
 		Secure:   secure,
@@ -53,7 +53,7 @@ func ClearCookie(secure bool) *http.Cookie {
 	return &http.Cookie{
 		Name:     CookieName,
 		Value:    "",
-		Path:     "/api/v1",
+		Path:     "/",
 		MaxAge:   -1,
 		HttpOnly: true,
 		Secure:   secure,

@@ -225,6 +225,51 @@ func TestActorConcurrentSubmissionsDoNotLoseUpdate(t *testing.T) {
 	}
 }
 
+func TestActorDoesNotBroadcastOrAcknowledgeFailedCommit(t *testing.T) {
+	repo, db := newTestActorRepo(t)
+	actor, room, _ := createRoomAndActor(t, repo)
+	ctx := context.Background()
+	g := idgen.Generator{}
+	connID, _ := g.ConnectionID()
+	outbound := make(chan []byte, 8)
+	if _, err := actor.Subscribe(ctx, connID, room.Participants[0].ID, outbound); err != nil {
+		t.Fatalf("subscribe: %v", err)
+	}
+	<-outbound // connection.accepted
+	<-outbound // room.snapshot
+
+	if err := db.Close(); err != nil {
+		t.Fatalf("close database: %v", err)
+	}
+	reqID, _ := g.RequestID()
+	_, err := actor.Submit(ctx, Envelope{
+		RequestID:    reqID,
+		CommandType:  "room.set_ready",
+		ConnectionID: connID,
+		Command: roomdomain.SetReadyCommand{
+			Meta: shared.CommandMetadata{
+				RequestID:                  reqID,
+				AuthenticatedParticipantID: room.Participants[0].ID,
+				ClientSequence:             1,
+				Target:                     shared.NewRoomTarget(room.ID),
+				ExpectedVersion:            uint64(room.Version),
+			},
+			Ready: true,
+		},
+	})
+	if err == nil {
+		t.Fatal("expected persistence failure")
+	}
+	select {
+	case message := <-outbound:
+		t.Fatalf("unexpected pre-commit broadcast: %s", message)
+	case <-time.After(50 * time.Millisecond):
+	}
+	if actor.room.Participants[0].IsReady {
+		t.Fatal("failed command mutated committed actor state")
+	}
+}
+
 func tokenAndHash() (roomsession.Token, error) {
 	return roomsession.Generate()
 }

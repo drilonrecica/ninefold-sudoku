@@ -14,20 +14,86 @@
   ],
   "properties": {
     "schemaVersion": { "const": 1 },
-    "eventNumber": { "$ref": "#/$defs/safePositiveInteger" },
-    "aggregateVersion": { "$ref": "#/$defs/safePositiveInteger" },
+    "eventNumber": { "$ref": "#/$defs/safeInteger" },
+    "aggregateVersion": { "$ref": "#/$defs/safeInteger" },
     "serverTimestamp": {
       "type": "integer",
       "minimum": 1,
       "maximum": 9007199254740991
     },
-    "type": { "enum": ["ack", "rejection", "snapshot"] },
+    "type": {
+      "enum": [
+        "connection.accepted",
+        "connection.rejected",
+        "connection.read_only",
+        "connection.controller_revoked",
+        "connection.status",
+        "command.acknowledged",
+        "command.rejected",
+        "command.status",
+        "room.snapshot",
+        "room.event",
+        "match.snapshot",
+        "match.event",
+        "match.completed",
+        "ephemeral.focus",
+        "ephemeral.soft_lock",
+        "ephemeral.reaction"
+      ]
+    },
     "payload": {
       "type": "object",
-      "additionalProperties": true
+      "additionalProperties": false,
+      "properties": {
+        "requestId": { "$ref": "#/$defs/uuidv7" },
+        "accepted": { "type": "boolean" },
+        "aggregate": { "enum": ["room", "match"] },
+        "resultingVersion": { "$ref": "#/$defs/safeInteger" },
+        "code": { "type": "string" },
+        "status": { "type": "string" },
+        "protocolVersion": { "$ref": "#/$defs/safePositiveInteger" },
+        "isController": { "type": "boolean" },
+        "currentVersion": { "$ref": "#/$defs/safeInteger" },
+        "currentMatchEventNumber": { "$ref": "#/$defs/safeInteger" },
+        "details": { "type": "object" },
+        "message": { "type": "string" },
+        "connectionState": {
+          "enum": ["connected", "reconnecting", "synchronizing", "read_only", "recovery_failed"]
+        },
+        "controllerGeneration": { "$ref": "#/$defs/safeInteger" },
+        "room": { "type": "object" },
+        "match": { "type": "object" },
+        "event": { "type": "object" },
+        "eventNumber": { "$ref": "#/$defs/safePositiveInteger" },
+        "matchVersion": { "$ref": "#/$defs/safePositiveInteger" },
+        "roomVersion": { "$ref": "#/$defs/safePositiveInteger" },
+        "participantId": { "$ref": "#/$defs/uuidv7" },
+        "cell": { "type": "integer", "minimum": 0, "maximum": 80 },
+        "intent": { "type": "string" },
+        "reaction": { "enum": ["agree", "nice_move"] },
+        "focused": { "type": "boolean" },
+        "identity": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "participantId": { "$ref": "#/$defs/uuidv7" },
+            "role": { "type": "string" },
+            "isHost": { "type": "boolean" }
+          }
+        }
+      }
     }
   },
   "$defs": {
+    "uuidv7": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "safeInteger": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
     "safePositiveInteger": {
       "type": "integer",
       "minimum": 1,

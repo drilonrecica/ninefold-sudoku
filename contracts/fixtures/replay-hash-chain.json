@@ -1,0 +1,17 @@
+{
+  "envelope": {
+    "proofVersion": 1,
+    "matchId": "01900000-0000-7000-8000-000000000001",
+    "eventNumber": 1,
+    "aggregateVersion": 1,
+    "publicEventType": "MatchPrepared",
+    "publicActorId": "",
+    "occurredAtMs": 1767225600000,
+    "publicPayload": {
+      "schemaVersion": 1
+    },
+    "privatePayloadDigest": "",
+    "previousEventHash": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+  },
+  "eventHash": "ef2de7a7cb31959cb569e183ab24bd83a34346fc02aae0ac86001aabdd11c376"
+}

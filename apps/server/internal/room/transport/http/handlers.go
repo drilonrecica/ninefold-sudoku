@@ -8,8 +8,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -32,11 +34,18 @@ type Handler struct {
 	registry *actor.Registry
 	config   config.Config
 	logger   *slog.Logger
+	createMu sync.Mutex
+	creates  map[string]creationWindow
+}
+
+type creationWindow struct {
+	start time.Time
+	count int
 }
 
 // NewHandler creates the room HTTP handler.
 func NewHandler(repo *repository.Repository, registry *actor.Registry, cfg config.Config, logger *slog.Logger) *Handler {
-	return &Handler{repo: repo, registry: registry, config: cfg, logger: logger}
+	return &Handler{repo: repo, registry: registry, config: cfg, logger: logger, creates: make(map[string]creationWindow)}
 }
 
 // RegisterRoutes wires room endpoints into the supplied router.
@@ -103,6 +112,10 @@ func (h *Handler) CreateRoom(w http.ResponseWriter, r *http.Request) {
 	fingerprint := fmt.Sprintf("%s|%s|%s", name.ComparisonKey(), mode, difficulty)
 	if resp, ok := h.checkReceipt(ctx, requestID, []byte{}, "CreateRoom", fingerprint); ok {
 		writeJSON(w, http.StatusOK, resp)
+		return
+	}
+	if !h.allowRoomCreation(r.RemoteAddr, time.Now()) {
+		writeError(w, http.StatusTooManyRequests, shared.ErrRateLimited, "room creation rate limit exceeded")
 		return
 	}
 
@@ -193,6 +206,26 @@ func (h *Handler) CreateRoom(w http.ResponseWriter, r *http.Request) {
 	setRoomCookie(w, token.Value, h.cookieSecure())
 	writeJSON(w, http.StatusCreated, response)
 	_ = a
+}
+
+func (h *Handler) allowRoomCreation(remoteAddress string, now time.Time) bool {
+	host, _, err := net.SplitHostPort(remoteAddress)
+	if err != nil {
+		host = remoteAddress
+	}
+	h.createMu.Lock()
+	defer h.createMu.Unlock()
+	window := h.creates[host]
+	if window.start.IsZero() || now.Sub(window.start) >= time.Hour {
+		h.creates[host] = creationWindow{start: now, count: 1}
+		return true
+	}
+	if window.count >= 10 {
+		return false
+	}
+	window.count++
+	h.creates[host] = window
+	return true
 }
 
 func (h *Handler) PreviewRoom(w http.ResponseWriter, r *http.Request) {

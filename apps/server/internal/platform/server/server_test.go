@@ -32,7 +32,12 @@ func newTestServer(t *testing.T) (*Server, *sqlite.DB, net.Listener) {
 	if err != nil {
 		t.Fatalf("listen: %v", err)
 	}
-	cfg := config.Config{Environment: config.Test, PublicURL: &url.URL{Scheme: "http", Host: "localhost"}}
+	origin := "http://" + listener.Addr().String()
+	publicURL, err := url.Parse(origin)
+	if err != nil {
+		t.Fatalf("parse public URL: %v", err)
+	}
+	cfg := config.Config{Environment: config.Test, PublicURL: publicURL, AllowedOrigins: []string{origin}}
 	repo := repository.New(db)
 	instance := New(listener.Addr().String(), "test-version", cfg, db, repo, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	return instance, db, listener

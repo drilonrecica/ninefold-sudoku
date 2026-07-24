@@ -105,6 +105,21 @@ func NewRoom(id shared.RoomID, code shared.RoomCode, host Participant, rules Mat
 	}, nil
 }
 
+// CompleteMatch transitions an active Room to Results exactly once.
+func (r *Room) CompleteMatch(matchID shared.MatchID, now time.Time) ([]Event, error) {
+	if r.State != shared.RoomInMatch || r.CurrentMatchID == nil || *r.CurrentMatchID != matchID {
+		return nil, shared.DomainError{Code: shared.ErrRoomStateInvalid}
+	}
+	r.State = shared.RoomResults
+	r.bumpVersion()
+	r.touch(now)
+	meta, err := r.nextEventMeta(now)
+	if err != nil {
+		return nil, err
+	}
+	return []Event{RoomEnteredResultsEvent{Meta: meta, MatchID: matchID}}, nil
+}
+
 func (r *Room) applyRequestJoin(cmd RequestJoinCommand, now time.Time) ([]Event, error) {
 	if !r.isState(shared.RoomLobby, shared.RoomInMatch) {
 		return nil, shared.DomainError{Code: shared.ErrRoomStateInvalid}

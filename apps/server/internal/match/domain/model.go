@@ -64,6 +64,54 @@ type Match struct {
 	processedRequestIDs map[shared.RequestID]struct{}
 }
 
+// Clone returns an independent aggregate copy suitable for speculative command
+// application before the persistence transaction commits.
+func (m *Match) Clone() *Match {
+	if m == nil {
+		return nil
+	}
+	clone := *m
+	clone.Participants = append([]shared.ParticipantID(nil), m.Participants...)
+	clone.Values = cloneDigitMap(m.Values)
+	clone.Attribution = cloneAttributionMap(m.Attribution)
+	clone.Mistakes = cloneCountMap(m.Mistakes)
+	clone.Contributions = cloneCountMap(m.Contributions)
+	clone.processedRequestIDs = make(map[shared.RequestID]struct{}, len(m.processedRequestIDs))
+	for requestID := range m.processedRequestIDs {
+		clone.processedRequestIDs[requestID] = struct{}{}
+	}
+	if m.Result != nil {
+		result := *m.Result
+		result.MistakesByPlayer = cloneCountMap(m.Result.MistakesByPlayer)
+		clone.Result = &result
+	}
+	return &clone
+}
+
+func cloneDigitMap(source map[shared.CellIndex]shared.Digit) map[shared.CellIndex]shared.Digit {
+	clone := make(map[shared.CellIndex]shared.Digit, len(source))
+	for key, value := range source {
+		clone[key] = value
+	}
+	return clone
+}
+
+func cloneAttributionMap(source map[shared.CellIndex]shared.ParticipantID) map[shared.CellIndex]shared.ParticipantID {
+	clone := make(map[shared.CellIndex]shared.ParticipantID, len(source))
+	for key, value := range source {
+		clone[key] = value
+	}
+	return clone
+}
+
+func cloneCountMap(source map[shared.ParticipantID]uint32) map[shared.ParticipantID]uint32 {
+	clone := make(map[shared.ParticipantID]uint32, len(source))
+	for key, value := range source {
+		clone[key] = value
+	}
+	return clone
+}
+
 // Command is the interface implemented by every match command.
 type Command interface {
 	Metadata() shared.CommandMetadata
@@ -316,7 +364,7 @@ func (m *Match) initCells() {
 }
 
 // Activate transitions a Prepared Match into Active.
-func (m *Match) Activate(now time.Time) ([]Event, error) {
+func (m *Match) Activate(nextEventNumber uint64, now time.Time) ([]Event, error) {
 	if m.State != shared.MatchPrepared && m.State != shared.MatchCountdown {
 		return nil, shared.DomainError{Code: shared.ErrMatchStateInvalid}
 	}
@@ -327,7 +375,7 @@ func (m *Match) Activate(now time.Time) ([]Event, error) {
 		return nil, err
 	}
 	m.StartedAt = &ts
-	meta, err := eventMeta(m, 3, now)
+	meta, err := eventMeta(m, nextEventNumber, now)
 	if err != nil {
 		return nil, err
 	}

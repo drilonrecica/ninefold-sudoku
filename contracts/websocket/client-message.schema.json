@@ -4,7 +4,7 @@
   "title": "ClientMessage",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "requestId", "clientSequence", "target", "type", "payload"],
+  "required": ["schemaVersion", "requestId", "clientSequence", "type", "payload"],
   "properties": {
     "schemaVersion": { "const": 1 },
     "requestId": { "$ref": "#/$defs/uuidv7" },
@@ -19,10 +19,59 @@
         "expectedVersion": { "$ref": "#/$defs/safeInteger" }
       }
     },
-    "type": { "const": "sync.request" },
+    "type": {
+      "enum": [
+        "connection.initialize",
+        "connection.request_control",
+        "connection.heartbeat",
+        "room.set_ready",
+        "room.change_settings",
+        "room.start_countdown",
+        "room.cancel_countdown",
+        "room.leave",
+        "room.transfer_host",
+        "match.place_value",
+        "match.erase_value",
+        "match.add_note",
+        "match.remove_note",
+        "match.use_hint",
+        "match.ping",
+        "match.reaction",
+        "match.focus_cell",
+        "match.release_focus",
+        "command.status"
+      ]
+    },
     "payload": {
       "type": "object",
-      "additionalProperties": false
+      "additionalProperties": false,
+      "properties": {
+        "roomCode": { "type": "string" },
+        "lastRoomVersion": { "$ref": "#/$defs/safeInteger" },
+        "lastMatchId": { "$ref": "#/$defs/uuidv7" },
+        "lastMatchEventNumber": { "$ref": "#/$defs/safeInteger" },
+        "ready": { "type": "boolean" },
+        "displayName": { "type": "string" },
+        "participantId": { "$ref": "#/$defs/uuidv7" },
+        "settings": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "difficulty": { "type": "string" },
+            "errorPreset": { "type": "string" },
+            "hintsEnabled": { "type": "boolean" },
+            "autoRemoveNotes": { "type": "boolean" },
+            "locked": { "type": "boolean" }
+          }
+        },
+        "cell": { "type": "integer", "minimum": 0, "maximum": 80 },
+        "value": { "type": "integer", "minimum": 1, "maximum": 9 },
+        "digits": { "type": "array", "items": { "type": "integer", "minimum": 1, "maximum": 9 } },
+        "level": { "enum": ["Nudge", "Reveal"] },
+        "intent": { "type": "string" },
+        "reaction": { "enum": ["agree", "nice_move"] },
+        "targetCell": { "type": "integer", "minimum": 0, "maximum": 80 }
+      }
     }
   },
   "$defs": {

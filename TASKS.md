@@ -4,7 +4,7 @@
 
 **Execution model:** sequential phases, exactly one commit per completed phase
 
-**Current status:** Phases 1–6 committed; Phase 7 (realtime transport) is next.
+**Current status:** Phases 1–7 committed; Phase 8 (web shell and Lobby) is next.
 
 ## 1. Authority and scope
 
@@ -391,31 +391,31 @@ Expose Room and Match commands through a bounded native WebSocket protocol that 
 
 ### Tasks
 
-- [ ] **P07-T01 — Implement the WebSocket endpoint.** Authenticate from the Room session cookie, validate Origin, enforce message size, set heartbeat/read/write deadlines, and isolate one read pump and one write pump per connection.
-- [ ] **P07-T02 — Implement typed initialization.** Accept last RoomVersion, MatchID, and Match event number; return current identity, controller state, Room snapshot, Match snapshot/events, server time, and protocol versions without private data.
-- [ ] **P07-T03 — Implement command envelopes.** Require RequestID, client sequence, command type, expected RoomVersion or MatchVersion, and typed payload. Derive participant, role, host status, RoomID, and MatchID from authenticated server state.
-- [ ] **P07-T04 — Implement acknowledgements and rejections.** Return the durable terminal outcome, authoritative versions/event number, safe error code/details, and request correlation. Never acknowledge a proposed but uncommitted mutation.
-- [ ] **P07-T05 — Enforce commit ordering.** Route authoritative commands to the Room actor, execute the Phase 4 transaction, update committed actor state, then broadcast and acknowledge. On failure, preserve prior state and send no success event.
-- [ ] **P07-T06 — Implement command-status recovery.** Allow a timed-out client to query a RequestID outcome. Return committed success/rejection, pending, or unknown without resubmitting a possibly durable command blindly.
-- [ ] **P07-T07 — Implement aggregate-version handling.** Keep RoomVersion, MatchVersion, and Match event number distinct. Broadcast durable version-neutral pings with event numbers and broadcast ephemeral messages without event numbers.
-- [ ] **P07-T08 — Implement controller leases.** Permit one controlling tab per Room session, deterministic transfer, read-only secondary tabs, lease expiry, and safe rejection of gameplay commands from non-controller connections.
-- [ ] **P07-T09 — Bound all queues.** Add actor and per-connection queue capacities, priority for lifecycle/shutdown messages, safe `SERVER_BUSY` behavior, slow-reader disconnect policy, and metrics hooks without high-cardinality labels.
-- [ ] **P07-T10 — Add realtime rate limits.** Enforce the canonical per-session limits for values, notes, focus, social messages, settings, and Room creation. Keep ephemeral overload from delaying durable gameplay.
-- [ ] **P07-T11 — Start the replay hash chain.** Canonicalize each durable public event envelope with RFC 8785, calculate hidden-payload commitments using a CSPRNG salt of at least 128 bits where applicable, chain SHA-256 hashes, and persist the hash fields in the same transaction. Do not sign until Phase 12.
-- [ ] **P07-T12 — Generate protocol clients and fixtures.** Update schemas/generated Go/TypeScript types and fixtures for initialization, every current command/event, gaps, stale versions, controller transfer, busy handling, and unknown compatible events.
-- [ ] **P07-T13 — Build a Go WebSocket test client.** Support cookies, typed messages, intentional duplicate/stale commands, disconnects, slow reads, event capture, and deterministic assertions for integration/load tests.
+- [x] **P07-T01 — Implement the WebSocket endpoint.** Authenticate from the Room session cookie, validate Origin, enforce message size, set heartbeat/read/write deadlines, and isolate one read pump and one write pump per connection.
+- [x] **P07-T02 — Implement typed initialization.** Accept last RoomVersion, MatchID, and Match event number; return current identity, controller state, Room snapshot, Match snapshot/events, server time, and protocol versions without private data.
+- [x] **P07-T03 — Implement command envelopes.** Require RequestID, client sequence, command type, expected RoomVersion or MatchVersion, and typed payload. Derive participant, role, host status, RoomID, and MatchID from authenticated server state.
+- [x] **P07-T04 — Implement acknowledgements and rejections.** Return the durable terminal outcome, authoritative versions/event number, safe error code/details, and request correlation. Never acknowledge a proposed but uncommitted mutation.
+- [x] **P07-T05 — Enforce commit ordering.** Route authoritative commands to the Room actor, execute the Phase 4 transaction, update committed actor state, then broadcast and acknowledge. On failure, preserve prior state and send no success event.
+- [x] **P07-T06 — Implement command-status recovery.** Allow a timed-out client to query a RequestID outcome. Return committed success/rejection, pending, or unknown without resubmitting a possibly durable command blindly.
+- [x] **P07-T07 — Implement aggregate-version handling.** Keep RoomVersion, MatchVersion, and Match event number distinct. Broadcast durable version-neutral pings with event numbers and broadcast ephemeral messages without event numbers.
+- [x] **P07-T08 — Implement controller leases.** Permit one controlling tab per Room session, deterministic transfer, read-only secondary tabs, lease expiry, and safe rejection of gameplay commands from non-controller connections.
+- [x] **P07-T09 — Bound all queues.** Add actor and per-connection queue capacities, priority for lifecycle/shutdown messages, safe `SERVER_BUSY` behavior, slow-reader disconnect policy, and metrics hooks without high-cardinality labels.
+- [x] **P07-T10 — Add realtime rate limits.** Enforce the canonical per-session limits for values, notes, focus, social messages, settings, and Room creation. Keep ephemeral overload from delaying durable gameplay.
+- [x] **P07-T11 — Start the replay hash chain.** Canonicalize each durable public event envelope with RFC 8785, calculate hidden-payload commitments using a CSPRNG salt of at least 128 bits where applicable, chain SHA-256 hashes, and persist the hash fields in the same transaction. Do not sign until Phase 12.
+- [x] **P07-T12 — Generate protocol clients and fixtures.** Update schemas/generated Go/TypeScript types and fixtures for initialization, every current command/event, gaps, stale versions, controller transfer, busy handling, and unknown compatible events.
+- [x] **P07-T13 — Build a Go WebSocket test client.** Support cookies, typed messages, intentional duplicate/stale commands, disconnects, slow reads, event capture, and deterministic assertions for integration/load tests.
 
 ### Phase gates
 
-- [ ] Tests prove no acknowledgement or broadcast occurs before the corresponding SQLite commit.
-- [ ] Duplicate RequestIDs across reconnect return exactly the original terminal outcome.
-- [ ] Stale versions, stale client sequences, wrong controllers, spectators, and malformed payloads cannot mutate state.
-- [ ] Slow readers and full queues are bounded and cannot block Room actors.
-- [ ] Origin, cookie, payload-limit, heartbeat, and rate-limit tests pass.
-- [ ] Hash-chain fixtures reproduce identically in Go and TypeScript.
-- [ ] Typical messages remain below 2 KiB or carry a documented reason for an allowed larger snapshot.
-- [ ] A 100-connection transport smoke test shows no unbounded goroutine, queue, or memory growth.
-- [ ] All cumulative checks pass.
+- [x] Tests prove no acknowledgement or broadcast occurs before the corresponding SQLite commit.
+- [x] Duplicate RequestIDs across reconnect return exactly the original terminal outcome.
+- [x] Stale versions, stale client sequences, wrong controllers, spectators, and malformed payloads cannot mutate state.
+- [x] Slow readers and full queues are bounded and cannot block Room actors.
+- [x] Origin, cookie, payload-limit, heartbeat, and rate-limit tests pass.
+- [x] Hash-chain fixtures reproduce identically in Go and TypeScript.
+- [x] Typical messages remain below 2 KiB or carry a documented reason for an allowed larger snapshot.
+- [x] A 100-connection transport smoke test shows no unbounded goroutine, queue, or memory growth.
+- [x] All cumulative checks pass.
 
 ### Commit
 

@@ -59,7 +59,7 @@ type MatchEvent struct {
 	AggregateVersion     int64          `json:"aggregate_version"`
 	PublicEventType      string         `json:"public_event_type"`
 	PublicActorID        sql.NullString `json:"public_actor_id"`
-	RequestID            string         `json:"request_id"`
+	RequestID            sql.NullString `json:"request_id"`
 	OccurredAtMs         int64          `json:"occurred_at_ms"`
 	PublicPayloadJson    string         `json:"public_payload_json"`
 	PrivatePayloadBlob   []byte         `json:"private_payload_blob"`

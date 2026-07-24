@@ -68,10 +68,20 @@ UPDATE room_participants SET
 WHERE id = ?;
 
 -- name: UpsertRoomParticipant :exec
-INSERT OR REPLACE INTO room_participants (
+INSERT INTO room_participants (
     id, room_id, display_name, role, is_host, is_ready, joined_at_ms,
     left_at_ms, removed_at_ms, removed_reason
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(id) DO UPDATE SET
+    room_id = excluded.room_id,
+    display_name = excluded.display_name,
+    role = excluded.role,
+    is_host = excluded.is_host,
+    is_ready = excluded.is_ready,
+    joined_at_ms = excluded.joined_at_ms,
+    left_at_ms = excluded.left_at_ms,
+    removed_at_ms = excluded.removed_at_ms,
+    removed_reason = excluded.removed_reason;
 
 -- name: GetRoomParticipantByID :one
 SELECT * FROM room_participants WHERE id = ?;

@@ -9,6 +9,7 @@ import (
 
 	shared "github.com/drilonrecica/ninefold-sudoku/apps/server/internal/domain"
 	matchdomain "github.com/drilonrecica/ninefold-sudoku/apps/server/internal/match/domain"
+	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/persistence/gen"
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/persistence/repository"
 	roomdomain "github.com/drilonrecica/ninefold-sudoku/apps/server/internal/room/domain"
 )
@@ -149,6 +150,8 @@ func (reg *Registry) loadActor(ctx context.Context, roomID shared.RoomID) (*Acto
 		return nil, err
 	}
 	var match *matchdomain.Match
+	var lastEventNumber uint64
+	var lastEventHash []byte
 	if room.CurrentMatchID != nil {
 		gm, err := reg.repo.GetMatchByID(ctx, room.CurrentMatchID.String())
 		if err != nil {
@@ -162,10 +165,59 @@ func (reg *Registry) loadActor(ctx context.Context, roomID shared.RoomID) (*Acto
 		for _, mp := range matchParticipants {
 			ids = append(ids, shared.ParticipantID(mp.ParticipantID))
 		}
-		match, err = matchFromGen(gm, ids)
+		puzzle, err := reg.repo.GetPuzzle(ctx, gm.PuzzleID, gm.PuzzleRevision)
 		if err != nil {
 			return nil, err
 		}
+		rules := matchRulesFromGenMatch(gm)
+		assigned := shared.AssignedPuzzle{
+			PuzzleID:           shared.PuzzleID(puzzle.ID),
+			Revision:           uint32(puzzle.Revision),
+			TransformationSeed: uint64(gm.TransformationSeed),
+			Difficulty:         rules.Difficulty,
+			GeneratorVersion:   puzzle.GeneratorVersion,
+			SolverVersion:      puzzle.SolverVersion,
+			Clues:              puzzle.Clues,
+			Solution:           puzzle.Solution,
+		}
+		events, err := reg.repo.GetMatchEvents(ctx, gm.ID)
+		if err != nil {
+			return nil, err
+		}
+		domainEvents := make([]matchdomain.Event, 0, len(events))
+		for _, e := range events {
+			de, err := matchEventFromGen(e)
+			if err != nil {
+				return nil, err
+			}
+			domainEvents = append(domainEvents, de)
+			lastEventNumber = uint64(e.EventNumber)
+			lastEventHash = e.EventHash
+		}
+		match, err = matchdomain.ReconstructMatch(assigned, rules, ids, domainEvents)
+		if err != nil {
+			return nil, err
+		}
+		match.ID = shared.MatchID(gm.ID)
+		match.RoomID = shared.RoomID(gm.RoomID)
+		match.Version = shared.MatchVersion(gm.Version)
 	}
-	return NewActor(room, match, reg.repo, reg.logger), nil
+	actor := NewActor(room, match, reg.repo, reg.logger)
+	actor.lastEventNumber = lastEventNumber
+	actor.lastEventHash = lastEventHash
+	return actor, nil
+}
+
+func matchRulesFromGenMatch(gm gen.Match) matchdomain.Rules {
+	mode, _ := shared.ParseMode(gm.Mode)
+	difficulty, _ := shared.ParseDifficulty(gm.Difficulty)
+	errorPreset, _ := shared.ParseErrorPreset(gm.ErrorPreset)
+	return matchdomain.Rules{
+		Mode:            mode,
+		Difficulty:      difficulty,
+		ErrorPreset:     errorPreset,
+		HintsEnabled:    gm.HintsEnabled != 0,
+		AutoRemoveNotes: gm.AutoRemoveNotes != 0,
+		RuleVersion:     uint16(gm.RuleVersion),
+	}
 }

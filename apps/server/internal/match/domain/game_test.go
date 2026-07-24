@@ -96,7 +96,7 @@ func TestActivateStartsMatch(t *testing.T) {
 	if m.State != shared.MatchPrepared {
 		t.Fatalf("expected Prepared, got %s", m.State)
 	}
-	evts, err := m.Activate(now.Add(time.Second))
+	evts, err := m.Activate(3, now.Add(time.Second))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,7 +114,7 @@ func TestActivateStartsMatch(t *testing.T) {
 func TestPlaceCorrectValue(t *testing.T) {
 	clues := testClues(1) // cell 0 is fixed
 	m, p, now := makeMatch(t, shared.ErrorPresetCasual, clues)
-	m.Activate(now.Add(time.Second))
+	m.Activate(3, now.Add(time.Second))
 
 	meta := cmdMeta(t, m, p)
 	events, err := m.Apply(PlaceValueCommand{Meta: meta, Cell: 1, Digit: 2}, 3, now.Add(2*time.Second))
@@ -138,7 +138,7 @@ func TestPlaceCorrectValue(t *testing.T) {
 
 func TestPlaceWrongValueCasual(t *testing.T) {
 	m, p, now := makeMatch(t, shared.ErrorPresetCasual, testClues(0))
-	m.Activate(now.Add(time.Second))
+	m.Activate(3, now.Add(time.Second))
 
 	meta := cmdMeta(t, m, p)
 	events, err := m.Apply(PlaceValueCommand{Meta: meta, Cell: 0, Digit: 9}, 3, now.Add(2*time.Second))
@@ -159,7 +159,7 @@ func TestPlaceWrongValueCasual(t *testing.T) {
 
 func TestPlaceWrongValueChallenge(t *testing.T) {
 	m, p, now := makeMatch(t, shared.ErrorPresetChallenge, testClues(0))
-	m.Activate(now.Add(time.Second))
+	m.Activate(3, now.Add(time.Second))
 
 	meta := cmdMeta(t, m, p)
 	events, err := m.Apply(PlaceValueCommand{Meta: meta, Cell: 0, Digit: 9}, 3, now.Add(2*time.Second))
@@ -186,7 +186,7 @@ func TestPlaceWrongValueChallenge(t *testing.T) {
 
 func TestPlaceWrongValueClean(t *testing.T) {
 	m, p, now := makeMatch(t, shared.ErrorPresetClean, testClues(0))
-	m.Activate(now.Add(time.Second))
+	m.Activate(3, now.Add(time.Second))
 
 	meta := cmdMeta(t, m, p)
 	events, err := m.Apply(PlaceValueCommand{Meta: meta, Cell: 0, Digit: 9}, 3, now.Add(2*time.Second))
@@ -204,7 +204,7 @@ func TestPlaceWrongValueClean(t *testing.T) {
 
 func TestPlaceWrongValueBlind(t *testing.T) {
 	m, p, now := makeMatch(t, shared.ErrorPresetBlind, testClues(0))
-	m.Activate(now.Add(time.Second))
+	m.Activate(3, now.Add(time.Second))
 
 	meta := cmdMeta(t, m, p)
 	events, err := m.Apply(PlaceValueCommand{Meta: meta, Cell: 0, Digit: 9}, 3, now.Add(2*time.Second))
@@ -223,7 +223,7 @@ func TestPlaceWrongValueBlind(t *testing.T) {
 func TestPlaceValueOnFixedCellRejected(t *testing.T) {
 	clues := testClues(1)
 	m, p, now := makeMatch(t, shared.ErrorPresetCasual, clues)
-	m.Activate(now.Add(time.Second))
+	m.Activate(3, now.Add(time.Second))
 
 	meta := cmdMeta(t, m, p)
 	_, err := m.Apply(PlaceValueCommand{Meta: meta, Cell: 0, Digit: 1}, 3, now.Add(2*time.Second))
@@ -237,7 +237,7 @@ func TestPlaceValueOnFixedCellRejected(t *testing.T) {
 
 func TestEraseValue(t *testing.T) {
 	m, p, now := makeMatch(t, shared.ErrorPresetCasual, testClues(0))
-	m.Activate(now.Add(time.Second))
+	m.Activate(3, now.Add(time.Second))
 
 	meta := cmdMeta(t, m, p)
 	_, err := m.Apply(PlaceValueCommand{Meta: meta, Cell: 0, Digit: 1}, 3, now.Add(2*time.Second))
@@ -260,7 +260,7 @@ func TestEraseValue(t *testing.T) {
 
 func TestNotesAndAutoRemoval(t *testing.T) {
 	m, p, now := makeMatch(t, shared.ErrorPresetCasual, testClues(0))
-	m.Activate(now.Add(time.Second))
+	m.Activate(3, now.Add(time.Second))
 
 	meta := cmdMeta(t, m, p)
 	events, err := m.Apply(AddNoteCommand{Meta: meta, Cell: 1, Digits: []shared.Digit{2, 3}}, 3, now.Add(2*time.Second))
@@ -299,7 +299,7 @@ func TestNotesAndAutoRemoval(t *testing.T) {
 
 func TestDuplicateRequestIdempotent(t *testing.T) {
 	m, p, now := makeMatch(t, shared.ErrorPresetCasual, testClues(0))
-	m.Activate(now.Add(time.Second))
+	m.Activate(3, now.Add(time.Second))
 
 	meta := cmdMeta(t, m, p)
 	reqID := meta.RequestID
@@ -328,7 +328,7 @@ func TestDuplicateRequestIdempotent(t *testing.T) {
 
 func TestStaleVersionRejected(t *testing.T) {
 	m, p, now := makeMatch(t, shared.ErrorPresetCasual, testClues(0))
-	m.Activate(now.Add(time.Second))
+	m.Activate(3, now.Add(time.Second))
 
 	meta := cmdMeta(t, m, p)
 	meta.ExpectedVersion = 0
@@ -344,7 +344,7 @@ func TestStaleVersionRejected(t *testing.T) {
 func TestHintRevealCompletesPuzzle(t *testing.T) {
 	clues := testClues(80) // only cell 80 empty
 	m, p, now := makeMatch(t, shared.ErrorPresetCasual, clues)
-	m.Activate(now.Add(time.Second))
+	m.Activate(3, now.Add(time.Second))
 
 	meta := cmdMeta(t, m, p)
 	events, err := m.Apply(UseHintCommand{Meta: meta, Level: shared.HintReveal}, 3, now.Add(2*time.Second))
@@ -370,7 +370,7 @@ func TestHintRevealCompletesPuzzle(t *testing.T) {
 
 func TestNudgeHint(t *testing.T) {
 	m, p, now := makeMatch(t, shared.ErrorPresetCasual, testClues(0))
-	m.Activate(now.Add(time.Second))
+	m.Activate(3, now.Add(time.Second))
 
 	meta := cmdMeta(t, m, p)
 	events, err := m.Apply(UseHintCommand{Meta: meta, Level: shared.HintNudge}, 3, now.Add(2*time.Second))
@@ -388,7 +388,7 @@ func TestNudgeHint(t *testing.T) {
 
 func TestFullCompletion(t *testing.T) {
 	m, p, now := makeMatch(t, shared.ErrorPresetCasual, testClues(0))
-	m.Activate(now.Add(time.Second))
+	m.Activate(3, now.Add(time.Second))
 
 	next := uint64(3)
 	for i := 0; i < 81; i++ {
@@ -412,7 +412,7 @@ func TestFullCompletion(t *testing.T) {
 
 func TestPingIsDurableButNotVersionBump(t *testing.T) {
 	m, p, now := makeMatch(t, shared.ErrorPresetCasual, testClues(0))
-	m.Activate(now.Add(time.Second))
+	m.Activate(3, now.Add(time.Second))
 	v := m.Version
 
 	meta := cmdMeta(t, m, p)
@@ -430,7 +430,7 @@ func TestPingIsDurableButNotVersionBump(t *testing.T) {
 
 func BenchmarkPlaceValue(b *testing.B) {
 	m, p, now := makeMatch(b, shared.ErrorPresetCasual, testClues(0))
-	m.Activate(now.Add(time.Second))
+	m.Activate(3, now.Add(time.Second))
 	next := uint64(3)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -446,7 +446,7 @@ func BenchmarkPlaceValue(b *testing.B) {
 
 func TestReconstructFromEvents(t *testing.T) {
 	m, p, now := makeMatch(t, shared.ErrorPresetCasual, testClues(0))
-	startEvents, _ := m.Activate(now.Add(time.Second))
+	startEvents, _ := m.Activate(3, now.Add(time.Second))
 
 	next := uint64(3)
 	var allEvents []Event

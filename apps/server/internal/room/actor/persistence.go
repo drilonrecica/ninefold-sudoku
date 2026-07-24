@@ -158,7 +158,7 @@ func matchRulesToGen(rules matchdomain.Rules) (mode, difficulty, errorPreset str
 
 func matchToGen(m *matchdomain.Match) gen.Match {
 	mode, difficulty, errorPreset, hintsEnabled, autoRemoveNotes, ruleVersion := matchRulesToGen(m.Rules)
-	return gen.Match{
+	match := gen.Match{
 		ID:                 m.ID.String(),
 		RoomID:             m.RoomID.String(),
 		State:              string(m.State),
@@ -177,6 +177,18 @@ func matchToGen(m *matchdomain.Match) gen.Match {
 		SolverVersion:      m.Puzzle.SolverVersion,
 		CreatedAtMs:        m.CreatedAt.Milliseconds(),
 	}
+	if m.StartedAt != nil {
+		match.StartedAtMs = sql.NullInt64{Int64: m.StartedAt.Milliseconds(), Valid: true}
+	}
+	if m.CompletedAt != nil {
+		match.CompletedAtMs = sql.NullInt64{Int64: m.CompletedAt.Milliseconds(), Valid: true}
+	}
+	if m.Result != nil {
+		match.ResultReason = sql.NullString{String: "completed", Valid: true}
+		match.ElapsedMs = sql.NullInt64{Int64: int64(m.Result.ElapsedMilliseconds), Valid: true}
+		match.Assisted = boolToInt(m.Result.Assisted)
+	}
+	return match
 }
 
 func matchFromGen(gm gen.Match, participantIDs []shared.ParticipantID) (*matchdomain.Match, error) {

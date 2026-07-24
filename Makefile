@@ -39,12 +39,12 @@ generate:
 		--only-models --min-sized-ints --struct-name-from-title --tags json \
 		-p replay -o contracts/generated/go/replay/types.gen.go \
 		contracts/replay/replay.schema.json contracts/replay/proof.schema.json
+	cd apps/server && go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.30.0 generate
 	pnpm generate:contracts
-	gofmt -w contracts/generated/go
+	gofmt -w contracts/generated/go apps/server/internal/persistence/gen
 
 migrate:
-	@echo "Database migrations are not implemented until Phase 4." >&2
-	@exit 1
+	cd apps/server && go run ./cmd/maintenance migrate
 
 puzzles:
 	cd apps/server && go run ./cmd/puzzle-generator \

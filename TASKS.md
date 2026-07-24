@@ -240,28 +240,28 @@ Create WAL-safe, migration-driven SQLite persistence with atomic command receipt
 
 ### Tasks
 
-- [ ] **P04-T01 — Configure the approved driver.** Pin `modernc.org/sqlite`, verify the embedded SQLite version at startup, and fail readiness when it violates the approved WAL safety policy.
-- [ ] **P04-T02 — Open separate database handles.** Configure one writer connection and a small reader pool. Apply and verify `WAL`, foreign keys, `busy_timeout=5000`, and `synchronous=FULL` on every relevant connection.
-- [ ] **P04-T03 — Add ordered migrations.** Create migrations for every current MVP table listed in Architecture §20 with UUIDv7 text IDs, UTC millisecond timestamps, foreign keys, uniqueness constraints, status checks, and deletion behavior consistent with retention.
-- [ ] **P04-T04 — Encode grids compactly.** Store puzzle clues and solutions as validated 81-byte blobs. Prevent JSON-array grid storage and prevent ordinary public queries from selecting solution blobs.
-- [ ] **P04-T05 — Implement SQLC repositories.** Add aggregate-oriented repositories for puzzles, Rooms, participants, blocks, sessions, Matches, events, snapshots, results, command receipts, replay capabilities/seals, tombstones, and admin audit records. Keep SQL and SQLite types inside persistence packages.
-- [ ] **P04-T06 — Implement atomic Room writes.** Persist the Room projection, participant changes, aggregate version, and command receipt in one transaction guarded by the expected version.
-- [ ] **P04-T07 — Implement atomic Match writes.** Persist ordered events, projection changes, Match/Room lifecycle changes, results, next event number, aggregate version, and command receipt in one transaction. A failed guard updates nothing.
-- [ ] **P04-T08 — Implement idempotent receipts.** Store scope hash, command type, request fingerprint, terminal outcome, safe response, and expiration. Reject reuse with a different scope/type/fingerprint and replay an identical terminal outcome after restart.
-- [ ] **P04-T09 — Implement snapshots.** Store compressed, versioned Match state with event number, aggregate version, timestamp, and integrity metadata. Start with standard gzip; do not add another codec without benchmark evidence.
-- [ ] **P04-T10 — Prepare replay integrity fields.** Persist public envelopes, nullable private payload/salt/digest, previous hash, event hash, and terminal seal metadata exactly as Architecture §§20.3 and 20.6 require. Ordinary replay queries may return public data and digests only.
-- [ ] **P04-T11 — Add retention-safe queries.** Add bounded queries for session/receipt expiry, seven-day participant-data scrubbing, replay revocation/deletion, 30-day tombstones, and referential cleanup without scheduling them yet.
-- [ ] **P04-T12 — Add migration and repository integration tests.** Test empty-database migration, rollback where supported, foreign keys, WAL, duplicate RequestID, version conflict, transaction failure, snapshot round-trip, and retention behavior with a real temporary database.
+- [x] **P04-T01 — Configure the approved driver.** Pin `modernc.org/sqlite`, verify the embedded SQLite version at startup, and fail readiness when it violates the approved WAL safety policy.
+- [x] **P04-T02 — Open separate database handles.** Configure one writer connection and a small reader pool. Apply and verify `WAL`, foreign keys, `busy_timeout=5000`, and `synchronous=FULL` on every relevant connection.
+- [x] **P04-T03 — Add ordered migrations.** Create migrations for every current MVP table listed in Architecture §20 with UUIDv7 text IDs, UTC millisecond timestamps, foreign keys, uniqueness constraints, status checks, and deletion behavior consistent with retention.
+- [x] **P04-T04 — Encode grids compactly.** Store puzzle clues and solutions as validated 81-byte blobs. Prevent JSON-array grid storage and prevent ordinary public queries from selecting solution blobs.
+- [x] **P04-T05 — Implement SQLC repositories.** Add aggregate-oriented repositories for puzzles, Rooms, participants, blocks, sessions, Matches, events, snapshots, results, command receipts, replay capabilities/seals, tombstones, and admin audit records. Keep SQL and SQLite types inside persistence packages.
+- [x] **P04-T06 — Implement atomic Room writes.** Persist the Room projection, participant changes, aggregate version, and command receipt in one transaction guarded by the expected version.
+- [x] **P04-T07 — Implement atomic Match writes.** Persist ordered events, projection changes, Match/Room lifecycle changes, results, next event number, aggregate version, and command receipt in one transaction. A failed guard updates nothing.
+- [x] **P04-T08 — Implement idempotent receipts.** Store scope hash, command type, request fingerprint, terminal outcome, safe response, and expiration. Reject reuse with a different scope/type/fingerprint and replay an identical terminal outcome after restart.
+- [x] **P04-T09 — Implement snapshots.** Store compressed, versioned Match state with event number, aggregate version, timestamp, and integrity metadata. Start with standard gzip; do not add another codec without benchmark evidence.
+- [x] **P04-T10 — Prepare replay integrity fields.** Persist public envelopes, nullable private payload/salt/digest, previous hash, event hash, and terminal seal metadata exactly as Architecture §§20.3 and 20.6 require. Ordinary replay queries may return public data and digests only.
+- [x] **P04-T11 — Add retention-safe queries.** Add bounded queries for session/receipt expiry, seven-day participant-data scrubbing, replay revocation/deletion, 30-day tombstones, and referential cleanup without scheduling them yet.
+- [x] **P04-T12 — Add migration and repository integration tests.** Test empty-database migration, rollback where supported, foreign keys, WAL, duplicate RequestID, version conflict, transaction failure, snapshot round-trip, and retention behavior with a real temporary database.
 
 ### Phase gates
 
-- [ ] A clean database migrates to the latest schema and reports the expected version.
-- [ ] The migration test upgrades from every committed representative prior schema.
-- [ ] Foreign-key and constraint violations fail atomically.
-- [ ] No test uses an in-memory SQLite mode that behaves differently from file-backed WAL.
-- [ ] Concurrent repository tests show one writer, bounded busy handling, and no lost update.
-- [ ] Public repository methods cannot return solution blobs, session tokens, replay capabilities, salts, or private payloads accidentally.
-- [ ] `make migrate`, SQLC generation, integration tests, and every cumulative check pass.
+- [x] A clean database migrates to the latest schema and reports the expected version.
+- [x] The migration test upgrades from every committed representative prior schema.
+- [x] Foreign-key and constraint violations fail atomically.
+- [x] No test uses an in-memory SQLite mode that behaves differently from file-backed WAL.
+- [x] Concurrent repository tests show one writer, bounded busy handling, and no lost update.
+- [x] Public repository methods cannot return solution blobs, session tokens, replay capabilities, salts, or private payloads accidentally.
+- [x] `make migrate`, SQLC generation, integration tests, and every cumulative check pass.
 
 ### Commit
 

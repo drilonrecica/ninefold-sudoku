@@ -9,6 +9,8 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/persistence/migrate"
+	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/persistence/sqlite"
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/platform/config"
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/platform/server"
 )
@@ -23,13 +25,30 @@ func main() {
 		os.Exit(1)
 	}
 
+	db, err := sqlite.New(cfg.DatabasePath)
+	if err != nil {
+		logger.Error("database open failed", "error", err)
+		os.Exit(1)
+	}
+	defer func() {
+		if err := db.Close(); err != nil {
+			logger.Error("database close failed", "error", err)
+		}
+	}()
+
+	if err := migrate.Up(db.Writer()); err != nil {
+		logger.Error("database migration failed", "error", err)
+		os.Exit(1)
+	}
+	logger.Info("database migrated", "version", db.Version())
+
 	listener, err := net.Listen("tcp", cfg.HTTPAddress)
 	if err != nil {
 		logger.Error("listen failed", "error", err)
 		os.Exit(1)
 	}
 
-	httpServer := server.New(cfg.HTTPAddress, buildVersion, logger)
+	httpServer := server.New(cfg.HTTPAddress, buildVersion, db, logger)
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 

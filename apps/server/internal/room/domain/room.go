@@ -176,7 +176,7 @@ func (r *Room) applyRequestJoin(cmd RequestJoinCommand, now time.Time) ([]Event,
 }
 
 func (r *Room) applyLeaveRoom(cmd LeaveRoomCommand, now time.Time) ([]Event, error) {
-	if !r.isState(shared.RoomLobby, shared.RoomResults) {
+	if !r.isState(shared.RoomLobby, shared.RoomInMatch, shared.RoomResults) {
 		return nil, shared.DomainError{Code: shared.ErrRoomStateInvalid}
 	}
 	p := r.findActive(cmd.Meta.AuthenticatedParticipantID)

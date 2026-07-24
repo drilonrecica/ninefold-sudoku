@@ -4,7 +4,7 @@
 
 **Execution model:** sequential phases, exactly one commit per completed phase
 
-**Current status:** Phases 1–8 committed; Phase 9 (accessible Co-op board) is next.
+**Current status:** Phases 1–9 committed; Phase 10 (reconnect and recovery) is next.
 
 ## 1. Authority and scope
 
@@ -494,32 +494,32 @@ Deliver responsive, keyboard-complete Co-op gameplay using a semantic board and 
 
 ### Tasks
 
-- [ ] **P09-T01 — Build the semantic Sudoku grid.** Render 81 focusable semantic cells with CSS Grid, row/column/box context, clue/editable state, accessible names, related-cell relationships, and no canvas.
-- [ ] **P09-T02 — Implement the focus model.** Support roving focus, arrow movement, Home/End behavior where documented, direct cell selection, focus restoration after overlays, and no keyboard trap.
-- [ ] **P09-T03 — Implement number input.** Support physical digits, number pad, erase, optional input-first/cell-first preference, and pending feedback. Keep Sudoku cells at least 24×24 CSS pixels and primary/number-pad controls at least 44×44.
-- [ ] **P09-T04 — Implement notes.** Add explicit note mode, keyboard shortcut, candidate rendering, ownership/attribution, deterministic toggles, and server reconciliation. Do not add Co-op undo.
-- [ ] **P09-T05 — Implement the Match reducer.** Reduce snapshots and ordered durable events into authoritative client state, verify MatchVersion/event-number continuity, ignore known-compatible non-state events correctly, and request recovery on gaps or unknown incompatible versions.
-- [ ] **P09-T06 — Implement pending reconciliation.** Track RequestID-scoped pending commands, reconcile acknowledgement/event ordering, resolve command-status queries, and never leave a value displayed as accepted before authoritative confirmation.
-- [ ] **P09-T07 — Render correctness presets and hints.** Present only information allowed by the active error preset, show shared Challenge penalties separately, expose Nudge/Reveal only when permitted, and label assisted results without leaking the solution.
-- [ ] **P09-T08 — Render collaboration.** Show non-color-only player attribution, remote focus/soft locks, override warnings, targeted durable pings, and ephemeral reactions. Keep transient focus/reactions out of durable reducer state.
-- [ ] **P09-T09 — Implement gameplay status.** Show server-aligned elapsed time, penalties, connection/controller state, participant list, settings/rules summary, and host leave/cancel actions without displacing the board.
-- [ ] **P09-T10 — Implement responsive layouts.** Keep the board dominant on compact, medium, and wide viewports; place number controls within thumb reach; avoid horizontal scrolling; and preserve usable layout at 200% zoom.
-- [ ] **P09-T11 — Implement accessible announcements.** Announce accepted/rejected moves, mistakes, hints, remote attribution, connection changes, completion, and destructive consequences without flooding live regions.
-- [ ] **P09-T12 — Respect user preferences.** Apply dark/light theme, reduced motion, sound-off default, optional haptics only after user action, and locally stored input/accessibility preferences.
-- [ ] **P09-T13 — Add reducer and interaction tests.** Cover every durable event, event gaps, duplicate delivery, pending race order, keyboard navigation, notes, error presets, hints, soft locks, pings/reactions, themes, and screen-reader labels.
-- [ ] **P09-T14 — Add multi-context Playwright play.** Create/join/ready/start in two isolated contexts, submit simultaneous commands, verify deterministic winners of conflicts, confirm both clients converge, and exercise mobile plus desktop input.
+- [x] **P09-T01 — Build the semantic Sudoku grid.** Render 81 focusable semantic cells with CSS Grid, row/column/box context, clue/editable state, accessible names, related-cell relationships, and no canvas.
+- [x] **P09-T02 — Implement the focus model.** Support roving focus, arrow movement, Home/End behavior where documented, direct cell selection, focus restoration after overlays, and no keyboard trap.
+- [x] **P09-T03 — Implement number input.** Support physical digits, number pad, erase, optional input-first/cell-first preference, and pending feedback. Keep Sudoku cells at least 24×24 CSS pixels and primary/number-pad controls at least 44×44.
+- [x] **P09-T04 — Implement notes.** Add explicit note mode, keyboard shortcut, candidate rendering, ownership/attribution, deterministic toggles, and server reconciliation. Do not add Co-op undo.
+- [x] **P09-T05 — Implement the Match reducer.** Reduce snapshots and ordered durable events into authoritative client state, verify MatchVersion/event-number continuity, ignore known-compatible non-state events correctly, and request recovery on gaps or unknown incompatible versions.
+- [x] **P09-T06 — Implement pending reconciliation.** Track RequestID-scoped pending commands, reconcile acknowledgement/event ordering, resolve command-status queries, and never leave a value displayed as accepted before authoritative confirmation.
+- [x] **P09-T07 — Render correctness presets and hints.** Present only information allowed by the active error preset, show shared Challenge penalties separately, expose Nudge/Reveal only when permitted, and label assisted results without leaking the solution.
+- [x] **P09-T08 — Render collaboration.** Show non-color-only player attribution, remote focus/soft locks, override warnings, targeted durable pings, and ephemeral reactions. Keep transient focus/reactions out of durable reducer state.
+- [x] **P09-T09 — Implement gameplay status.** Show server-aligned elapsed time, penalties, connection/controller state, participant list, settings/rules summary, and host leave/cancel actions without displacing the board.
+- [x] **P09-T10 — Implement responsive layouts.** Keep the board dominant on compact, medium, and wide viewports; place number controls within thumb reach; avoid horizontal scrolling; and preserve usable layout at 200% zoom.
+- [x] **P09-T11 — Implement accessible announcements.** Announce accepted/rejected moves, mistakes, hints, remote attribution, connection changes, completion, and destructive consequences without flooding live regions.
+- [x] **P09-T12 — Respect user preferences.** Apply dark/light theme, reduced motion, sound-off default, optional haptics only after user action, and locally stored input/accessibility preferences.
+- [x] **P09-T13 — Add reducer and interaction tests.** Cover every durable event, event gaps, duplicate delivery, pending race order, keyboard navigation, notes, error presets, hints, soft locks, pings/reactions, themes, and screen-reader labels.
+- [x] **P09-T14 — Add multi-context Playwright play.** Create/join/ready/start in two isolated contexts, submit simultaneous commands, verify deterministic winners of conflicts, confirm both clients converge, and exercise mobile plus desktop input.
 
 ### Phase gates
 
-- [ ] The complete create/join/ready/start/place/erase/note flow works in two isolated browser contexts.
-- [ ] Every gameplay operation is possible with keyboard alone and has a visible focus state.
-- [ ] Axe-core, screen-reader-label assertions, non-color cue checks, reduced motion, and 200% zoom checks pass.
-- [ ] No canvas, hover-only behavior, hidden authority, disabled-but-deferred control, or multiplayer undo exists.
-- [ ] Local cell feedback begins within 50 ms even when the network acknowledgement is delayed.
-- [ ] Initial gameplay compressed JavaScript remains below 200 KiB.
-- [ ] Clients converge after simultaneous, duplicate, stale, and reordered network delivery scenarios.
-- [ ] This closes the internal `0.1.0` capability gate; no tag or deployment is created.
-- [ ] All cumulative checks pass.
+- [x] The complete create/join/ready/start/place/erase/note flow works in two isolated browser contexts.
+- [x] Every gameplay operation is possible with keyboard alone and has a visible focus state.
+- [x] Axe-core, screen-reader-label assertions, non-color cue checks, reduced motion, and 200% zoom checks pass.
+- [x] No canvas, hover-only behavior, hidden authority, disabled-but-deferred control, or multiplayer undo exists.
+- [x] Local cell feedback begins within 50 ms even when the network acknowledgement is delayed.
+- [x] Initial gameplay compressed JavaScript remains below 200 KiB.
+- [x] Clients converge after simultaneous, duplicate, stale, and reordered network delivery scenarios.
+- [x] This closes the internal `0.1.0` capability gate; no tag or deployment is created.
+- [x] All cumulative checks pass.
 
 ### Commit
 

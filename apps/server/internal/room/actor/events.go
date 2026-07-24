@@ -60,24 +60,24 @@ type valueErasedPayload struct {
 }
 
 type notesAddedPayload struct {
-	SchemaVersion uint8   `json:"schemaVersion"`
-	Cell          uint8   `json:"cell"`
-	Digits        []uint8 `json:"digits"`
-	ParticipantID string  `json:"participantId"`
+	SchemaVersion uint8  `json:"schemaVersion"`
+	Cell          uint8  `json:"cell"`
+	Digits        []int  `json:"digits"`
+	ParticipantID string `json:"participantId"`
 }
 
 type notesRemovedPayload struct {
-	SchemaVersion uint8   `json:"schemaVersion"`
-	Cell          uint8   `json:"cell"`
-	Digits        []uint8 `json:"digits"`
-	ParticipantID string  `json:"participantId"`
+	SchemaVersion uint8  `json:"schemaVersion"`
+	Cell          uint8  `json:"cell"`
+	Digits        []int  `json:"digits"`
+	ParticipantID string `json:"participantId"`
 }
 
 type notesAutoRemovedPayload struct {
-	SchemaVersion uint8   `json:"schemaVersion"`
-	Cell          uint8   `json:"cell"`
-	Digits        []uint8 `json:"digits"`
-	CausedBy      uint8   `json:"causedBy"`
+	SchemaVersion uint8 `json:"schemaVersion"`
+	Cell          uint8 `json:"cell"`
+	Digits        []int `json:"digits"`
+	CausedBy      uint8 `json:"causedBy"`
 }
 
 type hintUsedPayload struct {
@@ -213,21 +213,21 @@ func matchEventPublicPayload(e matchdomain.Event) ([]byte, error) {
 		payload = notesAddedPayload{
 			SchemaVersion: 1,
 			Cell:          uint8(ev.Cell),
-			Digits:        digitsToUint8(ev.Digits),
+			Digits:        digitsToInts(ev.Digits),
 			ParticipantID: ev.ParticipantID.String(),
 		}
 	case matchdomain.NotesRemovedEvent:
 		payload = notesRemovedPayload{
 			SchemaVersion: 1,
 			Cell:          uint8(ev.Cell),
-			Digits:        digitsToUint8(ev.Digits),
+			Digits:        digitsToInts(ev.Digits),
 			ParticipantID: ev.ParticipantID.String(),
 		}
 	case matchdomain.NotesAutoRemovedEvent:
 		payload = notesAutoRemovedPayload{
 			SchemaVersion: 1,
 			Cell:          uint8(ev.Cell),
-			Digits:        digitsToUint8(ev.Digits),
+			Digits:        digitsToInts(ev.Digits),
 			CausedBy:      uint8(ev.CausedBy),
 		}
 	case matchdomain.HintUsedEvent:
@@ -361,10 +361,10 @@ func mustJSON(v any) []byte {
 	return b
 }
 
-func digitsToUint8(ds []shared.Digit) []uint8 {
-	out := make([]uint8, len(ds))
+func digitsToInts(ds []shared.Digit) []int {
+	out := make([]int, len(ds))
 	for i, d := range ds {
-		out[i] = uint8(d)
+		out[i] = int(d)
 	}
 	return out
 }
@@ -445,7 +445,7 @@ func matchEventFromGen(e gen.MatchEvent) (matchdomain.Event, error) {
 		return matchdomain.NotesAddedEvent{
 			Meta:          meta,
 			Cell:          shared.CellIndex(p.Cell),
-			Digits:        uint8ToDigits(p.Digits),
+			Digits:        intsToDigits(p.Digits),
 			ParticipantID: shared.ParticipantID(p.ParticipantID),
 		}, nil
 	case "NotesRemoved":
@@ -456,7 +456,7 @@ func matchEventFromGen(e gen.MatchEvent) (matchdomain.Event, error) {
 		return matchdomain.NotesRemovedEvent{
 			Meta:          meta,
 			Cell:          shared.CellIndex(p.Cell),
-			Digits:        uint8ToDigits(p.Digits),
+			Digits:        intsToDigits(p.Digits),
 			ParticipantID: shared.ParticipantID(p.ParticipantID),
 		}, nil
 	case "NotesAutoRemoved":
@@ -467,7 +467,7 @@ func matchEventFromGen(e gen.MatchEvent) (matchdomain.Event, error) {
 		return matchdomain.NotesAutoRemovedEvent{
 			Meta:     meta,
 			Cell:     shared.CellIndex(p.Cell),
-			Digits:   uint8ToDigits(p.Digits),
+			Digits:   intsToDigits(p.Digits),
 			CausedBy: shared.CellIndex(p.CausedBy),
 		}, nil
 	case "HintUsed":
@@ -542,7 +542,7 @@ func matchEventFromGen(e gen.MatchEvent) (matchdomain.Event, error) {
 	}
 }
 
-func uint8ToDigits(u []uint8) []shared.Digit {
+func intsToDigits(u []int) []shared.Digit {
 	out := make([]shared.Digit, len(u))
 	for i, v := range u {
 		out[i] = shared.Digit(v)

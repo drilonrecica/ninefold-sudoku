@@ -22,4 +22,5 @@ export NINEFOLD_COMMAND_RECEIPT_RETENTION="24h"
 export NINEFOLD_SHUTDOWN_TIMEOUT="10s"
 
 cd apps/server
+go run ./cmd/maintenance seed-e2e internal/puzzle/catalog/catalog.jsonl
 exec go run -ldflags="-X main.buildVersion=e2e" ./cmd/api

@@ -266,6 +266,23 @@ func TestLeaveTransfersHostToLongestPresent(t *testing.T) {
 	}
 }
 
+func TestPlayerCanExplicitlyLeaveActiveCoopMatch(t *testing.T) {
+	room := newRoom(t, "Mila")
+	room.State = shared.RoomInMatch
+	mila := room.Participants[0].ID
+
+	events, err := room.Apply(
+		LeaveRoomCommand{Meta: meta(t, mila, room.ID, 1), Intent: "leave_match"},
+		time.Now(),
+	)
+	if err != nil {
+		t.Fatalf("leave active match: %v", err)
+	}
+	if len(events) != 1 || room.Participants[0].LeftAt == nil {
+		t.Fatalf("active match leave was not recorded")
+	}
+}
+
 func isCode(err error, code shared.ErrorCode) bool {
 	var d shared.DomainError
 	if !errors.As(err, &d) {

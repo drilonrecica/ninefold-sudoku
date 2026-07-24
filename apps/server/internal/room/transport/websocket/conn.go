@@ -465,7 +465,11 @@ func (c *connection) buildCancelCountdown(meta shared.CommandMetadata, payload r
 }
 
 func (c *connection) buildLeave(meta shared.CommandMetadata, payload realtime.ClientMessagePayload) (roomdomain.LeaveRoomCommand, error) {
-	return roomdomain.LeaveRoomCommand{Meta: meta, Intent: ""}, nil
+	intent := ""
+	if payload.Intent != nil {
+		intent = *payload.Intent
+	}
+	return roomdomain.LeaveRoomCommand{Meta: meta, Intent: intent}, nil
 }
 
 func (c *connection) buildTransferHost(meta shared.CommandMetadata, payload realtime.ClientMessagePayload) (roomdomain.TransferHostCommand, error) {

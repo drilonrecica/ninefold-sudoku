@@ -1009,10 +1009,23 @@ func buildMatchView(m *matchdomain.Match) map[string]any {
 	for idx, d := range m.Values {
 		values[strconv.Itoa(int(idx))] = uint8(d)
 	}
-	return map[string]any{
-		"id":      m.ID.String(),
-		"state":   string(m.State),
-		"version": uint64(m.Version),
+	mistakes := make(map[string]uint32, len(m.Mistakes))
+	for participantID, count := range m.Mistakes {
+		mistakes[participantID.String()] = count
+	}
+	contributions := make(map[string]uint32, len(m.Contributions))
+	for participantID, count := range m.Contributions {
+		contributions[participantID.String()] = count
+	}
+	view := map[string]any{
+		"id":            m.ID.String(),
+		"state":         string(m.State),
+		"version":       uint64(m.Version),
+		"penaltiesMs":   m.PenaltiesMs,
+		"hintsUsed":     m.HintsUsed,
+		"assisted":      m.Assisted,
+		"mistakes":      mistakes,
+		"contributions": contributions,
 		"rules": map[string]any{
 			"mode":            string(m.Rules.Mode),
 			"difficulty":      string(m.Rules.Difficulty),
@@ -1024,6 +1037,13 @@ func buildMatchView(m *matchdomain.Match) map[string]any {
 		"cells":  cells,
 		"values": values,
 	}
+	if m.StartedAt != nil {
+		view["startedAt"] = m.StartedAt.Milliseconds()
+	}
+	if m.CompletedAt != nil {
+		view["completedAt"] = m.CompletedAt.Milliseconds()
+	}
+	return view
 }
 
 func (a *Actor) serverMessage(msgType string, eventNumber uint64, aggregateVersion uint64, payload map[string]any) []byte {

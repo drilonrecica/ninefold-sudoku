@@ -1108,6 +1108,15 @@ Properties:
 
 Persisting a ping increments Match event number but does not increment Match aggregate version because it does not mutate authoritative gameplay state.
 
+### 18.8 Explicit leave
+
+An explicit leave during an active Co-op Match:
+
+- revokes the participant's Room session and mutation authority;
+- preserves all accepted contributions and historical attribution;
+- transfers host authority immediately when the departing participant is host;
+- leaves the shared Match active for the remaining players.
+
 ### 18.8 Joining after start
 
 A new visitor joining after Match activation becomes a spectator.

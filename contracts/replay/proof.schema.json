@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ninefold.recica.dev/schemas/replay/proof-v1.json",
+  "title": "ReplayProof",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "keyId", "finalHash", "signature"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "keyId": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$" },
+    "finalHash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "signature": { "type": "string", "minLength": 86, "maxLength": 88 }
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ninefold.recica.dev/schemas/replay/replay-v1.json",
+  "title": "ReplayDocument",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "replayId", "matchId", "events"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "replayId": { "$ref": "#/$defs/uuidv7" },
+    "matchId": { "$ref": "#/$defs/uuidv7" },
+    "events": {
+      "type": "array",
+      "maxItems": 10000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["eventNumber", "aggregateVersion", "serverTimestamp", "type", "payload"],
+        "properties": {
+          "eventNumber": { "$ref": "#/$defs/safePositiveInteger" },
+          "aggregateVersion": { "$ref": "#/$defs/safePositiveInteger" },
+          "serverTimestamp": { "$ref": "#/$defs/safePositiveInteger" },
+          "type": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "payload": { "type": "object", "additionalProperties": true }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "uuidv7": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "safePositiveInteger": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "requestId": "0190a7d3-8d9a-7f31-8d2a-1242f6f0d107",
+  "clientSequence": 9007199254740991,
+  "target": {
+    "kind": "Match",
+    "id": "0190a7d3-8d9a-7f31-8d2a-1242f6f0d108",
+    "expectedVersion": 9007199254740991
+  },
+  "type": "sync.request",
+  "payload": {}
+}

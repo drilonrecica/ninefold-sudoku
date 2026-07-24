@@ -1,0 +1,11 @@
+{
+  "error": {
+    "code": "CELL_FIXED",
+    "messageKey": "error.cell_fixed",
+    "requestId": "0190a7d3-8d9a-7f31-8d2a-1242f6f0d104",
+    "retryable": false,
+    "details": {
+      "cell": 80
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 2,
+  "requestId": "0190a7d3-8d9a-7f31-8d2a-1242f6f0d109",
+  "clientSequence": 1,
+  "target": {
+    "kind": "Room",
+    "id": "0190a7d3-8d9a-7f31-8d2a-1242f6f0d10a",
+    "expectedVersion": 0
+  },
+  "type": "sync.request",
+  "payload": {}
+}

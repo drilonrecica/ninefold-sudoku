@@ -1,0 +1,11 @@
+{
+  "error": {
+    "code": "ROOM_FULL",
+    "messageKey": "error.room_full",
+    "requestId": "0190a7d3-8d9a-7f31-8d2a-1242f6f0d102",
+    "retryable": false,
+    "details": {
+      "spectatorAvailable": true
+    }
+  }
+}

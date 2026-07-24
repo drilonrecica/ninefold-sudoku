@@ -1,0 +1,11 @@
+{
+  "error": {
+    "code": "STALE_VERSION",
+    "messageKey": "error.stale_version",
+    "requestId": "0190a7d3-8d9a-7f31-8d2a-1242f6f0d105",
+    "retryable": true,
+    "details": {
+      "currentVersion": 9007199254740991
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "@ninefold/contracts-realtime",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./client": "./client.ts",
+    "./server": "./server.ts"
+  }
+}

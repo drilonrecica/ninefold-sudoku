@@ -145,26 +145,26 @@ Create transport-independent domain foundations and one versioned contract-gener
 
 ### Tasks
 
-- [ ] **P02-T01 — Implement strong identifiers and values.** Add validated types for RoomID, RoomCode, ParticipantID, MatchID, PuzzleID, ReplayID, RequestID, aggregate version, event number, cell index, digit, candidate set, timestamps, mode, difficulty, role, and current-scope lifecycle states. Keep parsing at boundaries and prohibit unvalidated primitive aliases in domain APIs.
-- [ ] **P02-T02 — Implement identity validation.** Validate display names using the Domain §7.2 grapheme, Unicode normalization, comparison, and structural rules. Preserve the NFC display form, compare with the NFKC case-folded form, and keep moderation policy outside automatic validation.
-- [ ] **P02-T03 — Define aggregate boundaries.** Add Room, Match, Puzzle, participant, rules, result, command, and event interfaces without persistence or transport imports. Model current Co-op/Solo scope only; deferred mode constants may exist only when required for stable stored-enum compatibility and must not enable behavior.
-- [ ] **P02-T04 — Define stable errors.** Implement every current-scope Domain §33 error code with safe structured details and retryability metadata. Domain errors contain no localized prose, HTTP status, or UI behavior.
-- [ ] **P02-T05 — Define command and event metadata.** Add UUIDv7 RequestID, authenticated scope, expected aggregate version, client sequence, server occurrence time, schema version, and event number rules. Separate RoomVersion from MatchVersion.
-- [ ] **P02-T06 — Establish contract sources.** Add the OpenAPI root, WebSocket schema roots, replay schema roots, fixture directories, and generation configuration. Schemas must reject unknown required-shape violations while preserving explicit version evolution.
-- [ ] **P02-T07 — Generate typed contracts.** Generate committed Go and TypeScript types from source schemas with `Code generated from contracts. DO NOT EDIT.` headers. Generated types must not become domain entities.
-- [ ] **P02-T08 — Add cross-language fixtures.** Commit fixtures for successful envelopes, each error family, maximum safe integers, Unicode display names, stale versions, and unknown schema versions. Validate the same fixtures in Go and TypeScript.
-- [ ] **P02-T09 — Enforce dependency rules.** Add a static or test-based import check proving domain packages do not import transport, persistence, configuration, generated transport, or UI packages.
-- [ ] **P02-T10 — Document contract evolution.** Record additive/minor and breaking/major rules, unknown-event handling, fixture update requirements, and the rule that schema changes land with producer and consumer handling in the same phase.
+- [x] **P02-T01 — Implement strong identifiers and values.** Add validated types for RoomID, RoomCode, ParticipantID, MatchID, PuzzleID, ReplayID, RequestID, aggregate version, event number, cell index, digit, candidate set, timestamps, mode, difficulty, role, and current-scope lifecycle states. Keep parsing at boundaries and prohibit unvalidated primitive aliases in domain APIs.
+- [x] **P02-T02 — Implement identity validation.** Validate display names using the Domain §7.2 grapheme, Unicode normalization, comparison, and structural rules. Preserve the NFC display form, compare with the NFKC case-folded form, and keep moderation policy outside automatic validation.
+- [x] **P02-T03 — Define aggregate boundaries.** Add Room, Match, Puzzle, participant, rules, result, command, and event interfaces without persistence or transport imports. Model current Co-op/Solo scope only; deferred mode constants may exist only when required for stable stored-enum compatibility and must not enable behavior.
+- [x] **P02-T04 — Define stable errors.** Implement every current-scope Domain §33 error code with safe structured details and retryability metadata. Domain errors contain no localized prose, HTTP status, or UI behavior.
+- [x] **P02-T05 — Define command and event metadata.** Add UUIDv7 RequestID, authenticated scope, expected aggregate version, client sequence, server occurrence time, schema version, and event number rules. Separate RoomVersion from MatchVersion.
+- [x] **P02-T06 — Establish contract sources.** Add the OpenAPI root, WebSocket schema roots, replay schema roots, fixture directories, and generation configuration. Schemas must reject unknown required-shape violations while preserving explicit version evolution.
+- [x] **P02-T07 — Generate typed contracts.** Generate committed Go and TypeScript types from source schemas with `Code generated from contracts. DO NOT EDIT.` headers. Generated types must not become domain entities.
+- [x] **P02-T08 — Add cross-language fixtures.** Commit fixtures for successful envelopes, each error family, maximum safe integers, Unicode display names, stale versions, and unknown schema versions. Validate the same fixtures in Go and TypeScript.
+- [x] **P02-T09 — Enforce dependency rules.** Add a static or test-based import check proving domain packages do not import transport, persistence, configuration, generated transport, or UI packages.
+- [x] **P02-T10 — Document contract evolution.** Record additive/minor and breaking/major rules, unknown-event handling, fixture update requirements, and the rule that schema changes land with producer and consumer handling in the same phase.
 
 ### Phase gates
 
-- [ ] Domain unit tests cover every value boundary, Unicode name rule, lifecycle enum, and current error code.
-- [ ] UUIDv7 generation and parsing tests verify uniqueness assumptions and invalid input rejection.
-- [ ] Go and TypeScript decode the shared fixtures to equivalent typed values.
-- [ ] `make generate` completes and a second run produces no diff.
-- [ ] Contract validation rejects missing identifiers, unsafe numeric ranges, malformed versions, and unexpected credential fields.
-- [ ] Dependency-rule checks prove the domain remains transport- and storage-independent.
-- [ ] All Phase 1 checks continue to pass.
+- [x] Domain unit tests cover every value boundary, Unicode name rule, lifecycle enum, and current error code.
+- [x] UUIDv7 generation and parsing tests verify uniqueness assumptions and invalid input rejection.
+- [x] Go and TypeScript decode the shared fixtures to equivalent typed values.
+- [x] `make generate` completes and a second run produces no diff.
+- [x] Contract validation rejects missing identifiers, unsafe numeric ranges, malformed versions, and unexpected credential fields.
+- [x] Dependency-rule checks prove the domain remains transport- and storage-independent.
+- [x] All Phase 1 checks continue to pass.
 
 ### Commit
 

@@ -1,0 +1,90 @@
+openapi: 3.1.0
+info:
+  title: Ninefold Sudoku HTTP API
+  version: 1.0.0
+servers:
+  - url: /api/v1
+paths:
+  /health/live:
+    get:
+      operationId: getLiveness
+      responses:
+        '200':
+          description: Process is live
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Liveness'
+components:
+  schemas:
+    UUIDv7:
+      type: string
+      pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+    SafeInteger:
+      type: integer
+      format: int64
+      minimum: 0
+      maximum: 9007199254740991
+    Liveness:
+      type: object
+      additionalProperties: false
+      required: [status, version]
+      properties:
+        status:
+          type: string
+          const: live
+        version:
+          type: string
+          minLength: 1
+          maxLength: 128
+    SuccessEnvelope:
+      type: object
+      additionalProperties: false
+      required: [requestId, version, data]
+      properties:
+        requestId:
+          $ref: '#/components/schemas/UUIDv7'
+        version:
+          $ref: '#/components/schemas/SafeInteger'
+        data:
+          type: object
+          additionalProperties: false
+          required: [displayName]
+          properties:
+            displayName:
+              type: string
+              minLength: 1
+              maxLength: 128
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, messageKey, requestId, retryable, details]
+          properties:
+            code:
+              type: string
+              pattern: '^[A-Z][A-Z0-9_]{1,63}$'
+            messageKey:
+              type: string
+              pattern: "^error\\.[a-z0-9_]+$"
+            requestId:
+              $ref: '#/components/schemas/UUIDv7'
+            retryable:
+              type: boolean
+            details:
+              type: object
+              propertyNames:
+                pattern: '^(?!.*(?:[Tt]oken|[Ss]ecret|[Cc]ookie|[Cc]redential|[Cc]apability|[Ss]olution)).+$'
+              additionalProperties:
+                oneOf:
+                  - type: string
+                  - type: boolean
+                  - type: integer
+                    format: int64
+                    minimum: 0
+                    maximum: 9007199254740991
+                  - type: 'null'

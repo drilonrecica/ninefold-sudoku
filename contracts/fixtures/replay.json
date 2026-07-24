@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "replayId": "0190a7d3-8d9a-7f31-8d2a-1242f6f0d10b",
+  "matchId": "0190a7d3-8d9a-7f31-8d2a-1242f6f0d10c",
+  "events": [
+    {
+      "eventNumber": 1,
+      "aggregateVersion": 1,
+      "serverTimestamp": 1720000000000,
+      "type": "MatchStarted",
+      "payload": {}
+    }
+  ]
+}

@@ -14,18 +14,33 @@ web-dev:
 
 test:
 	cd apps/server && go test ./...
+	cd contracts/generated/go && go test ./...
 	pnpm --filter @ninefold/web test
 
 lint:
 	@test -z "$$(gofmt -l apps/server)" || { echo "Go files require formatting:"; gofmt -l apps/server; exit 1; }
 	cd apps/server && go vet ./...
+	cd contracts/generated/go && go vet ./...
 	pnpm format:check
 	pnpm --filter @ninefold/web lint
 	pnpm --filter @ninefold/web check
 
 generate:
-	@echo "Contract generation is not implemented until Phase 2." >&2
-	@exit 1
+	mkdir -p contracts/generated/go/http contracts/generated/go/realtime contracts/generated/go/replay
+	go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.8.0 \
+		-generate types,skip-prune -package http \
+		-o contracts/generated/go/http/types.gen.go contracts/openapi/ninefold.openapi.yaml
+	go run github.com/atombender/go-jsonschema@v0.23.1 \
+		--only-models --min-sized-ints --struct-name-from-title --tags json \
+		-p realtime -o contracts/generated/go/realtime/types.gen.go \
+		contracts/websocket/client-message.schema.json \
+		contracts/websocket/server-message.schema.json
+	go run github.com/atombender/go-jsonschema@v0.23.1 \
+		--only-models --min-sized-ints --struct-name-from-title --tags json \
+		-p replay -o contracts/generated/go/replay/types.gen.go \
+		contracts/replay/replay.schema.json contracts/replay/proof.schema.json
+	pnpm generate:contracts
+	gofmt -w contracts/generated/go
 
 migrate:
 	@echo "Database migrations are not implemented until Phase 4." >&2

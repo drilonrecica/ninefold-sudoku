@@ -192,27 +192,27 @@ Provide deterministic, tested Sudoku validation, solving, grading, transformatio
 
 ### Tasks
 
-- [ ] **P03-T01 — Implement compact board representation.** Represent clues and solutions as validated 81-cell structures with explicit empty-cell handling. Reject invalid length, digits, clue/solution disagreement, and duplicate row/column/box values.
-- [ ] **P03-T02 — Implement deterministic validation and solving.** Provide candidate calculation, constraint propagation, deterministic search order, solution validation, and solution counting capped once non-uniqueness is proven.
-- [ ] **P03-T03 — Verify uniqueness.** Accept catalog puzzles only when exactly one valid solution exists. Return structured tooling errors that identify the violated invariant without printing a full solution in ordinary logs.
-- [ ] **P03-T04 — Implement logical techniques and grading.** Implement the techniques and deterministic grade boundaries defined by Domain §23.4. Store the grading algorithm version with every puzzle revision.
-- [ ] **P03-T05 — Implement Nudge and Reveal support.** Produce deterministic useful-cell selection and reveal data suitable for server-side authorization. Do not implement deferred Explain hints.
-- [ ] **P03-T06 — Implement canonical transformations.** Add digit permutation, row/column band/stack transformations, transpose/rotation/reflection rules, and proof that clues and solution transform together.
-- [ ] **P03-T07 — Implement catalog tooling.** Add `cmd/puzzle-generator`, seedable deterministic generation, validation, grading, duplicate/canonical-equivalence detection, revision metadata, and import/export suitable for code review.
-- [ ] **P03-T08 — Add verified fixtures.** Commit representative Easy, Medium, Hard, and Expert puzzles with immutable IDs/revisions, clues, server-only solutions, grades, and solver paths. Public/frontend fixtures must contain clues only unless a test is explicitly server-confined.
-- [ ] **P03-T09 — Keep generation off request paths.** Expose catalog assignment interfaces that read pre-generated verified puzzles. Production HTTP handlers must never invoke puzzle generation or uniqueness search.
-- [ ] **P03-T10 — Add property and fuzz tests.** Cover solver determinism, unique solutions, transformations, invalid encodings, hint validity, grade stability, and generated-puzzle replayability.
-- [ ] **P03-T11 — Add benchmarks.** Benchmark validation, solving, grading, and hint selection using representative worst-case catalog candidates. Record regression thresholds that keep puzzle work outside gameplay latency paths.
+- [x] **P03-T01 — Implement compact board representation.** Represent clues and solutions as validated 81-cell structures with explicit empty-cell handling. Reject invalid length, digits, clue/solution disagreement, and duplicate row/column/box values.
+- [x] **P03-T02 — Implement deterministic validation and solving.** Provide candidate calculation, constraint propagation, deterministic search order, solution validation, and solution counting capped once non-uniqueness is proven.
+- [x] **P03-T03 — Verify uniqueness.** Accept catalog puzzles only when exactly one valid solution exists. Return structured tooling errors that identify the violated invariant without printing a full solution in ordinary logs.
+- [x] **P03-T04 — Implement logical techniques and grading.** Implement the techniques and deterministic grade boundaries defined by Domain §23.4. Store the grading algorithm version with every puzzle revision.
+- [x] **P03-T05 — Implement Nudge and Reveal support.** Produce deterministic useful-cell selection and reveal data suitable for server-side authorization. Do not implement deferred Explain hints.
+- [x] **P03-T06 — Implement canonical transformations.** Add digit permutation, row/column band/stack transformations, transpose/rotation/reflection rules, and proof that clues and solution transform together.
+- [x] **P03-T07 — Implement catalog tooling.** Add `cmd/puzzle-generator`, seedable deterministic generation, validation, grading, duplicate/canonical-equivalence detection, revision metadata, and import/export suitable for code review.
+- [x] **P03-T08 — Add verified fixtures.** Commit representative Easy, Medium, Hard, and Expert puzzles with immutable IDs/revisions, clues, server-only solutions, grades, and solver paths. Public/frontend fixtures must contain clues only unless a test is explicitly server-confined.
+- [x] **P03-T09 — Keep generation off request paths.** Expose catalog assignment interfaces that read pre-generated verified puzzles. Production HTTP handlers must never invoke puzzle generation or uniqueness search.
+- [x] **P03-T10 — Add property and fuzz tests.** Cover solver determinism, unique solutions, transformations, invalid encodings, hint validity, grade stability, and generated-puzzle replayability.
+- [x] **P03-T11 — Add benchmarks.** Benchmark validation, solving, grading, and hint selection using representative worst-case catalog candidates. Record regression thresholds that keep puzzle work outside gameplay latency paths.
 
 ### Phase gates
 
-- [ ] Every committed puzzle passes validity, uniqueness, clue consistency, deterministic grading, and logical-completion checks.
-- [ ] Property tests prove every transformation preserves the solution and uniqueness.
-- [ ] Fuzz tests do not panic, hang, allocate without bound, or accept malformed boards.
-- [ ] Frontend/generated public artifacts contain no full solution fixtures.
-- [ ] `make puzzles` validates the catalog deterministically and produces no diff on a second run.
-- [ ] Puzzle benchmarks are recorded and do not run in the production request path.
-- [ ] All cumulative checks pass.
+- [x] Every committed puzzle passes validity, uniqueness, clue consistency, deterministic grading, and logical-completion checks.
+- [x] Property tests prove every transformation preserves the solution and uniqueness.
+- [x] Fuzz tests do not panic, hang, allocate without bound, or accept malformed boards.
+- [x] Frontend/generated public artifacts contain no full solution fixtures.
+- [x] `make puzzles` validates the catalog deterministically and produces no diff on a second run.
+- [x] Puzzle benchmarks are recorded and do not run in the production request path.
+- [x] All cumulative checks pass.
 
 ### Commit
 

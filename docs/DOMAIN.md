@@ -1638,35 +1638,40 @@ Generation occurs ahead of gameplay, not in the player request path.
 
 Difficulty is determined by deterministic logical-solver requirements, not clue count alone.
 
-#### Easy
+The solver applies techniques in this fixed order:
 
-- naked singles
-- hidden singles
+1. naked single;
+2. hidden single;
+3. locked candidates;
+4. naked pair;
+5. hidden pair;
+6. naked triple;
+7. hidden triple;
+8. X-Wing;
+9. Swordfish;
+10. XY-Wing;
+11. simple coloring.
 
-#### Medium
+The highest required technique determines the grade:
 
-- locked candidates
-- naked pairs
-- hidden pairs
-
-#### Hard
-
-- triples
-- X-Wing
-- more complex candidate interactions
-
-#### Expert
-
-- advanced logical techniques
-- no guessing required
+- Easy: techniques 1–2;
+- Medium: techniques 3–5;
+- Hard: techniques 6–8;
+- Expert: techniques 9–11.
 
 Brute-force search may prove uniqueness but must not be used to label a puzzle logically solvable if the logical solver cannot complete it.
+
+A puzzle that stalls after simple coloring is rejected.
 
 ### 23.5 Multiplayer quality
 
 A Puzzle may be marked `multiplayer_approved`.
 
 Race and Duel use only multiplayer-approved puzzles.
+
+Multiplayer approval defaults to false. Phase 3 tooling records quality metrics and permits explicit
+reviewed approval only when a non-empty review reason is stored. Automatic Race and Duel thresholds
+are deferred until the focused Race review.
 
 A Puzzle should be rejected for multiplayer when it has:
 

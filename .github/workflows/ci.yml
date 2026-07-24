@@ -26,6 +26,7 @@ jobs:
         working-directory: apps/server
       - run: go test ./...
         working-directory: apps/server
+      - run: make puzzles
       - run: go test ./...
         working-directory: contracts/generated/go
       - run: go build -trimpath ./cmd/api

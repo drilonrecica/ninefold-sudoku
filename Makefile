@@ -47,8 +47,8 @@ migrate:
 	@exit 1
 
 puzzles:
-	@echo "Puzzle catalog tooling is not implemented until Phase 3." >&2
-	@exit 1
+	cd apps/server && go run ./cmd/puzzle-generator \
+		-validate internal/puzzle/catalog/catalog.jsonl
 
 e2e:
 	@echo "End-to-end tests are not implemented until Phase 10." >&2

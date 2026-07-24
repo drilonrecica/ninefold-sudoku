@@ -8,3 +8,5 @@ require (
 	github.com/rivo/uniseg v0.4.7
 	golang.org/x/text v0.40.0
 )
+
+require pgregory.net/rapid v1.3.0

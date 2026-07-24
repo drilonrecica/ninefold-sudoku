@@ -3,12 +3,14 @@ import { describe, expect, it } from 'vitest';
 import Page from './+page.svelte';
 
 describe('home page', () => {
-  it('renders a semantic heading and an honest status', () => {
+  it('renders the current multiplayer entry points without a deferred Solo action', () => {
     render(Page);
 
     expect(
-      screen.getByRole('heading', { level: 1, name: 'Solve together. Privately.' }),
+      screen.getByRole('heading', { level: 1, name: 'Sudoku is better together.' }),
     ).toBeTruthy();
-    expect(screen.getByText(/currently under construction/i)).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Create a room' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Join with code' })).toBeTruthy();
+    expect(screen.queryByText(/Play Solo/i)).toBeNull();
   });
 });

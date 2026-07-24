@@ -4,7 +4,7 @@
 
 **Execution model:** sequential phases, exactly one commit per completed phase
 
-**Current status:** Phases 1–7 committed; Phase 8 (web shell and Lobby) is next.
+**Current status:** Phases 1–8 committed; Phase 9 (accessible Co-op board) is next.
 
 ## 1. Authority and scope
 
@@ -443,29 +443,29 @@ Build the public shell and accessible Room entry/Lobby experience on typed HTTP 
 
 ### Tasks
 
-- [ ] **P08-T01 — Implement design foundations.** Add semantic color, typography, spacing, radius, focus, motion, player-marker, light, and dark tokens. Use system/self-hosted assets only and no icon font.
-- [ ] **P08-T02 — Implement the application shell.** Add semantic landmarks, skip link, responsive navigation, theme control, connection-status region, error boundary, and route-level loading/empty/error states.
-- [ ] **P08-T03 — Establish localization.** Use English translation keys with named placeholders and locale-independent machine values. Add a pseudo-locale used only in development/tests, support expansion without truncation, and never concatenate translated sentence fragments.
-- [ ] **P08-T04 — Build typed HTTP and WebSocket clients.** Use generated contracts, centralized safe-error mapping, RequestID creation, command status recovery, cookie credentials, reconnect hooks, and no duplicated gameplay rules.
-- [ ] **P08-T05 — Build the SSR homepage.** Present Create Room, Join by code, current Co-op messaging, clearly unavailable future modes, and privacy/accessibility highlights in meaningful HTML without requiring JavaScript to understand the product. Do not render the Play Solo action until Phase 13 activates the working Solo route.
-- [ ] **P08-T06 — Build Create Room.** Collect display name and difficulty only, identify Co-op as the sole current mode, validate locally for feedback and server-side for authority, handle active-Room replacement explicitly, and show precise errors.
-- [ ] **P08-T07 — Build Join flow.** Normalize/paste Room codes, render safe preview without names, collect display name, handle locked/full/expired/blocked states, and never show deferred approval UI.
-- [ ] **P08-T08 — Build Lobby.** Render Room code/share link, participants, host, ready state, current settings, activity, connection state, and accessible start-disabled reasons. Provide only current host controls.
-- [ ] **P08-T09 — Build Countdown.** Render server-aligned three-second countdown with a text/live-region equivalent, reduced-motion treatment, host cancellation, and deterministic return to Lobby with readiness reset.
-- [ ] **P08-T10 — Implement frontend state boundaries.** Keep authoritative Room state in deterministic reducers, transport effects outside reducers, transient UI state separate, and no server authority in Svelte stores.
-- [ ] **P08-T11 — Add responsive and accessibility behavior.** Support keyboard-only creation/join/Lobby, visible focus, 200% zoom, 44×44 primary controls, screen-reader status, no color-only readiness/host markers, and compact layouts without horizontal scroll.
-- [ ] **P08-T12 — Add frontend tests.** Cover reducers, safe errors, active-Room replacement, keyboard order, pseudo-localized expansion, dark mode, reduced motion, mobile/desktop layouts, and accessibility helpers.
+- [x] **P08-T01 — Implement design foundations.** Add semantic color, typography, spacing, radius, focus, motion, player-marker, light, and dark tokens. Use system/self-hosted assets only and no icon font.
+- [x] **P08-T02 — Implement the application shell.** Add semantic landmarks, skip link, responsive navigation, theme control, connection-status region, error boundary, and route-level loading/empty/error states.
+- [x] **P08-T03 — Establish localization.** Use English translation keys with named placeholders and locale-independent machine values. Add a pseudo-locale used only in development/tests, support expansion without truncation, and never concatenate translated sentence fragments.
+- [x] **P08-T04 — Build typed HTTP and WebSocket clients.** Use generated contracts, centralized safe-error mapping, RequestID creation, command status recovery, cookie credentials, reconnect hooks, and no duplicated gameplay rules.
+- [x] **P08-T05 — Build the SSR homepage.** Present Create Room, Join by code, current Co-op messaging, clearly unavailable future modes, and privacy/accessibility highlights in meaningful HTML without requiring JavaScript to understand the product. Do not render the Play Solo action until Phase 13 activates the working Solo route.
+- [x] **P08-T06 — Build Create Room.** Collect display name and difficulty only, identify Co-op as the sole current mode, validate locally for feedback and server-side for authority, handle active-Room replacement explicitly, and show precise errors.
+- [x] **P08-T07 — Build Join flow.** Normalize/paste Room codes, render safe preview without names, collect display name, handle locked/full/expired/blocked states, and never show deferred approval UI.
+- [x] **P08-T08 — Build Lobby.** Render Room code/share link, participants, host, ready state, current settings, activity, connection state, and accessible start-disabled reasons. Provide only current host controls.
+- [x] **P08-T09 — Build Countdown.** Render server-aligned three-second countdown with a text/live-region equivalent, reduced-motion treatment, host cancellation, and deterministic return to Lobby with readiness reset.
+- [x] **P08-T10 — Implement frontend state boundaries.** Keep authoritative Room state in deterministic reducers, transport effects outside reducers, transient UI state separate, and no server authority in Svelte stores.
+- [x] **P08-T11 — Add responsive and accessibility behavior.** Support keyboard-only creation/join/Lobby, visible focus, 200% zoom, 44×44 primary controls, screen-reader status, no color-only readiness/host markers, and compact layouts without horizontal scroll.
+- [x] **P08-T12 — Add frontend tests.** Cover reducers, safe errors, active-Room replacement, keyboard order, pseudo-localized expansion, dark mode, reduced motion, mobile/desktop layouts, and accessibility helpers.
 
 ### Phase gates
 
-- [ ] Public homepage HTML is useful with client JavaScript disabled.
-- [ ] Create/Join/Lobby work against real server endpoints in Playwright.
-- [ ] No Room preview, metadata, client log, or error exposes participant names or credentials.
-- [ ] Keyboard, axe-core, 200% zoom, reduced-motion, and compact viewport checks pass.
-- [ ] Pseudo-localized labels do not overlap, truncate critical content, or make controls unreachable.
-- [ ] Homepage compressed JavaScript remains below 100 KiB.
-- [ ] No third-party analytics, fonts, embeds, or tracking requests are emitted.
-- [ ] All cumulative checks pass.
+- [x] Public homepage HTML is useful with client JavaScript disabled.
+- [x] Create/Join/Lobby work against real server endpoints in Playwright.
+- [x] No Room preview, metadata, client log, or error exposes participant names or credentials.
+- [x] Keyboard, axe-core, 200% zoom, reduced-motion, and compact viewport checks pass.
+- [x] Pseudo-localized labels do not overlap, truncate critical content, or make controls unreachable.
+- [x] Homepage compressed JavaScript remains below 100 KiB.
+- [x] No third-party analytics, fonts, embeds, or tracking requests are emitted.
+- [x] All cumulative checks pass.
 
 ### Commit
 

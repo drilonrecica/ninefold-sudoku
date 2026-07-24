@@ -314,7 +314,11 @@ func (h *Handler) JoinRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if existing != nil && existing.RoomID != grFromCode(ctx, h.repo, code) {
-		writeError(w, http.StatusConflict, shared.ErrActiveRoomSessionExists, "active room session exists")
+		details := map[string]any{}
+		if currentRoom, lookupErr := h.repo.GetRoomByID(ctx, existing.RoomID); lookupErr == nil {
+			details["roomCode"] = currentRoom.Code
+		}
+		writeErrorWithDetails(w, http.StatusConflict, shared.ErrActiveRoomSessionExists, details)
 		return
 	}
 	if existing != nil && existing.RoomID == grFromCode(ctx, h.repo, code) {
@@ -577,7 +581,11 @@ func (h *Handler) rejectActiveSession(ctx context.Context, r *http.Request, allo
 	if allowedRoomID != "" && existing.RoomID == allowedRoomID {
 		return nil
 	}
-	return shared.DomainError{Code: shared.ErrActiveRoomSessionExists}
+	details := map[string]any{}
+	if room, lookupErr := h.repo.GetRoomByID(ctx, existing.RoomID); lookupErr == nil {
+		details["roomCode"] = room.Code
+	}
+	return shared.DomainError{Code: shared.ErrActiveRoomSessionExists, Details: details}
 }
 
 func (h *Handler) checkReceipt(ctx context.Context, requestID shared.RequestID, scopeHash []byte, commandType, fingerprint string) ([]byte, bool) {
@@ -625,19 +633,22 @@ func buildResumeResponse(room *roomdomain.Room, selfID shared.ParticipantID) []b
 func buildRoomResponse(room *roomdomain.Room, selfID shared.ParticipantID) []byte {
 	view := map[string]any{
 		"room": map[string]any{
-			"id":                room.ID.String(),
-			"code":              room.Code.String(),
-			"state":             string(room.State),
-			"version":           uint64(room.Version),
-			"mode":              string(room.Rules.Mode),
-			"difficulty":        string(room.Rules.Difficulty),
-			"errorPreset":       string(room.Rules.ErrorPreset),
-			"hintsEnabled":      room.Rules.HintsEnabled,
-			"sharedNotes":       room.Rules.SharedNotes,
-			"autoRemoveNotes":   room.Rules.AutoRemoveNotes,
-			"spectatorsAllowed": room.Rules.SpectatorsAllowed,
-			"hostId":            nullParticipantID(room.HostParticipantID),
-			"currentMatchId":    nullMatchID(room.CurrentMatchID),
+			"id":             room.ID.String(),
+			"code":           room.Code.String(),
+			"state":          string(room.State),
+			"version":        uint64(room.Version),
+			"hostId":         nullParticipantID(room.HostParticipantID),
+			"currentMatchId": nullMatchID(room.CurrentMatchID),
+			"participants":   participantsToView(room.Participants),
+			"settings": map[string]any{
+				"mode":              string(room.Rules.Mode),
+				"difficulty":        string(room.Rules.Difficulty),
+				"errorPreset":       string(room.Rules.ErrorPreset),
+				"hintsEnabled":      room.Rules.HintsEnabled,
+				"sharedNotes":       room.Rules.SharedNotes,
+				"autoRemoveNotes":   room.Rules.AutoRemoveNotes,
+				"spectatorsAllowed": room.Rules.SpectatorsAllowed,
+			},
 		},
 		"participants": participantsToView(room.Participants),
 		"self": map[string]any{
@@ -680,12 +691,16 @@ func writeJSON(w http.ResponseWriter, status int, body []byte) {
 }
 
 func writeError(w http.ResponseWriter, status int, code shared.ErrorCode, message string) {
+	writeErrorWithDetails(w, status, code, map[string]any{"message": message})
+}
+
+func writeErrorWithDetails(w http.ResponseWriter, status int, code shared.ErrorCode, details map[string]any) {
 	envelope := map[string]any{
 		"error": map[string]any{
 			"code":       string(code),
 			"messageKey": "error." + strings.ToLower(string(code)),
 			"requestId":  "",
-			"details":    map[string]any{"message": message},
+			"details":    details,
 		},
 	}
 	b, _ := json.Marshal(envelope)
@@ -712,7 +727,11 @@ func writeDomainError(w http.ResponseWriter, err error) {
 		case shared.ErrServerBusy:
 			status = http.StatusServiceUnavailable
 		}
-		writeError(w, status, domainErr.Code, string(domainErr.Code))
+		details := domainErr.Details
+		if details == nil {
+			details = map[string]any{}
+		}
+		writeErrorWithDetails(w, status, domainErr.Code, details)
 		return
 	}
 	writeError(w, http.StatusInternalServerError, shared.ErrPersistenceFailed, err.Error())

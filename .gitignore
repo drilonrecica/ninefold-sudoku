@@ -10,6 +10,7 @@ tools/
 coverage/
 playwright-report/
 test-results/
+.e2e/
 specs/**/states/
 specs/**/*_TTrace_*
 specs/**/*.bin

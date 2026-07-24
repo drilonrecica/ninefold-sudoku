@@ -1,7 +1,7 @@
 @import 'tailwindcss';
 
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
   font-family:
     Inter,
     ui-sans-serif,
@@ -10,23 +10,279 @@
     BlinkMacSystemFont,
     'Segoe UI',
     sans-serif;
-  background: Canvas;
-  color: CanvasText;
+  font-synthesis: none;
+  --surface-canvas: #f6f5f2;
+  --surface-primary: #ffffff;
+  --surface-secondary: #efeff6;
+  --surface-elevated: #ffffff;
+  --surface-interactive: #f8f8fc;
+  --surface-selected: #e8e9ff;
+  --text-primary: #20202a;
+  --text-secondary: #4f5062;
+  --text-muted: #666778;
+  --text-inverse: #ffffff;
+  --border-default: #d7d7e0;
+  --border-strong: #74758a;
+  --border-focus: #4f46e5;
+  --brand-primary: #5145cd;
+  --brand-hover: #4338b3;
+  --brand-subtle: #ecebff;
+  --state-success: #18764b;
+  --state-success-subtle: #e5f5ec;
+  --state-warning: #8a4b08;
+  --state-warning-subtle: #fff1d8;
+  --state-error: #b42318;
+  --state-error-subtle: #ffebe9;
+  --state-info: #2457a6;
+  --state-info-subtle: #e8f0ff;
+  --radius-small: 0.5rem;
+  --radius-control: 0.625rem;
+  --radius-panel: 0.875rem;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --touch-target: 2.75rem;
+  --motion-fast: 120ms;
+  --motion-control: 180ms;
+  --player-1: #3f51b5;
+  --player-2: #a13c67;
+  --player-3: #087f8c;
+  --player-4: #8a5a00;
+  --player-5: #6b4bc3;
+  --player-6: #26734d;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --surface-canvas: #181820;
+  --surface-primary: #22232d;
+  --surface-secondary: #2a2b37;
+  --surface-elevated: #30313e;
+  --surface-interactive: #292a35;
+  --surface-selected: #37375d;
+  --text-primary: #f5f2ec;
+  --text-secondary: #ccc9d3;
+  --text-muted: #aaa7b4;
+  --text-inverse: #181820;
+  --border-default: #444653;
+  --border-strong: #8b8d9b;
+  --border-focus: #aaa6ff;
+  --brand-primary: #aaa6ff;
+  --brand-hover: #c1beff;
+  --brand-subtle: #343358;
+  --state-success: #74d6a5;
+  --state-success-subtle: #183a2a;
+  --state-warning: #f0b967;
+  --state-warning-subtle: #452e13;
+  --state-error: #ff9b91;
+  --state-error-subtle: #481f20;
+  --state-info: #91baff;
+  --state-info-subtle: #1c3153;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --surface-canvas: #181820;
+    --surface-primary: #22232d;
+    --surface-secondary: #2a2b37;
+    --surface-elevated: #30313e;
+    --surface-interactive: #292a35;
+    --surface-selected: #37375d;
+    --text-primary: #f5f2ec;
+    --text-secondary: #ccc9d3;
+    --text-muted: #aaa7b4;
+    --text-inverse: #181820;
+    --border-default: #444653;
+    --border-strong: #8b8d9b;
+    --border-focus: #aaa6ff;
+    --brand-primary: #aaa6ff;
+    --brand-hover: #c1beff;
+    --brand-subtle: #343358;
+    --state-success: #74d6a5;
+    --state-success-subtle: #183a2a;
+    --state-warning: #f0b967;
+    --state-warning-subtle: #452e13;
+    --state-error: #ff9b91;
+    --state-error-subtle: #481f20;
+    --state-info: #91baff;
+    --state-info-subtle: #1c3153;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  background: var(--surface-canvas);
+  color: var(--text-primary);
+  scrollbar-gutter: stable;
 }
 
 body {
   min-width: 320px;
+  min-height: 100vh;
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
-a,
-button {
-  min-height: 44px;
+button,
+input,
+select {
+  font: inherit;
+}
+
+a {
+  color: var(--brand-primary);
+}
+
+button,
+.button {
+  min-height: var(--touch-target);
 }
 
 :focus-visible {
-  outline: 3px solid Highlight;
+  outline: 3px solid var(--border-focus);
   outline-offset: 3px;
+}
+
+.shell {
+  width: min(100% - 2rem, 72rem);
+  margin-inline: auto;
+}
+
+.panel {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-panel);
+  background: var(--surface-primary);
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  padding: 0.65rem 1rem;
+  background: var(--brand-primary);
+  color: var(--text-inverse);
+  font-weight: 700;
+  line-height: 1.2;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background var(--motion-control) ease-out,
+    transform var(--motion-fast) ease-out;
+}
+
+.button:hover:not(:disabled) {
+  background: var(--brand-hover);
+}
+
+.button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.button.secondary {
+  border-color: var(--border-default);
+  background: var(--surface-interactive);
+  color: var(--text-primary);
+}
+
+.button.secondary:hover:not(:disabled) {
+  background: var(--surface-secondary);
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.field {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.field label,
+.label {
+  font-weight: 700;
+}
+
+.field input,
+.field select,
+.control {
+  min-height: var(--touch-target);
+  width: 100%;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-control);
+  padding: 0.65rem 0.75rem;
+  background: var(--surface-primary);
+  color: var(--text-primary);
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.error-message,
+.status-message {
+  border-radius: var(--radius-small);
+  padding: var(--space-3) var(--space-4);
+}
+
+.error-message {
+  border: 1px solid var(--state-error);
+  background: var(--state-error-subtle);
+  color: var(--state-error);
+}
+
+.status-message {
+  border: 1px solid var(--border-default);
+  background: var(--state-info-subtle);
+  color: var(--text-primary);
+}
+
+.skip-link {
+  position: fixed;
+  z-index: 100;
+  top: var(--space-2);
+  left: var(--space-2);
+  transform: translateY(-150%);
+  border-radius: var(--radius-small);
+  padding: var(--space-3) var(--space-4);
+  background: var(--text-primary);
+  color: var(--surface-primary);
+}
+
+.skip-link:focus {
+  transform: none;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 639px) {
+  .shell {
+    width: min(100% - 1.25rem, 72rem);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

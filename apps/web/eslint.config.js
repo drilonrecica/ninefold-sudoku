@@ -10,6 +10,17 @@ export default tseslint.config(
   ...svelte.configs['flat/recommended'],
   prettier,
   {
+    files: ['**/*.svelte'],
+    languageOptions: {
+      parserOptions: {
+        parser: tseslint.parser,
+      },
+    },
+    rules: {
+      'svelte/no-navigation-without-resolve': 'off',
+    },
+  },
+  {
     languageOptions: {
       globals: {
         ...globals.browser,

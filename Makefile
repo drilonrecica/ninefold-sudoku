@@ -51,8 +51,7 @@ puzzles:
 		-validate internal/puzzle/catalog/catalog.jsonl
 
 e2e:
-	@echo "End-to-end tests are not implemented until Phase 10." >&2
-	@exit 1
+	pnpm --filter @ninefold/web e2e
 
 build:
 	mkdir -p apps/server/bin

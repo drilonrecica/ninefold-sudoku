@@ -39,14 +39,15 @@ ORDER BY id, revision;
 INSERT INTO rooms (
     id, code, state, version, mode, difficulty, error_preset, hints_enabled,
     shared_notes, auto_remove_notes, spectators_allowed, host_participant_id,
-    current_match_id, created_at_ms, last_activity_at_ms, expires_at_ms
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    current_match_id, created_at_ms, last_activity_at_ms, expires_at_ms, rematch_number
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: UpdateRoom :exec
 UPDATE rooms SET
     code = ?, state = ?, version = ?, mode = ?, difficulty = ?, error_preset = ?,
     hints_enabled = ?, shared_notes = ?, auto_remove_notes = ?, spectators_allowed = ?,
-    host_participant_id = ?, current_match_id = ?, last_activity_at_ms = ?, expires_at_ms = ?
+    host_participant_id = ?, current_match_id = ?, last_activity_at_ms = ?, expires_at_ms = ?,
+    rematch_number = ?
 WHERE id = ? AND version = ?;
 
 -- name: GetRoomByID :one
@@ -156,6 +157,9 @@ SELECT * FROM matches WHERE id = ?;
 -- name: GetMatchByRoomID :many
 SELECT * FROM matches WHERE room_id = ? ORDER BY created_at_ms DESC;
 
+-- name: ListRecentPuzzleIDsByRoom :many
+SELECT puzzle_id FROM matches WHERE room_id = ? ORDER BY created_at_ms DESC LIMIT 20;
+
 -- name: CreateMatchParticipant :exec
 INSERT INTO match_participants (
     match_id, participant_id, connected, mistakes, hints_used
@@ -216,7 +220,7 @@ INSERT INTO match_result_players (
 SELECT * FROM match_results WHERE match_id = ?;
 
 -- name: GetMatchResultPlayers :many
-SELECT * FROM match_result_players WHERE match_id = ?;
+SELECT * FROM match_result_players WHERE match_id = ? ORDER BY participant_id;
 
 -- name: CreateMatchTombstone :exec
 INSERT INTO match_tombstones (
@@ -247,8 +251,15 @@ INSERT INTO replay_capabilities (
 -- name: GetReplayCapabilityByHash :one
 SELECT * FROM replay_capabilities WHERE token_hash = ?;
 
+-- name: GetReplayCapabilityByReplayID :one
+SELECT * FROM replay_capabilities WHERE replay_id = ?;
+
 -- name: RevokeReplayCapability :exec
 UPDATE replay_capabilities SET revoked_at_ms = ? WHERE token_hash = ?;
+
+-- name: RevokeReplayCapabilitiesByMatch :exec
+UPDATE replay_capabilities SET revoked_at_ms = ?
+WHERE match_id = ? AND revoked_at_ms IS NULL;
 
 -- name: ListReplayCapabilitiesByMatch :many
 SELECT * FROM replay_capabilities WHERE match_id = ?;

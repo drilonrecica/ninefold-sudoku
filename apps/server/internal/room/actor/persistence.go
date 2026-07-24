@@ -31,6 +31,7 @@ func roomToGen(r *roomdomain.Room) gen.Room {
 		CreatedAtMs:       r.CreatedAt.Milliseconds(),
 		LastActivityAtMs:  r.LastActivityAt.Milliseconds(),
 		ExpiresAtMs:       r.ExpiresAt.Milliseconds(),
+		RematchNumber:     int64(r.RematchNumber),
 	}
 }
 
@@ -75,6 +76,7 @@ func roomFromGen(gr gen.Room, participants []gen.RoomParticipant) (*roomdomain.R
 		CreatedAt:      createdAt,
 		LastActivityAt: lastActivity,
 		ExpiresAt:      expiresAt,
+		RematchNumber:  uint32(gr.RematchNumber),
 	}
 	room.Version = shared.RoomVersion(gr.Version)
 	if gr.HostParticipantID != "" {

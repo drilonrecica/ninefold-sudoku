@@ -525,8 +525,8 @@ const createRoom = `-- name: CreateRoom :exec
 INSERT INTO rooms (
     id, code, state, version, mode, difficulty, error_preset, hints_enabled,
     shared_notes, auto_remove_notes, spectators_allowed, host_participant_id,
-    current_match_id, created_at_ms, last_activity_at_ms, expires_at_ms
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    current_match_id, created_at_ms, last_activity_at_ms, expires_at_ms, rematch_number
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type CreateRoomParams struct {
@@ -546,6 +546,7 @@ type CreateRoomParams struct {
 	CreatedAtMs       int64          `json:"created_at_ms"`
 	LastActivityAtMs  int64          `json:"last_activity_at_ms"`
 	ExpiresAtMs       int64          `json:"expires_at_ms"`
+	RematchNumber     int64          `json:"rematch_number"`
 }
 
 func (q *Queries) CreateRoom(ctx context.Context, arg CreateRoomParams) error {
@@ -566,6 +567,7 @@ func (q *Queries) CreateRoom(ctx context.Context, arg CreateRoomParams) error {
 		arg.CreatedAtMs,
 		arg.LastActivityAtMs,
 		arg.ExpiresAtMs,
+		arg.RematchNumber,
 	)
 	return err
 }
@@ -1047,7 +1049,7 @@ func (q *Queries) GetMatchResult(ctx context.Context, matchID string) (MatchResu
 }
 
 const getMatchResultPlayers = `-- name: GetMatchResultPlayers :many
-SELECT match_id, participant_id, display_name, mistakes, hints_used, score FROM match_result_players WHERE match_id = ?
+SELECT match_id, participant_id, display_name, mistakes, hints_used, score FROM match_result_players WHERE match_id = ? ORDER BY participant_id
 `
 
 func (q *Queries) GetMatchResultPlayers(ctx context.Context, matchID string) ([]MatchResultPlayer, error) {
@@ -1214,6 +1216,24 @@ func (q *Queries) GetReplayCapabilityByHash(ctx context.Context, tokenHash []byt
 	return i, err
 }
 
+const getReplayCapabilityByReplayID = `-- name: GetReplayCapabilityByReplayID :one
+SELECT token_hash, replay_id, match_id, created_at_ms, expires_at_ms, revoked_at_ms FROM replay_capabilities WHERE replay_id = ?
+`
+
+func (q *Queries) GetReplayCapabilityByReplayID(ctx context.Context, replayID string) (ReplayCapability, error) {
+	row := q.db.QueryRowContext(ctx, getReplayCapabilityByReplayID, replayID)
+	var i ReplayCapability
+	err := row.Scan(
+		&i.TokenHash,
+		&i.ReplayID,
+		&i.MatchID,
+		&i.CreatedAtMs,
+		&i.ExpiresAtMs,
+		&i.RevokedAtMs,
+	)
+	return i, err
+}
+
 const getReplaySeal = `-- name: GetReplaySeal :one
 SELECT match_id, final_event_number, final_event_hash, terminal_at_ms, signing_key_id, signature, proof_version, created_at_ms FROM replay_seals WHERE match_id = ?
 `
@@ -1256,7 +1276,7 @@ func (q *Queries) GetRoomBlock(ctx context.Context, arg GetRoomBlockParams) (Roo
 }
 
 const getRoomByCode = `-- name: GetRoomByCode :one
-SELECT id, code, state, version, mode, difficulty, error_preset, hints_enabled, shared_notes, auto_remove_notes, spectators_allowed, host_participant_id, current_match_id, created_at_ms, last_activity_at_ms, expires_at_ms FROM rooms WHERE code = ?
+SELECT id, code, state, version, mode, difficulty, error_preset, hints_enabled, shared_notes, auto_remove_notes, spectators_allowed, host_participant_id, current_match_id, created_at_ms, last_activity_at_ms, expires_at_ms, rematch_number FROM rooms WHERE code = ?
 `
 
 func (q *Queries) GetRoomByCode(ctx context.Context, code string) (Room, error) {
@@ -1279,12 +1299,13 @@ func (q *Queries) GetRoomByCode(ctx context.Context, code string) (Room, error) 
 		&i.CreatedAtMs,
 		&i.LastActivityAtMs,
 		&i.ExpiresAtMs,
+		&i.RematchNumber,
 	)
 	return i, err
 }
 
 const getRoomByID = `-- name: GetRoomByID :one
-SELECT id, code, state, version, mode, difficulty, error_preset, hints_enabled, shared_notes, auto_remove_notes, spectators_allowed, host_participant_id, current_match_id, created_at_ms, last_activity_at_ms, expires_at_ms FROM rooms WHERE id = ?
+SELECT id, code, state, version, mode, difficulty, error_preset, hints_enabled, shared_notes, auto_remove_notes, spectators_allowed, host_participant_id, current_match_id, created_at_ms, last_activity_at_ms, expires_at_ms, rematch_number FROM rooms WHERE id = ?
 `
 
 func (q *Queries) GetRoomByID(ctx context.Context, id string) (Room, error) {
@@ -1307,6 +1328,7 @@ func (q *Queries) GetRoomByID(ctx context.Context, id string) (Room, error) {
 		&i.CreatedAtMs,
 		&i.LastActivityAtMs,
 		&i.ExpiresAtMs,
+		&i.RematchNumber,
 	)
 	return i, err
 }
@@ -1621,7 +1643,7 @@ func (q *Queries) ListCommandReceiptsExpired(ctx context.Context, expiresAtMs in
 }
 
 const listExpiredRooms = `-- name: ListExpiredRooms :many
-SELECT id, code, state, version, mode, difficulty, error_preset, hints_enabled, shared_notes, auto_remove_notes, spectators_allowed, host_participant_id, current_match_id, created_at_ms, last_activity_at_ms, expires_at_ms FROM rooms WHERE expires_at_ms <= ? AND state NOT IN ('Expired', 'Cancelled', 'TerminatedByAdmin')
+SELECT id, code, state, version, mode, difficulty, error_preset, hints_enabled, shared_notes, auto_remove_notes, spectators_allowed, host_participant_id, current_match_id, created_at_ms, last_activity_at_ms, expires_at_ms, rematch_number FROM rooms WHERE expires_at_ms <= ? AND state NOT IN ('Expired', 'Cancelled', 'TerminatedByAdmin')
 `
 
 func (q *Queries) ListExpiredRooms(ctx context.Context, expiresAtMs int64) ([]Room, error) {
@@ -1650,6 +1672,7 @@ func (q *Queries) ListExpiredRooms(ctx context.Context, expiresAtMs int64) ([]Ro
 			&i.CreatedAtMs,
 			&i.LastActivityAtMs,
 			&i.ExpiresAtMs,
+			&i.RematchNumber,
 		); err != nil {
 			return nil, err
 		}
@@ -1786,6 +1809,33 @@ func (q *Queries) ListNonTerminalMatches(ctx context.Context) ([]Match, error) {
 	return items, nil
 }
 
+const listRecentPuzzleIDsByRoom = `-- name: ListRecentPuzzleIDsByRoom :many
+SELECT puzzle_id FROM matches WHERE room_id = ? ORDER BY created_at_ms DESC LIMIT 20
+`
+
+func (q *Queries) ListRecentPuzzleIDsByRoom(ctx context.Context, roomID string) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listRecentPuzzleIDsByRoom, roomID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var puzzle_id string
+		if err := rows.Scan(&puzzle_id); err != nil {
+			return nil, err
+		}
+		items = append(items, puzzle_id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listReplayCapabilitiesByMatch = `-- name: ListReplayCapabilitiesByMatch :many
 SELECT token_hash, replay_id, match_id, created_at_ms, expires_at_ms, revoked_at_ms FROM replay_capabilities WHERE match_id = ?
 `
@@ -1889,7 +1939,7 @@ func (q *Queries) ListRoomSessionsExpired(ctx context.Context, expiresAtMs int64
 }
 
 const listRoomsExpired = `-- name: ListRoomsExpired :many
-SELECT id, code, state, version, mode, difficulty, error_preset, hints_enabled, shared_notes, auto_remove_notes, spectators_allowed, host_participant_id, current_match_id, created_at_ms, last_activity_at_ms, expires_at_ms FROM rooms WHERE expires_at_ms <= ?
+SELECT id, code, state, version, mode, difficulty, error_preset, hints_enabled, shared_notes, auto_remove_notes, spectators_allowed, host_participant_id, current_match_id, created_at_ms, last_activity_at_ms, expires_at_ms, rematch_number FROM rooms WHERE expires_at_ms <= ?
 `
 
 func (q *Queries) ListRoomsExpired(ctx context.Context, expiresAtMs int64) ([]Room, error) {
@@ -1918,6 +1968,7 @@ func (q *Queries) ListRoomsExpired(ctx context.Context, expiresAtMs int64) ([]Ro
 			&i.CreatedAtMs,
 			&i.LastActivityAtMs,
 			&i.ExpiresAtMs,
+			&i.RematchNumber,
 		); err != nil {
 			return nil, err
 		}
@@ -1930,6 +1981,21 @@ func (q *Queries) ListRoomsExpired(ctx context.Context, expiresAtMs int64) ([]Ro
 		return nil, err
 	}
 	return items, nil
+}
+
+const revokeReplayCapabilitiesByMatch = `-- name: RevokeReplayCapabilitiesByMatch :exec
+UPDATE replay_capabilities SET revoked_at_ms = ?
+WHERE match_id = ? AND revoked_at_ms IS NULL
+`
+
+type RevokeReplayCapabilitiesByMatchParams struct {
+	RevokedAtMs sql.NullInt64 `json:"revoked_at_ms"`
+	MatchID     string        `json:"match_id"`
+}
+
+func (q *Queries) RevokeReplayCapabilitiesByMatch(ctx context.Context, arg RevokeReplayCapabilitiesByMatchParams) error {
+	_, err := q.db.ExecContext(ctx, revokeReplayCapabilitiesByMatch, arg.RevokedAtMs, arg.MatchID)
+	return err
 }
 
 const revokeReplayCapability = `-- name: RevokeReplayCapability :exec
@@ -2056,7 +2122,8 @@ const updateRoom = `-- name: UpdateRoom :exec
 UPDATE rooms SET
     code = ?, state = ?, version = ?, mode = ?, difficulty = ?, error_preset = ?,
     hints_enabled = ?, shared_notes = ?, auto_remove_notes = ?, spectators_allowed = ?,
-    host_participant_id = ?, current_match_id = ?, last_activity_at_ms = ?, expires_at_ms = ?
+    host_participant_id = ?, current_match_id = ?, last_activity_at_ms = ?, expires_at_ms = ?,
+    rematch_number = ?
 WHERE id = ? AND version = ?
 `
 
@@ -2075,6 +2142,7 @@ type UpdateRoomParams struct {
 	CurrentMatchID    sql.NullString `json:"current_match_id"`
 	LastActivityAtMs  int64          `json:"last_activity_at_ms"`
 	ExpiresAtMs       int64          `json:"expires_at_ms"`
+	RematchNumber     int64          `json:"rematch_number"`
 	ID                string         `json:"id"`
 	Version_2         int64          `json:"version_2"`
 }
@@ -2095,6 +2163,7 @@ func (q *Queries) UpdateRoom(ctx context.Context, arg UpdateRoomParams) error {
 		arg.CurrentMatchID,
 		arg.LastActivityAtMs,
 		arg.ExpiresAtMs,
+		arg.RematchNumber,
 		arg.ID,
 		arg.Version_2,
 	)

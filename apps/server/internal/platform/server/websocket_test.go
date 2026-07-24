@@ -350,37 +350,37 @@ func createCatalogPuzzle(t *testing.T, repo *repository.Repository) {
 	if err != nil {
 		t.Fatalf("read catalog: %v", err)
 	}
-	var record catalog.Record
-	for _, r := range records {
-		if r.Difficulty == "Easy" && r.Lifecycle == "Active" {
-			record = r
-			break
+	created := 0
+	for _, record := range records {
+		if record.Difficulty != "Easy" || record.Lifecycle != "Active" {
+			continue
 		}
+		id, err := shared.ParsePuzzleID(record.ID)
+		if err != nil {
+			t.Fatalf("puzzle id: %v", err)
+		}
+		puzzle := gen.Puzzle{
+			ID:                   id.String(),
+			Revision:             1,
+			State:                "Active",
+			Difficulty:           string(record.Difficulty),
+			HardestTechnique:     record.HardestTechnique,
+			QualityScore:         float64(record.Quality.ClueCount),
+			MultiplayerApproved:  1,
+			GeneratorVersion:     record.GeneratorVersion,
+			SolverVersion:        record.SolverVersion,
+			CanonicalFingerprint: record.CanonicalFingerprint,
+			Clues:                decimalGridBytes(t, record.Clues),
+			Solution:             decimalGridBytes(t, record.Solution),
+			CreatedAtMs:          time.Now().UnixMilli(),
+		}
+		if err := repo.CreatePuzzle(context.Background(), puzzle); err != nil {
+			t.Fatalf("create puzzle: %v", err)
+		}
+		created++
 	}
-	if record.ID == "" {
-		t.Fatal("no easy active puzzle in catalog")
-	}
-	id, err := shared.ParsePuzzleID(record.ID)
-	if err != nil {
-		t.Fatalf("puzzle id: %v", err)
-	}
-	puzzle := gen.Puzzle{
-		ID:                   id.String(),
-		Revision:             1,
-		State:                "Active",
-		Difficulty:           string(record.Difficulty),
-		HardestTechnique:     record.HardestTechnique,
-		QualityScore:         float64(record.Quality.ClueCount),
-		MultiplayerApproved:  1,
-		GeneratorVersion:     record.GeneratorVersion,
-		SolverVersion:        record.SolverVersion,
-		CanonicalFingerprint: record.CanonicalFingerprint,
-		Clues:                decimalGridBytes(t, record.Clues),
-		Solution:             decimalGridBytes(t, record.Solution),
-		CreatedAtMs:          time.Now().UnixMilli(),
-	}
-	if err := repo.CreatePuzzle(context.Background(), puzzle); err != nil {
-		t.Fatalf("create puzzle: %v", err)
+	if created < 2 {
+		t.Fatalf("expected at least two active Easy puzzles, got %d", created)
 	}
 }
 

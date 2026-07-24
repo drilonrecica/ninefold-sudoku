@@ -3,7 +3,7 @@
   import { onMount } from 'svelte';
   import { SvelteMap } from 'svelte/reactivity';
 
-  import type { Room } from '$lib/api/client';
+  import { createReplayCapability, type Room } from '$lib/api/client';
   import NumberPad from '$lib/components/NumberPad.svelte';
   import SudokuBoard from '$lib/components/SudokuBoard.svelte';
   import {
@@ -44,6 +44,9 @@
   let leaveRequestId = $state('');
   let pingedCell = $state<number | null>(null);
   let persistedCheckpoint = $state<ConnectionCheckpoint | null>(null);
+  let rematchRequestId = $state('');
+  let resultsError = $state('');
+  let replayLoading = $state(false);
 
   const match = $derived(matchState.confirmed);
   const room = $derived(roomState.room as Room | null);
@@ -162,6 +165,13 @@
     if (message.type === 'command.acknowledged' && message.payload.requestId === leaveRequestId) {
       void goto('/');
     }
+    if (
+      message.type === 'room.snapshot' &&
+      (message.payload.room as { state?: string } | undefined)?.state === 'Lobby' &&
+      matchState.confirmed?.state === 'Completed'
+    ) {
+      void goto(`/room/${room?.code ?? persistedCheckpoint?.roomCode ?? ''}`);
+    }
   }
 
   function selectCell(index: number, override = false) {
@@ -261,6 +271,25 @@
       intent: 'leave_match',
     });
     if (requestId) leaveRequestId = requestId;
+  }
+
+  function rematch() {
+    if (!room || !socket || !roomState.isController || rematchRequestId) return;
+    resultsError = '';
+    rematchRequestId = socket.roomCommand('room.prepare_rematch', room.id, room.version, {}) ?? '';
+  }
+
+  async function viewReplay() {
+    if (!match || replayLoading) return;
+    replayLoading = true;
+    resultsError = '';
+    try {
+      const created = await createReplayCapability(match.id);
+      await goto(created.shareUrl);
+    } catch {
+      resultsError = 'Replay could not be opened. Try again.';
+      replayLoading = false;
+    }
   }
 
   onMount(() => {
@@ -380,6 +409,67 @@
     <section class="panel loading" aria-busy="true">
       <h2>Synchronizing match</h2>
       <p>The authoritative board is loading.</p>
+    </section>
+  {:else if match.state === 'Completed' && match.result}
+    <section class="panel results" aria-labelledby="results-title">
+      <p class="eyebrow">Co-op complete</p>
+      <h2 id="results-title">Puzzle solved together</h2>
+      <p>The server accepted the completed board once. Everyone shares the result.</p>
+
+      <dl class="result-metrics">
+        <div>
+          <dt>Solve time</dt>
+          <dd>{formatElapsed(match.result.elapsedMs)}</dd>
+        </div>
+        <div>
+          <dt>Penalty</dt>
+          <dd>+{formatElapsed(match.result.penaltyMs)}</dd>
+        </div>
+        <div>
+          <dt>Mistakes</dt>
+          <dd>
+            {Object.values(match.result.mistakesByPlayer).reduce(
+              (total, value) => total + value,
+              0,
+            )}
+          </dd>
+        </div>
+        <div>
+          <dt>Hints</dt>
+          <dd>{match.result.hintCount}{match.result.assisted ? ' · Assisted' : ''}</dd>
+        </div>
+      </dl>
+
+      <h3>Team contributions</h3>
+      <ul class="result-players">
+        {#each room?.participants ?? [] as participant (participant.id)}
+          <li>
+            <strong>{participant.name}</strong>
+            <span>{match.result.contributionsByPlayer[participant.id] ?? 0} accepted entries</span>
+            <span>{match.result.mistakesByPlayer[participant.id] ?? 0} mistakes</span>
+            <span>{match.result.disconnectsByPlayer[participant.id] ?? 0} disconnects</span>
+          </li>
+        {/each}
+      </ul>
+
+      <p class="integrity-note">
+        Replay integrity signature pending. Replay viewing uses the committed public event history.
+      </p>
+      {#if resultsError}<p class="error" role="alert">{resultsError}</p>{/if}
+      <div class="result-actions">
+        {#if roomState.selfParticipantId === room?.hostId}
+          <button
+            class="button"
+            type="button"
+            disabled={!roomState.isController || Boolean(rematchRequestId)}
+            onclick={rematch}>Rematch</button
+          >
+        {/if}
+        <button class="button secondary" type="button" disabled={replayLoading} onclick={viewReplay}
+          >{replayLoading ? 'Opening replay…' : 'View replay'}</button
+        >
+        <button class="button secondary" type="button" onclick={leaveMatch}>Return home</button>
+      </div>
     </section>
   {:else}
     <div class="game-layout">
@@ -533,6 +623,53 @@
     align-items: start;
     justify-content: center;
     gap: var(--space-5);
+  }
+  .results {
+    width: min(100%, 48rem);
+    margin-inline: auto;
+    padding: var(--space-6);
+  }
+  .result-metrics {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-3);
+    margin-block: var(--space-5);
+  }
+  .result-metrics div {
+    padding: var(--space-3);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+  }
+  .result-metrics dt {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+  }
+  .result-metrics dd {
+    margin: 0;
+    font-weight: 800;
+  }
+  .result-players {
+    padding: 0;
+    list-style: none;
+  }
+  .result-players li {
+    display: grid;
+    grid-template-columns: 1.2fr repeat(3, 1fr);
+    gap: var(--space-2);
+    padding-block: var(--space-2);
+    border-bottom: 1px solid var(--border-default);
+  }
+  .integrity-note {
+    color: var(--text-muted);
+  }
+  .result-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    margin-top: var(--space-5);
+  }
+  .error {
+    color: var(--status-danger);
   }
   .roster,
   .tools {

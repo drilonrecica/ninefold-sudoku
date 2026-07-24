@@ -144,7 +144,62 @@ paths:
           $ref: '#/components/responses/NotFound'
         '422':
           $ref: '#/components/responses/Unprocessable'
+  /replays/{matchId}/capabilities:
+    post:
+      operationId: createReplayCapability
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUIDv7'
+      responses:
+        '201':
+          description: Replay read capability created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReplayCapabilityResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /replays/{replayId}:
+    get:
+      operationId: getReplay
+      parameters:
+        - name: replayId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUIDv7'
+      security:
+        - replayCapability: []
+      responses:
+        '200':
+          description: Immutable public replay projection
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      operationId: deleteReplay
+      parameters:
+        - name: replayId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUIDv7'
+      responses:
+        '204':
+          description: Replay access deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
 components:
+  securitySchemes:
+    replayCapability:
+      type: http
+      scheme: bearer
   schemas:
     UUIDv7:
       type: string
@@ -263,7 +318,8 @@ components:
     Room:
       type: object
       additionalProperties: false
-      required: [id, code, state, version, settings, hostId, currentMatchId, participants]
+      required:
+        [id, code, state, version, settings, hostId, currentMatchId, rematchNumber, participants]
       properties:
         id:
           $ref: '#/components/schemas/UUIDv7'
@@ -284,6 +340,8 @@ components:
           oneOf:
             - $ref: '#/components/schemas/UUIDv7'
             - type: 'null'
+        rematchNumber:
+          $ref: '#/components/schemas/SafeInteger'
         participants:
           type: array
           items:
@@ -391,6 +449,23 @@ components:
         intent:
           type: string
           enum: [leave_lobby, become_spectator]
+    ReplayCapabilityResponse:
+      type: object
+      additionalProperties: false
+      required: [replayId, capability, shareUrl, expiresAt]
+      properties:
+        replayId:
+          $ref: '#/components/schemas/UUIDv7'
+        capability:
+          type: string
+          minLength: 43
+          maxLength: 43
+        shareUrl:
+          type: string
+          minLength: 1
+          maxLength: 512
+        expiresAt:
+          $ref: '#/components/schemas/SafeInteger'
     ErrorEnvelope:
       type: object
       additionalProperties: false

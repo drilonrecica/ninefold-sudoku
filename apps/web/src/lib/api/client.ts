@@ -5,6 +5,7 @@ export type RoomPreview = components['schemas']['RoomPreviewResponse'];
 export type Room = components['schemas']['Room'];
 export type RoomParticipant = components['schemas']['RoomParticipant'];
 export type Difficulty = components['schemas']['RoomDifficulty'];
+export type ReplayCapabilityResponse = components['schemas']['ReplayCapabilityResponse'];
 
 type ErrorEnvelope = components['schemas']['ErrorEnvelope'];
 
@@ -86,5 +87,11 @@ export function leaveRoom(code: string): Promise<void> {
   return request(`/rooms/${encodeURIComponent(normalizeRoomCode(code))}/leave`, {
     method: 'POST',
     body: JSON.stringify({ intent: 'leave_lobby' }),
+  });
+}
+
+export function createReplayCapability(matchId: string): Promise<ReplayCapabilityResponse> {
+  return request(`/replays/${encodeURIComponent(matchId)}/capabilities`, {
+    method: 'POST',
   });
 }

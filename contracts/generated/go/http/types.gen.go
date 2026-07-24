@@ -239,6 +239,14 @@ type Readiness struct {
 // ReadinessStatus defines model for Readiness.Status.
 type ReadinessStatus string
 
+// ReplayCapabilityResponse defines model for ReplayCapabilityResponse.
+type ReplayCapabilityResponse struct {
+	Capability string      `json:"capability"`
+	ExpiresAt  SafeInteger `json:"expiresAt"`
+	ReplayId   UUIDv7      `json:"replayId"`
+	ShareUrl   string      `json:"shareUrl"`
+}
+
 // Room defines model for Room.
 type Room struct {
 	Code           string            `json:"code"`
@@ -246,6 +254,7 @@ type Room struct {
 	HostId         *UUIDv7           `json:"hostId"`
 	Id             UUIDv7            `json:"id"`
 	Participants   []RoomParticipant `json:"participants"`
+	RematchNumber  SafeInteger       `json:"rematchNumber"`
 	Settings       RoomSettings      `json:"settings"`
 	State          RoomState         `json:"state"`
 	Version        SafeInteger       `json:"version"`

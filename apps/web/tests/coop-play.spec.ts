@@ -130,11 +130,39 @@ test('two players complete the keyboard and touch Co-op flow and converge', asyn
     await expect(reveal).toBeEnabled();
     await reveal.click();
     await expect
-      .poll(() => host.getByRole('gridcell', { name: /value \d/ }).count())
-      .toBeGreaterThan(filledBefore);
+      .poll(async () => {
+        if (await host.getByText('Puzzle completed.', { exact: true }).count()) return true;
+        return (await host.getByRole('gridcell', { name: /value \d/ }).count()) > filledBefore;
+      })
+      .toBe(true);
   }
   await expect(host.getByText('Puzzle completed.', { exact: true })).toBeAttached();
   await expect(guest.getByText('Puzzle completed.', { exact: true })).toBeAttached();
+  await expect(host.getByRole('heading', { name: 'Puzzle solved together' })).toBeVisible();
+  await expect(guest.getByRole('heading', { name: 'Puzzle solved together' })).toBeVisible();
+
+  const completedMatchURL = host.url();
+  await host.getByRole('button', { name: 'View replay' }).click();
+  await expect(host).toHaveURL(/\/replay\/[0-9a-f-]+$/, { timeout: 10_000 });
+  expect(new URL(host.url()).hash).toBe('');
+  await expect(host.getByRole('heading', { name: 'Match replay' })).toBeVisible();
+  await expect(host.getByRole('gridcell')).toHaveCount(81);
+  await host.getByRole('button', { name: 'Next' }).click();
+  await expect(host.getByText(/Event 1 of/)).toBeVisible();
+
+  await host.goBack();
+  await expect(host).toHaveURL(completedMatchURL);
+  await expect(host.getByRole('heading', { name: 'Puzzle solved together' })).toBeVisible();
+  await host.getByRole('button', { name: 'Rematch' }).click();
+  await expect(host).toHaveURL(`/room/${roomCode}`);
+  await expect(guest).toHaveURL(`/room/${roomCode}`);
+  await host.getByRole('button', { name: 'Ready' }).click();
+  await guest.getByRole('button', { name: 'Ready' }).click();
+  await expect(host.getByRole('button', { name: 'Start Match' })).toBeEnabled();
+  await host.getByRole('button', { name: 'Start Match' }).click();
+  await expect(host).toHaveURL(/\/play\/[0-9a-f-]+$/, { timeout: 10_000 });
+  await expect(guest).toHaveURL(/\/play\/[0-9a-f-]+$/, { timeout: 10_000 });
+  expect(host.url()).not.toBe(completedMatchURL);
 
   await hostContext.close();
   await guestContext.close();

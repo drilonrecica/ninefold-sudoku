@@ -1019,6 +1019,7 @@ All application APIs use:
 | `POST` | `/api/v1/solo/puzzles` | Request Solo puzzle |
 | `POST` | `/api/v1/solo/attempts/{id}/hint` | Request Solo hint |
 | `POST` | `/api/v1/solo/attempts/{id}/complete` | Validate Solo completion |
+| `POST` | `/api/v1/replays/{matchId}/capabilities` | Create a replay read capability using the originating Room session |
 | `GET` | `/api/v1/replays/{replayId}` | Retrieve replay using capability header |
 | `DELETE` | `/api/v1/replays/{replayId}` | Delete replay using originating Room session |
 | `GET` | `/health/live` | Liveness |

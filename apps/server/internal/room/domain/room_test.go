@@ -283,6 +283,46 @@ func TestPlayerCanExplicitlyLeaveActiveCoopMatch(t *testing.T) {
 	}
 }
 
+func TestHostRematchReturnsResultsRoomToLobbyAndResetsReadiness(t *testing.T) {
+	room := newRoom(t, "Mila")
+	host := room.Participants[0].ID
+	matchID := newMatchID(t)
+	room.State = shared.RoomResults
+	room.CurrentMatchID = &matchID
+	room.Participants[0].IsReady = true
+
+	events, err := room.Apply(PrepareRematchCommand{
+		Meta: meta(t, host, room.ID, uint64(room.Version)),
+	}, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if room.State != shared.RoomLobby || room.CurrentMatchID != nil {
+		t.Fatalf("expected clean Lobby rematch state, got state=%s match=%v", room.State, room.CurrentMatchID)
+	}
+	if room.Participants[0].IsReady || room.RematchNumber != 1 {
+		t.Fatalf("expected readiness reset and rematch number 1")
+	}
+	event, ok := events[0].(RematchPreparedEvent)
+	if !ok || event.PreviousMatchID != matchID {
+		t.Fatalf("expected immutable prior MatchID in rematch event, got %#v", events)
+	}
+}
+
+func TestNonHostCannotPrepareRematch(t *testing.T) {
+	room := newRoom(t, "Mila")
+	matchID := newMatchID(t)
+	room.State = shared.RoomResults
+	room.CurrentMatchID = &matchID
+
+	_, err := room.Apply(PrepareRematchCommand{
+		Meta: meta(t, newParticipantID(t), room.ID, uint64(room.Version)),
+	}, time.Now())
+	if !isCode(err, shared.ErrNotRoomHost) {
+		t.Fatalf("expected NOT_ROOM_HOST, got %v", err)
+	}
+}
+
 func isCode(err error, code shared.ErrorCode) bool {
 	var d shared.DomainError
 	if !errors.As(err, &d) {

@@ -11,6 +11,9 @@ import (
 func (m *Match) Apply(cmd Command, nextEventNumber uint64, now time.Time) ([]Event, error) {
 	meta := cmd.Metadata()
 
+	if meta.Target.Kind != shared.AggregateMatch || meta.Target.ID != m.ID.String() {
+		return nil, shared.DomainError{Code: shared.ErrMatchCommandInvalid}
+	}
 	if meta.ExpectedVersion != uint64(m.Version) {
 		return nil, shared.DomainError{Code: shared.ErrStaleVersion}
 	}
@@ -317,6 +320,7 @@ func (m *Match) useHint(c UseHintCommand, nextEventNumber uint64, now time.Time)
 
 	m.Assisted = true
 	m.HintsUsed++
+	m.HintsByPlayer[c.Meta.AuthenticatedParticipantID]++
 	m.bumpVersion()
 
 	var events []Event
@@ -463,6 +467,12 @@ func (m *Match) participantDisconnected(c ParticipantDisconnectedCommand, nextEv
 	if !m.isParticipant(c.ParticipantID) {
 		return nil, shared.DomainError{Code: shared.ErrParticipantNotFound}
 	}
+	if !m.Connected[c.ParticipantID] {
+		return nil, nil
+	}
+	m.Connected[c.ParticipantID] = false
+	m.Disconnects[c.ParticipantID]++
+	m.bumpVersion()
 	meta, err := m.newEventMeta(nextEventNumber, now)
 	if err != nil {
 		return nil, err
@@ -474,6 +484,11 @@ func (m *Match) participantReconnected(c ParticipantReconnectedCommand, nextEven
 	if !m.isParticipant(c.ParticipantID) {
 		return nil, shared.DomainError{Code: shared.ErrParticipantNotFound}
 	}
+	if m.Connected[c.ParticipantID] {
+		return nil, nil
+	}
+	m.Connected[c.ParticipantID] = true
+	m.bumpVersion()
 	meta, err := m.newEventMeta(nextEventNumber, now)
 	if err != nil {
 		return nil, err
@@ -631,6 +646,7 @@ func (m *Match) buildResult(now time.Time) Result {
 		Assisted:              m.Assisted,
 		MistakesByPlayer:      mistakes,
 		ContributionsByPlayer: cloneCountMap(m.Contributions),
+		DisconnectsByPlayer:   cloneCountMap(m.Disconnects),
 		HintCount:             m.HintsUsed,
 		ContributionCount:     contributions,
 	}
@@ -688,10 +704,14 @@ func (m *Match) ApplyEvent(e Event) error {
 		m.Cells[ev.Cell].Notes = m.Notes[ev.Cell]
 	case HintUsedEvent:
 		m.HintsUsed++
+		m.HintsByPlayer[ev.ParticipantID]++
 		m.Assisted = true
 	case PingEvent:
 	case ParticipantDisconnectedEvent:
+		m.Connected[ev.ParticipantID] = false
+		m.Disconnects[ev.ParticipantID]++
 	case ParticipantReconnectedEvent:
+		m.Connected[ev.ParticipantID] = true
 	case MatchEnteredRecoveryEvent:
 		if m.State == shared.MatchCompleted {
 			return shared.DomainError{Code: shared.ErrMatchStateInvalid}
@@ -743,7 +763,13 @@ func ReconstructMatch(puzzle shared.AssignedPuzzle, rules Rules, participants []
 		Attribution:         make(map[shared.CellIndex]shared.ParticipantID),
 		Mistakes:            make(map[shared.ParticipantID]uint32),
 		Contributions:       make(map[shared.ParticipantID]uint32),
+		Disconnects:         make(map[shared.ParticipantID]uint32),
+		Connected:           make(map[shared.ParticipantID]bool),
+		HintsByPlayer:       make(map[shared.ParticipantID]uint32),
 		processedRequestIDs: make(map[shared.RequestID]struct{}),
+	}
+	for _, participantID := range participants {
+		m.Connected[participantID] = true
 	}
 	m.initCells()
 	for _, e := range events {

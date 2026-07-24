@@ -4,11 +4,58 @@
   "title": "ReplayDocument",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "replayId", "matchId", "events"],
+  "required": [
+    "schemaVersion",
+    "replayId",
+    "matchId",
+    "expiresAt",
+    "clues",
+    "rules",
+    "participants",
+    "events"
+  ],
   "properties": {
     "schemaVersion": { "const": 1 },
     "replayId": { "$ref": "#/$defs/uuidv7" },
     "matchId": { "$ref": "#/$defs/uuidv7" },
+    "expiresAt": { "$ref": "#/$defs/safePositiveInteger" },
+    "clues": {
+      "type": "string",
+      "pattern": "^[0-9]{81}$"
+    },
+    "rules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "difficulty",
+        "errorPreset",
+        "hintsEnabled",
+        "autoRemoveNotes",
+        "ruleVersion"
+      ],
+      "properties": {
+        "mode": { "const": "Coop" },
+        "difficulty": { "enum": ["Easy", "Medium", "Hard", "Expert"] },
+        "errorPreset": { "enum": ["Casual", "Challenge", "Blind", "Clean"] },
+        "hintsEnabled": { "type": "boolean" },
+        "autoRemoveNotes": { "type": "boolean" },
+        "ruleVersion": { "$ref": "#/$defs/safePositiveInteger" }
+      }
+    },
+    "participants": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name"],
+        "properties": {
+          "id": { "$ref": "#/$defs/uuidv7" },
+          "name": { "type": "string", "minLength": 1, "maxLength": 128 }
+        }
+      }
+    },
     "events": {
       "type": "array",
       "maxItems": 10000,

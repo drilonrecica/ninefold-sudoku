@@ -172,6 +172,7 @@ type Room struct {
 	CreatedAtMs       int64          `json:"created_at_ms"`
 	LastActivityAtMs  int64          `json:"last_activity_at_ms"`
 	ExpiresAtMs       int64          `json:"expires_at_ms"`
+	RematchNumber     int64          `json:"rematch_number"`
 }
 
 type RoomBlock struct {

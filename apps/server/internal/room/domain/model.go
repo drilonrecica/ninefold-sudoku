@@ -60,6 +60,7 @@ type Room struct {
 	LastActivityAt    shared.Timestamp
 	ExpiresAt         shared.Timestamp
 	Countdown         *CountdownState
+	RematchNumber     uint32
 }
 
 // Command is the interface implemented by every room command.
@@ -184,6 +185,10 @@ type ExpireRoomCommand struct{ Meta shared.CommandMetadata }
 
 func (c ExpireRoomCommand) Metadata() shared.CommandMetadata { return c.Meta }
 
+type PrepareRematchCommand struct{ Meta shared.CommandMetadata }
+
+func (c PrepareRematchCommand) Metadata() shared.CommandMetadata { return c.Meta }
+
 // --- Events ---
 
 type RoomCreatedEvent struct {
@@ -298,6 +303,14 @@ type RoomEnteredResultsEvent struct {
 }
 
 func (e RoomEnteredResultsEvent) Metadata() shared.EventMetadata { return e.Meta }
+
+type RematchPreparedEvent struct {
+	Meta            shared.EventMetadata
+	RematchNumber   uint32
+	PreviousMatchID shared.MatchID
+}
+
+func (e RematchPreparedEvent) Metadata() shared.EventMetadata { return e.Meta }
 
 type RoomExpiredEvent struct{ Meta shared.EventMetadata }
 

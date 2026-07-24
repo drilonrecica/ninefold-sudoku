@@ -4,7 +4,7 @@
 
 **Execution model:** sequential phases, exactly one commit per completed phase
 
-**Current status:** Phases 1–10 committed; Phase 11 (results, rematch, and replay) is next.
+**Current status:** Phases 1–11 complete; Phase 12 (cryptographically verifiable replay) is next.
 
 ## 1. Authority and scope
 
@@ -599,26 +599,26 @@ Complete the first vertical slice from Room creation through deterministic repla
 
 ### Tasks
 
-- [ ] **P11-T01 — Finalize Co-op results.** Project terminal reason, server elapsed time, separate penalty time, mistakes, hints/assistance, contribution counts, disconnect summary, and replay availability from committed facts.
-- [ ] **P11-T02 — Build Results UI.** Present completion clearly, make Rematch primary, keep Replay discoverable, load replay lazily, show honest pending integrity wording, and never rank Co-op contributors as winners/losers.
-- [ ] **P11-T03 — Implement rematch.** Authorize the host, create a new MatchID and assignment/rules, return the Room to Lobby, reset readiness, preserve eligible participants/host/settings as specified, and prevent old Match commands from affecting the rematch.
-- [ ] **P11-T04 — Create replay capabilities.** Generate CSPRNG read capabilities, store only hashes, bind them to ReplayID/MatchID/expiry, and return the share URL with capability in the fragment. Deletion still requires the originating Room session.
-- [ ] **P11-T05 — Handle fragment capabilities safely.** Copy the capability into memory, immediately remove it from browser history with `history.replaceState`, send it only in the Authorization header, and reconstruct a share URL only for an explicit copy action.
-- [ ] **P11-T06 — Implement replay projection.** Read immutable assignment/rules and ordered public events, exclude private payloads/salts, apply deterministic reducers, and create optional seek checkpoints without making them authoritative.
-- [ ] **P11-T07 — Build basic replay controls.** Implement play, pause, scrub, 0.5×/1×/2×/4× speed, event markers, shared board, attribution, notes, targeted pings, disconnect/reconnect, and completion.
-- [ ] **P11-T08 — Preserve replay privacy.** Keep replay routes noindex, require capability possession, use `Referrer-Policy: no-referrer`, exclude reactions/focus/private data, and show expired/revoked/unauthorized states without confirming unrelated Match existence.
-- [ ] **P11-T09 — Add replay reducer tests.** Reconstruct identical state at every event boundary, seek forward/backward, verify speed does not alter order, and reject event gaps/unknown incompatible schemas.
-- [ ] **P11-T10 — Complete first-slice E2E.** Cover create, join, ready, start, simultaneous gameplay, completion, results, replay, rematch, refresh, and mobile/keyboard operation across two browser contexts.
+- [x] **P11-T01 — Finalize Co-op results.** Project terminal reason, server elapsed time, separate penalty time, mistakes, hints/assistance, contribution counts, disconnect summary, and replay availability from committed facts.
+- [x] **P11-T02 — Build Results UI.** Present completion clearly, make Rematch primary, keep Replay discoverable, load replay lazily, show honest pending integrity wording, and never rank Co-op contributors as winners/losers.
+- [x] **P11-T03 — Implement rematch.** Authorize the host, create a new MatchID and assignment/rules, return the Room to Lobby, reset readiness, preserve eligible participants/host/settings as specified, and prevent old Match commands from affecting the rematch.
+- [x] **P11-T04 — Create replay capabilities.** Generate CSPRNG read capabilities, store only hashes, bind them to ReplayID/MatchID/expiry, and return the share URL with capability in the fragment. Deletion still requires the originating Room session.
+- [x] **P11-T05 — Handle fragment capabilities safely.** Copy the capability into memory, immediately remove it from browser history with `history.replaceState`, send it only in the Authorization header, and reconstruct a share URL only for an explicit copy action.
+- [x] **P11-T06 — Implement replay projection.** Read immutable assignment/rules and ordered public events, exclude private payloads/salts, apply deterministic reducers, and create optional seek checkpoints without making them authoritative.
+- [x] **P11-T07 — Build basic replay controls.** Implement play, pause, scrub, 0.5×/1×/2×/4× speed, event markers, shared board, attribution, notes, targeted pings, disconnect/reconnect, and completion.
+- [x] **P11-T08 — Preserve replay privacy.** Keep replay routes noindex, require capability possession, use `Referrer-Policy: no-referrer`, exclude reactions/focus/private data, and show expired/revoked/unauthorized states without confirming unrelated Match existence.
+- [x] **P11-T09 — Add replay reducer tests.** Reconstruct identical state at every event boundary, seek forward/backward, verify speed does not alter order, and reject event gaps/unknown incompatible schemas.
+- [x] **P11-T10 — Complete first-slice E2E.** Cover create, join, ready, start, simultaneous gameplay, completion, results, replay, rematch, refresh, and mobile/keyboard operation across two browser contexts.
 
 ### Phase gates
 
-- [ ] Completion finalizes once and the Results Room cannot return the completed Match to Active.
-- [ ] Rematch uses a new MatchID and stale prior-Match commands are rejected.
-- [ ] Replay reconstructs the accepted event history exactly and never blocks Results rendering.
-- [ ] Replay capabilities never appear in server request paths, query strings, logs, metrics, persistent browser storage, or referrers.
-- [ ] The canonical first vertical slice passes in two isolated contexts, after refresh, on compact mobile, and keyboard-only.
-- [ ] This closes the internal `0.2.0` capability gate; no tag or deployment is created.
-- [ ] All cumulative checks pass.
+- [x] Completion finalizes once and the Results Room cannot return the completed Match to Active.
+- [x] Rematch uses a new MatchID and stale prior-Match commands are rejected.
+- [x] Replay reconstructs the accepted event history exactly and never blocks Results rendering.
+- [x] Replay capabilities never appear in server request paths, query strings, logs, metrics, persistent browser storage, or referrers.
+- [x] The canonical first vertical slice passes in two isolated contexts, after refresh, on compact mobile, and keyboard-only.
+- [x] This closes the internal `0.2.0` capability gate; no tag or deployment is created.
+- [x] All cumulative checks pass.
 
 ### Commit
 

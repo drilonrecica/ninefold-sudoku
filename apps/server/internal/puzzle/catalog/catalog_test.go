@@ -15,7 +15,7 @@ func TestCommittedCatalog(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(records) != 4 {
+	if len(records) < 5 {
 		t.Fatalf("catalog record count = %d", len(records))
 	}
 	for _, difficulty := range []shared.Difficulty{
@@ -29,8 +29,13 @@ func TestCommittedCatalog(t *testing.T) {
 			t.Fatalf("select %s: %#v %v", difficulty, puzzle, err)
 		}
 		excluded := map[string]struct{}{puzzle.CanonicalFingerprint: {}}
-		if _, err := NewSelector(records).Select(difficulty, excluded); err == nil {
-			t.Fatalf("excluded %s puzzle was selected", difficulty)
+		alternative, alternativeErr := NewSelector(records).Select(difficulty, excluded)
+		if difficulty == shared.DifficultyEasy {
+			if alternativeErr != nil || alternative.CanonicalFingerprint == puzzle.CanonicalFingerprint {
+				t.Fatalf("expected distinct Easy rematch puzzle: %#v %v", alternative, alternativeErr)
+			}
+		} else if alternativeErr == nil {
+			t.Fatalf("excluded only %s puzzle was selected", difficulty)
 		}
 	}
 	for _, record := range records {

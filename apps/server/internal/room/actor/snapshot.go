@@ -29,6 +29,9 @@ type matchSnapshotState struct {
 	Notes                 [81]shared.CandidateSet
 	Mistakes              map[shared.ParticipantID]uint32
 	Contributions         map[shared.ParticipantID]uint32
+	Disconnects           map[shared.ParticipantID]uint32
+	Connected             map[shared.ParticipantID]bool
+	HintsByPlayer         map[shared.ParticipantID]uint32
 	HintsUsed             uint32
 	PenaltiesMs           uint64
 	Assisted              bool
@@ -50,6 +53,7 @@ type matchSnapshotResult struct {
 	Assisted              bool
 	MistakesByPlayer      map[shared.ParticipantID]uint32
 	ContributionsByPlayer map[shared.ParticipantID]uint32
+	DisconnectsByPlayer   map[shared.ParticipantID]uint32
 	HintCount             uint32
 	ContributionCount     uint32
 }
@@ -66,6 +70,9 @@ func snapshotStateFromMatch(match *matchdomain.Match) matchSnapshotState {
 		Notes:                 match.Notes,
 		Mistakes:              match.Mistakes,
 		Contributions:         match.Contributions,
+		Disconnects:           match.Disconnects,
+		Connected:             match.Connected,
+		HintsByPlayer:         match.HintsByPlayer,
 		HintsUsed:             match.HintsUsed,
 		PenaltiesMs:           match.PenaltiesMs,
 		Assisted:              match.Assisted,
@@ -86,6 +93,7 @@ func snapshotStateFromMatch(match *matchdomain.Match) matchSnapshotState {
 			Assisted:              match.Result.Assisted,
 			MistakesByPlayer:      match.Result.MistakesByPlayer,
 			ContributionsByPlayer: match.Result.ContributionsByPlayer,
+			DisconnectsByPlayer:   match.Result.DisconnectsByPlayer,
 			HintCount:             match.Result.HintCount,
 			ContributionCount:     match.Result.ContributionCount,
 		}
@@ -108,6 +116,9 @@ func (state matchSnapshotState) restore(puzzle shared.AssignedPuzzle, rules matc
 	match.Notes = state.Notes
 	match.Mistakes = state.Mistakes
 	match.Contributions = state.Contributions
+	match.Disconnects = state.Disconnects
+	match.Connected = state.Connected
+	match.HintsByPlayer = state.HintsByPlayer
 	match.HintsUsed = state.HintsUsed
 	match.PenaltiesMs = state.PenaltiesMs
 	match.Assisted = state.Assisted
@@ -141,6 +152,7 @@ func (state matchSnapshotState) restore(puzzle shared.AssignedPuzzle, rules matc
 			Assisted:              state.Result.Assisted,
 			MistakesByPlayer:      state.Result.MistakesByPlayer,
 			ContributionsByPlayer: state.Result.ContributionsByPlayer,
+			DisconnectsByPlayer:   state.Result.DisconnectsByPlayer,
 			HintCount:             state.Result.HintCount,
 			ContributionCount:     state.Result.ContributionCount,
 		}

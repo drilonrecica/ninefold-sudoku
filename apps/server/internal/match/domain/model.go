@@ -25,6 +25,7 @@ type Result struct {
 	Assisted              bool
 	MistakesByPlayer      map[shared.ParticipantID]uint32
 	ContributionsByPlayer map[shared.ParticipantID]uint32
+	DisconnectsByPlayer   map[shared.ParticipantID]uint32
 	HintCount             uint32
 	ContributionCount     uint32
 }
@@ -56,6 +57,9 @@ type Match struct {
 	Notes                 [81]shared.CandidateSet
 	Mistakes              map[shared.ParticipantID]uint32
 	Contributions         map[shared.ParticipantID]uint32
+	Disconnects           map[shared.ParticipantID]uint32
+	Connected             map[shared.ParticipantID]bool
+	HintsByPlayer         map[shared.ParticipantID]uint32
 	HintsUsed             uint32
 	PenaltiesMs           uint64
 	Assisted              bool
@@ -83,6 +87,9 @@ func (m *Match) Clone() *Match {
 	clone.Attribution = cloneAttributionMap(m.Attribution)
 	clone.Mistakes = cloneCountMap(m.Mistakes)
 	clone.Contributions = cloneCountMap(m.Contributions)
+	clone.Disconnects = cloneCountMap(m.Disconnects)
+	clone.Connected = cloneConnectedMap(m.Connected)
+	clone.HintsByPlayer = cloneCountMap(m.HintsByPlayer)
 	clone.processedRequestIDs = make(map[shared.RequestID]struct{}, len(m.processedRequestIDs))
 	for requestID := range m.processedRequestIDs {
 		clone.processedRequestIDs[requestID] = struct{}{}
@@ -91,9 +98,18 @@ func (m *Match) Clone() *Match {
 		result := *m.Result
 		result.MistakesByPlayer = cloneCountMap(m.Result.MistakesByPlayer)
 		result.ContributionsByPlayer = cloneCountMap(m.Result.ContributionsByPlayer)
+		result.DisconnectsByPlayer = cloneCountMap(m.Result.DisconnectsByPlayer)
 		clone.Result = &result
 	}
 	return &clone
+}
+
+func cloneConnectedMap(source map[shared.ParticipantID]bool) map[shared.ParticipantID]bool {
+	clone := make(map[shared.ParticipantID]bool, len(source))
+	for key, value := range source {
+		clone[key] = value
+	}
+	return clone
 }
 
 func cloneDigitMap(source map[shared.CellIndex]shared.Digit) map[shared.CellIndex]shared.Digit {
@@ -382,8 +398,14 @@ func NewPrepared(id shared.MatchID, roomID shared.RoomID, rules Rules, puzzle sh
 		Attribution:         make(map[shared.CellIndex]shared.ParticipantID),
 		Mistakes:            make(map[shared.ParticipantID]uint32),
 		Contributions:       make(map[shared.ParticipantID]uint32),
+		Disconnects:         make(map[shared.ParticipantID]uint32),
+		Connected:           make(map[shared.ParticipantID]bool),
+		HintsByPlayer:       make(map[shared.ParticipantID]uint32),
 		processedRequestIDs: make(map[shared.RequestID]struct{}),
 		CreatedAt:           ts,
+	}
+	for _, participantID := range participants {
+		m.Connected[participantID] = true
 	}
 	m.initCells()
 

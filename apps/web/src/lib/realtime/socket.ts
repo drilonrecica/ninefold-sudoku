@@ -94,7 +94,8 @@ export class RoomSocket {
       | 'room.start_countdown'
       | 'room.cancel_countdown'
       | 'room.leave'
-      | 'room.transfer_host',
+      | 'room.transfer_host'
+      | 'room.prepare_rematch',
     roomId: string,
     expectedVersion: number,
     payload: ClientMessage['payload'],

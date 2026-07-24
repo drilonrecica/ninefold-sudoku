@@ -64,6 +64,7 @@ type Querier interface {
 	GetPuzzleByFingerprint(ctx context.Context, canonicalFingerprint string) (Puzzle, error)
 	GetPuzzleByID(ctx context.Context, arg GetPuzzleByIDParams) (Puzzle, error)
 	GetReplayCapabilityByHash(ctx context.Context, tokenHash []byte) (ReplayCapability, error)
+	GetReplayCapabilityByReplayID(ctx context.Context, replayID string) (ReplayCapability, error)
 	GetReplaySeal(ctx context.Context, matchID string) (ReplaySeal, error)
 	GetRoomBlock(ctx context.Context, arg GetRoomBlockParams) (RoomBlock, error)
 	GetRoomByCode(ctx context.Context, code string) (Room, error)
@@ -80,10 +81,12 @@ type Querier interface {
 	ListMatchParticipants(ctx context.Context, matchID string) ([]MatchParticipant, error)
 	ListMatchTombstonesExpired(ctx context.Context, endedAtMs int64) ([]MatchTombstone, error)
 	ListNonTerminalMatches(ctx context.Context) ([]Match, error)
+	ListRecentPuzzleIDsByRoom(ctx context.Context, roomID string) ([]string, error)
 	ListReplayCapabilitiesByMatch(ctx context.Context, matchID string) ([]ReplayCapability, error)
 	ListReplayCapabilitiesExpired(ctx context.Context, expiresAtMs int64) ([]ReplayCapability, error)
 	ListRoomSessionsExpired(ctx context.Context, expiresAtMs int64) ([]RoomSession, error)
 	ListRoomsExpired(ctx context.Context, expiresAtMs int64) ([]Room, error)
+	RevokeReplayCapabilitiesByMatch(ctx context.Context, arg RevokeReplayCapabilitiesByMatchParams) error
 	RevokeReplayCapability(ctx context.Context, arg RevokeReplayCapabilityParams) error
 	ScrubParticipantLinkedMatchData(ctx context.Context, matchID string) error
 	UpdateMatch(ctx context.Context, arg UpdateMatchParams) error

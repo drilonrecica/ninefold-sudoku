@@ -2,13 +2,29 @@
   "schemaVersion": 1,
   "replayId": "0190a7d3-8d9a-7f31-8d2a-1242f6f0d10b",
   "matchId": "0190a7d3-8d9a-7f31-8d2a-1242f6f0d10c",
+  "expiresAt": 1720604800000,
+  "clues": "000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+  "rules": {
+    "mode": "Coop",
+    "difficulty": "Easy",
+    "errorPreset": "Casual",
+    "hintsEnabled": true,
+    "autoRemoveNotes": true,
+    "ruleVersion": 1
+  },
+  "participants": [
+    {
+      "id": "0190a7d3-8d9a-7f31-8d2a-1242f6f0d10d",
+      "name": "Player"
+    }
+  ],
   "events": [
     {
       "eventNumber": 1,
       "aggregateVersion": 1,
       "serverTimestamp": 1720000000000,
       "type": "MatchStarted",
-      "payload": {}
+      "payload": { "schemaVersion": 1 }
     }
   ]
 }

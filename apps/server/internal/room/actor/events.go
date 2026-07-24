@@ -114,6 +114,7 @@ type matchCompletedPayload struct {
 	Assisted              bool              `json:"assisted"`
 	MistakesByPlayer      map[string]uint32 `json:"mistakesByPlayer"`
 	ContributionsByPlayer map[string]uint32 `json:"contributionsByPlayer"`
+	DisconnectsByPlayer   map[string]uint32 `json:"disconnectsByPlayer"`
 	HintCount             uint32            `json:"hintCount"`
 	ContributionCount     uint32            `json:"contributionCount"`
 }
@@ -353,6 +354,10 @@ func matchEventPublicPayload(e matchdomain.Event) ([]byte, error) {
 		for p, n := range ev.Result.ContributionsByPlayer {
 			contributions[p.String()] = n
 		}
+		disconnects := make(map[string]uint32)
+		for p, n := range ev.Result.DisconnectsByPlayer {
+			disconnects[p.String()] = n
+		}
 		payload = matchCompletedPayload{
 			SchemaVersion:         1,
 			Reason:                ev.Result.Reason,
@@ -361,6 +366,7 @@ func matchEventPublicPayload(e matchdomain.Event) ([]byte, error) {
 			Assisted:              ev.Result.Assisted,
 			MistakesByPlayer:      mistakes,
 			ContributionsByPlayer: contributions,
+			DisconnectsByPlayer:   disconnects,
 			HintCount:             ev.Result.HintCount,
 			ContributionCount:     ev.Result.ContributionCount,
 		}
@@ -663,6 +669,10 @@ func matchEventFromGen(e gen.MatchEvent) (matchdomain.Event, error) {
 		for id, n := range p.ContributionsByPlayer {
 			contributions[shared.ParticipantID(id)] = n
 		}
+		disconnects := make(map[shared.ParticipantID]uint32)
+		for id, n := range p.DisconnectsByPlayer {
+			disconnects[shared.ParticipantID(id)] = n
+		}
 		return matchdomain.MatchCompletedEvent{
 			Meta: meta,
 			Result: matchdomain.Result{
@@ -673,6 +683,7 @@ func matchEventFromGen(e gen.MatchEvent) (matchdomain.Event, error) {
 				Assisted:              p.Assisted,
 				MistakesByPlayer:      mistakes,
 				ContributionsByPlayer: contributions,
+				DisconnectsByPlayer:   disconnects,
 				HintCount:             p.HintCount,
 				ContributionCount:     p.ContributionCount,
 			},

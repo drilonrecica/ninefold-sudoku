@@ -113,6 +113,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/replays/{matchId}/capabilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["createReplayCapability"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/replays/{replayId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getReplay"];
+        put?: never;
+        post?: never;
+        delete: operations["deleteReplay"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -173,6 +205,7 @@ export interface components {
             settings: components["schemas"]["RoomSettings"];
             hostId: components["schemas"]["UUIDv7"] | null;
             currentMatchId: components["schemas"]["UUIDv7"] | null;
+            rematchNumber: components["schemas"]["SafeInteger"];
             participants: components["schemas"]["RoomParticipant"][];
         };
         Countdown: {
@@ -210,6 +243,12 @@ export interface components {
         LeaveRoomRequest: {
             /** @enum {string} */
             intent?: "leave_lobby" | "become_spectator";
+        };
+        ReplayCapabilityResponse: {
+            replayId: components["schemas"]["UUIDv7"];
+            capability: string;
+            shareUrl: string;
+            expiresAt: components["schemas"]["SafeInteger"];
         };
         ErrorEnvelope: {
             error: {
@@ -447,6 +486,73 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["Unprocessable"];
+        };
+    };
+    createReplayCapability: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                matchId: components["schemas"]["UUIDv7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Replay read capability created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReplayCapabilityResponse"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getReplay: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                replayId: components["schemas"]["UUIDv7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Immutable public replay projection */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteReplay: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                replayId: components["schemas"]["UUIDv7"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Replay access deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
         };
     };
 }

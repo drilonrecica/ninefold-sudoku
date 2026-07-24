@@ -307,6 +307,10 @@ func (r *Repository) GetMatchByID(ctx context.Context, id string) (gen.Match, er
 	return r.q.GetMatchByID(ctx, id)
 }
 
+func (r *Repository) ListRecentPuzzleIDsByRoom(ctx context.Context, roomID string) ([]string, error) {
+	return r.q.ListRecentPuzzleIDsByRoom(ctx, roomID)
+}
+
 // ListNonTerminalMatches returns startup recovery candidates.
 func (r *Repository) ListNonTerminalMatches(ctx context.Context) ([]gen.Match, error) {
 	return r.q.ListNonTerminalMatches(ctx)
@@ -325,6 +329,32 @@ func (r *Repository) GetMatchEvents(ctx context.Context, matchID string) ([]gen.
 // GetLatestMatchSnapshot returns the most recent snapshot for reconstruction.
 func (r *Repository) GetLatestMatchSnapshot(ctx context.Context, matchID string) (gen.MatchSnapshot, error) {
 	return r.q.GetLatestMatchSnapshot(ctx, matchID)
+}
+
+// CreateMatchResultPlayers stores the immutable participant result projection.
+func (r *Repository) CreateMatchResultPlayers(ctx context.Context, tx *sql.Tx, players []gen.MatchResultPlayer) error {
+	q := r.q.WithTx(tx)
+	for _, player := range players {
+		if err := q.CreateMatchResultPlayer(ctx, gen.CreateMatchResultPlayerParams{
+			MatchID:       player.MatchID,
+			ParticipantID: player.ParticipantID,
+			DisplayName:   player.DisplayName,
+			Mistakes:      player.Mistakes,
+			HintsUsed:     player.HintsUsed,
+			Score:         player.Score,
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *Repository) GetMatchResult(ctx context.Context, matchID string) (gen.MatchResult, error) {
+	return r.q.GetMatchResult(ctx, matchID)
+}
+
+func (r *Repository) GetMatchResultPlayers(ctx context.Context, matchID string) ([]gen.MatchResultPlayer, error) {
+	return r.q.GetMatchResultPlayers(ctx, matchID)
 }
 
 // CreateMatchSnapshot writes a recovery checkpoint using the repository's current
@@ -392,6 +422,17 @@ func (r *Repository) CreateReplayCapability(ctx context.Context, tx *sql.Tx, rc 
 // GetReplayCapabilityByHash loads a capability by its token hash.
 func (r *Repository) GetReplayCapabilityByHash(ctx context.Context, hash []byte) (gen.ReplayCapability, error) {
 	return r.q.GetReplayCapabilityByHash(ctx, hash)
+}
+
+func (r *Repository) GetReplayCapabilityByReplayID(ctx context.Context, replayID string) (gen.ReplayCapability, error) {
+	return r.q.GetReplayCapabilityByReplayID(ctx, replayID)
+}
+
+func (r *Repository) RevokeReplayCapabilitiesByMatch(ctx context.Context, tx *sql.Tx, matchID string, revokedAtMs int64) error {
+	return r.q.WithTx(tx).RevokeReplayCapabilitiesByMatch(ctx, gen.RevokeReplayCapabilitiesByMatchParams{
+		RevokedAtMs: sql.NullInt64{Int64: revokedAtMs, Valid: true},
+		MatchID:     matchID,
+	})
 }
 
 // CreateReplaySeal stores a terminal replay integrity signature.

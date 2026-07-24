@@ -37,12 +37,28 @@ export interface MatchSnapshot {
   cells: MatchCell[];
   mistakes: Record<string, number>;
   contributions: Record<string, number>;
+  result?: MatchResult;
+}
+
+export interface MatchResult {
+  reason: string;
+  completedAt: number;
+  elapsedMs: number;
+  penaltyMs: number;
+  assisted: boolean;
+  mistakesByPlayer: Record<string, number>;
+  contributionsByPlayer: Record<string, number>;
+  disconnectsByPlayer: Record<string, number>;
+  hintCount: number;
+  contributionCount: number;
+  replayAvailable: boolean;
 }
 
 export interface MatchEventEnvelope {
   schemaVersion: number;
   eventNumber: number;
   aggregateVersion: number;
+  serverTimestamp: number;
   event: {
     type: string;
     payload: Record<string, unknown>;

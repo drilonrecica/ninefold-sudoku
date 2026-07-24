@@ -451,7 +451,11 @@ func (a *Actor) process(ctx context.Context, env Envelope) (Result, error) {
 			sc.MatchID = matchID
 		}
 		if len(sc.Puzzle.Clues) == 0 || len(sc.Puzzle.Solution) == 0 {
-			record, selErr := txRepo.SelectPuzzleForAssignment(ctx, string(working.Rules.Difficulty), nil, true)
+			excludedPuzzleIDs, listErr := txRepo.ListRecentPuzzleIDsByRoom(ctx, working.ID.String())
+			if listErr != nil {
+				return Result{}, shared.DomainError{Code: shared.ErrPersistenceFailed}
+			}
+			record, selErr := txRepo.SelectPuzzleForAssignment(ctx, string(working.Rules.Difficulty), excludedPuzzleIDs, true)
 			if selErr != nil {
 				return Result{}, shared.DomainError{Code: shared.ErrPersistenceFailed}
 			}
@@ -601,6 +605,21 @@ func (a *Actor) process(ctx context.Context, env Envelope) (Result, error) {
 				}
 				return Result{}, shared.DomainError{Code: shared.ErrPersistenceFailed}
 			}
+			if matchResult != nil {
+				resultPlayers := make([]gen.MatchResultPlayer, 0, len(workingMatch.Participants))
+				for _, participantID := range workingMatch.Participants {
+					resultPlayers = append(resultPlayers, gen.MatchResultPlayer{
+						MatchID:       workingMatch.ID.String(),
+						ParticipantID: participantID.String(),
+						DisplayName:   participantName(working, participantID),
+						Mistakes:      int64(workingMatch.Mistakes[participantID]),
+						HintsUsed:     int64(workingMatch.HintsByPlayer[participantID]),
+					})
+				}
+				if err := txRepo.CreateMatchResultPlayers(ctx, tx, resultPlayers); err != nil {
+					return Result{}, shared.DomainError{Code: shared.ErrPersistenceFailed}
+				}
+			}
 			nextEventHash = lastHash
 		}
 		if len(matchEvents) > 0 {
@@ -629,7 +648,14 @@ func (a *Actor) process(ctx context.Context, env Envelope) (Result, error) {
 
 	// Commit succeeded: replace authoritative in-memory state.
 	a.room = working
-	if workingMatch != nil {
+	if _, rematch := env.Command.(roomdomain.PrepareRematchCommand); rematch {
+		a.match = nil
+		nextEventHash = nil
+		nextEventNumber = 0
+		a.eventBuffer = a.eventBuffer[:0]
+		a.lastSnapshotEvent = 0
+		a.lastSnapshotAt = time.Time{}
+	} else if workingMatch != nil {
 		a.match = workingMatch
 	}
 	a.lastEventHash = nextEventHash
@@ -647,6 +673,15 @@ func (a *Actor) process(ctx context.Context, env Envelope) (Result, error) {
 	originBroadcasts := a.broadcastSnapshotAndEvents(env.ConnectionID, roomChanged || len(roomEvents) > 0, matchEvents)
 
 	return Result{Events: roomEvents, Response: response, OriginBroadcasts: originBroadcasts}, nil
+}
+
+func participantName(room *roomdomain.Room, participantID shared.ParticipantID) string {
+	for _, participant := range room.Participants {
+		if participant.ID == participantID {
+			return participant.Name.String()
+		}
+	}
+	return "Player"
 }
 
 func (a *Actor) processControl(ctx context.Context, req controlReq) (Result, error) {
@@ -719,6 +754,11 @@ func (a *Actor) processControl(ctx context.Context, req controlReq) (Result, err
 				a.recoveryTimer = nil
 			}
 		}
+		if a.match != nil && a.match.State == shared.MatchActive && !a.match.Connected[req.participantID] {
+			if err := a.recordParticipantConnection(ctx, req.participantID, true); err != nil {
+				return Result{}, err
+			}
+		}
 		a.sendToConnection(req.connID, a.serverMessage("room.snapshot", 0, uint64(a.room.Version), map[string]any{
 			"room": a.buildRoomView(a.room, a.match, req.participantID),
 		}))
@@ -777,6 +817,8 @@ func (a *Actor) processControl(ctx context.Context, req controlReq) (Result, err
 		return Result{}, nil
 	case "unsubscribe":
 		a.subMu.Lock()
+		removed := a.subscribers[req.connID]
+		req.participantID = removed.participantID
 		delete(a.subscribers, req.connID)
 		a.subMu.Unlock()
 		a.controllersMu.Lock()
@@ -809,10 +851,50 @@ func (a *Actor) processControl(ctx context.Context, req controlReq) (Result, err
 			break
 		}
 		a.controllersMu.Unlock()
+		a.subMu.RLock()
+		hasRemainingConnection := false
+		for _, subscriber := range a.subscribers {
+			if subscriber.participantID == req.participantID {
+				hasRemainingConnection = true
+				break
+			}
+		}
+		a.subMu.RUnlock()
+		if !hasRemainingConnection && a.match != nil && a.match.State == shared.MatchActive &&
+			a.match.Connected[req.participantID] {
+			if err := a.recordParticipantConnection(ctx, req.participantID, false); err != nil {
+				a.logger.Warn("participant disconnect event failed", "participantID", req.participantID, "error", err)
+			}
+		}
 		return Result{}, nil
 	default:
 		return Result{}, shared.DomainError{Code: shared.ErrMatchCommandInvalid}
 	}
+}
+
+func (a *Actor) recordParticipantConnection(ctx context.Context, participantID shared.ParticipantID, connected bool) error {
+	requestID := shared.RequestID(generateRequestID())
+	meta := shared.CommandMetadata{
+		RequestID:                  requestID,
+		AuthenticatedParticipantID: participantID,
+		ClientSequence:             1,
+		Target:                     shared.NewMatchTarget(a.match.ID),
+		ExpectedVersion:            uint64(a.match.Version),
+	}
+	var command matchdomain.Command
+	commandType := "match.participant_disconnected"
+	if connected {
+		command = matchdomain.ParticipantReconnectedCommand{Meta: meta, ParticipantID: participantID}
+		commandType = "match.participant_reconnected"
+	} else {
+		command = matchdomain.ParticipantDisconnectedCommand{Meta: meta, ParticipantID: participantID}
+	}
+	_, err := a.process(ctx, Envelope{
+		RequestID:   requestID,
+		CommandType: commandType,
+		Command:     command,
+	})
+	return err
 }
 
 func (a *Actor) saveReceipt(ctx context.Context, txRepo *repository.Repository, tx *sql.Tx, env Envelope, status string, response []byte, now time.Time) error {
@@ -850,6 +932,7 @@ func (a *Actor) cloneRoom() *roomdomain.Room {
 		LastActivityAt:    a.room.LastActivityAt,
 		ExpiresAt:         a.room.ExpiresAt,
 		Countdown:         a.room.Countdown,
+		RematchNumber:     a.room.RematchNumber,
 	}
 }
 
@@ -863,9 +946,9 @@ func matchParticipantsToGen(match *matchdomain.Match) []gen.MatchParticipant {
 		participants = append(participants, gen.MatchParticipant{
 			MatchID:       match.ID.String(),
 			ParticipantID: participantID.String(),
-			Connected:     1,
+			Connected:     boolToInt(match.Connected[participantID]),
 			Mistakes:      int64(match.Mistakes[participantID]),
-			HintsUsed:     int64(match.HintsUsed),
+			HintsUsed:     int64(match.HintsByPlayer[participantID]),
 		})
 	}
 	return participants
@@ -952,6 +1035,7 @@ func (a *Actor) buildRoomView(room *roomdomain.Room, match *matchdomain.Match, p
 		"version":        uint64(room.Version),
 		"hostId":         nullParticipantID(room.HostParticipantID),
 		"currentMatchId": nullMatchID(room.CurrentMatchID),
+		"rematchNumber":  room.RematchNumber,
 		"participants":   participantsToView(room.Participants),
 		"settings": map[string]any{
 			"mode":              string(room.Rules.Mode),
@@ -1057,6 +1141,7 @@ func isGameplayCommandType(commandType string) bool {
 	switch commandType {
 	case "room.set_ready", "room.change_settings", "room.start_countdown",
 		"room.cancel_countdown", "room.leave", "room.transfer_host",
+		"room.prepare_rematch",
 		"match.place_value", "match.erase_value", "match.add_note",
 		"match.remove_note", "match.use_hint", "match.ping", "match.reaction":
 		return true
@@ -1273,7 +1358,27 @@ func buildMatchView(m *matchdomain.Match) map[string]any {
 		view["recoveryGeneration"] = m.RecoveryGeneration
 	}
 	if m.Result != nil {
-		view["result"] = m.Result
+		view["result"] = map[string]any{
+			"reason":                m.Result.Reason,
+			"completedAt":           m.Result.CompletedAt.Milliseconds(),
+			"elapsedMs":             m.Result.ElapsedMilliseconds,
+			"penaltyMs":             m.Result.PenaltyMilliseconds,
+			"assisted":              m.Result.Assisted,
+			"mistakesByPlayer":      participantCountsToView(m.Result.MistakesByPlayer),
+			"contributionsByPlayer": participantCountsToView(m.Result.ContributionsByPlayer),
+			"disconnectsByPlayer":   participantCountsToView(m.Result.DisconnectsByPlayer),
+			"hintCount":             m.Result.HintCount,
+			"contributionCount":     m.Result.ContributionCount,
+			"replayAvailable":       m.State == shared.MatchCompleted,
+		}
+	}
+	return view
+}
+
+func participantCountsToView(counts map[shared.ParticipantID]uint32) map[string]uint32 {
+	view := make(map[string]uint32, len(counts))
+	for participantID, count := range counts {
+		view[participantID.String()] = count
 	}
 	return view
 }

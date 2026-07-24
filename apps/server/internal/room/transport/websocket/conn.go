@@ -232,6 +232,8 @@ func (c *connection) handleMessage(ctx context.Context, msg realtime.ClientMessa
 			return err
 		}
 		return c.submit(ctx, requestID, "room.transfer_host", cmd)
+	case "room.prepare_rematch":
+		return c.submit(ctx, requestID, "room.prepare_rematch", roomdomain.PrepareRematchCommand{Meta: meta})
 	case realtime.ClientMessageTypeMatchPlaceValue:
 		cmd, err := c.buildPlaceValue(meta, msg.Payload)
 		if err != nil {

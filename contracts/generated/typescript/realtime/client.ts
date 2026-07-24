@@ -35,6 +35,7 @@ export interface ClientMessage {
     | "room.cancel_countdown"
     | "room.leave"
     | "room.transfer_host"
+    | "room.prepare_rematch"
     | "match.place_value"
     | "match.erase_value"
     | "match.add_note"

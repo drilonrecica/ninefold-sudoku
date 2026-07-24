@@ -533,6 +533,42 @@ func TestCompletedMatchCannotEnterRecovery(t *testing.T) {
 	assertCode(t, err, shared.ErrMatchStateInvalid)
 }
 
+func TestResultIncludesDisconnectAndHintFacts(t *testing.T) {
+	m, participant, now := makeMatch(t, shared.ErrorPresetCasual, testClues(0))
+	m.Activate(3, now)
+	m.Disconnects[participant] = 2
+	m.HintsByPlayer[participant] = 1
+	m.HintsUsed = 1
+	m.Assisted = true
+
+	result := m.buildResult(now.Add(time.Second))
+	if result.DisconnectsByPlayer[participant] != 2 || result.HintCount != 1 || !result.Assisted {
+		t.Fatalf("result omitted committed facts: %+v", result)
+	}
+}
+
+func TestCommandForPriorMatchCannotMutateRematch(t *testing.T) {
+	m, participant, now := makeMatch(t, shared.ErrorPresetCasual, testClues(0))
+	m.Activate(3, now)
+	meta := cmdMeta(t, m, participant)
+	meta.Target = shared.NewMatchTarget(newMatchIDForTest(t))
+
+	_, err := m.Apply(PlaceValueCommand{Meta: meta, Cell: 0, Digit: 1}, 4, now.Add(time.Second))
+	assertCode(t, err, shared.ErrMatchCommandInvalid)
+	if len(m.Values) != 0 {
+		t.Fatal("prior-Match command mutated the rematch")
+	}
+}
+
+func newMatchIDForTest(t *testing.T) shared.MatchID {
+	t.Helper()
+	matchID, err := (idgen.Generator{}).MatchID()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return matchID
+}
+
 func assertCode(t *testing.T, err error, expected shared.ErrorCode) {
 	t.Helper()
 	if err == nil {

@@ -16,6 +16,7 @@ import (
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/persistence/repository"
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/persistence/sqlite"
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/platform/config"
+	replayhttp "github.com/drilonrecica/ninefold-sudoku/apps/server/internal/replay/transport/http"
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/room/actor"
 	roomhttp "github.com/drilonrecica/ninefold-sudoku/apps/server/internal/room/transport/http"
 	roomws "github.com/drilonrecica/ninefold-sudoku/apps/server/internal/room/transport/websocket"
@@ -98,6 +99,9 @@ func New(address, buildVersion string, cfg config.Config, db *sqlite.DB, repo *r
 
 	wsHandler := roomws.NewHandler(repo, registry, cfg, logger)
 	wsHandler.RegisterRoutes(router)
+
+	replayHandler := replayhttp.NewHandler(repo, logger)
+	replayHandler.RegisterRoutes(router)
 
 	server.httpServer = &http.Server{
 		Addr:              address,

@@ -24,6 +24,14 @@ function cloneSnapshot(snapshot: MatchSnapshot): MatchSnapshot {
     cells: snapshot.cells.map((cell) => ({ ...cell, notes: [...(cell.notes ?? [])] })),
     mistakes: { ...snapshot.mistakes },
     contributions: { ...snapshot.contributions },
+    result: snapshot.result
+      ? {
+          ...snapshot.result,
+          mistakesByPlayer: { ...snapshot.result.mistakesByPlayer },
+          contributionsByPlayer: { ...snapshot.result.contributionsByPlayer },
+          disconnectsByPlayer: { ...snapshot.result.disconnectsByPlayer },
+        }
+      : undefined,
   };
 }
 
@@ -136,8 +144,21 @@ function applyMatchEvent(
       return next;
     case 'MatchCompleted':
       next.state = 'Completed';
-      next.completedAt = Date.now();
+      next.completedAt = envelope.serverTimestamp;
       next.assisted = Boolean(payload.assisted);
+      next.result = {
+        reason: String(payload.reason ?? 'PuzzleCompleted'),
+        completedAt: envelope.serverTimestamp,
+        elapsedMs: Number(payload.elapsedMs ?? 0),
+        penaltyMs: Number(payload.penaltyMs ?? 0),
+        assisted: Boolean(payload.assisted),
+        mistakesByPlayer: (payload.mistakesByPlayer as Record<string, number>) ?? {},
+        contributionsByPlayer: (payload.contributionsByPlayer as Record<string, number>) ?? {},
+        disconnectsByPlayer: (payload.disconnectsByPlayer as Record<string, number>) ?? {},
+        hintCount: Number(payload.hintCount ?? 0),
+        contributionCount: Number(payload.contributionCount ?? 0),
+        replayAvailable: true,
+      };
       return next;
     default:
       return null;
@@ -187,6 +208,7 @@ export function applyMatchMessage(
       schemaVersion: message.schemaVersion,
       eventNumber: message.eventNumber,
       aggregateVersion: message.aggregateVersion,
+      serverTimestamp: message.serverTimestamp,
       event,
     };
     const confirmed = applyMatchEvent(state.confirmed, envelope);

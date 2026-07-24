@@ -67,9 +67,41 @@ func (r *Room) Apply(cmd Command, now time.Time) ([]Event, error) {
 		return r.applyActivateMatch(c, now)
 	case ExpireRoomCommand:
 		return r.applyExpireRoom(c, now)
+	case PrepareRematchCommand:
+		return r.applyPrepareRematch(c, now)
 	default:
 		return nil, shared.DomainError{Code: shared.ErrRoomStateInvalid}
 	}
+}
+
+func (r *Room) applyPrepareRematch(cmd PrepareRematchCommand, now time.Time) ([]Event, error) {
+	if !r.isState(shared.RoomResults) || r.CurrentMatchID == nil {
+		return nil, shared.DomainError{Code: shared.ErrRoomStateInvalid}
+	}
+	if err := r.requireHost(cmd.Meta.AuthenticatedParticipantID); err != nil {
+		return nil, err
+	}
+	previousMatchID := *r.CurrentMatchID
+	r.State = shared.RoomLobby
+	r.CurrentMatchID = nil
+	r.Countdown = nil
+	r.RematchNumber++
+	for index := range r.Participants {
+		if r.Participants[index].IsActive() {
+			r.Participants[index].IsReady = false
+		}
+	}
+	r.bumpVersion()
+	r.touch(now)
+	meta, err := r.nextEventMeta(now)
+	if err != nil {
+		return nil, err
+	}
+	return []Event{RematchPreparedEvent{
+		Meta:            meta,
+		RematchNumber:   r.RematchNumber,
+		PreviousMatchID: previousMatchID,
+	}}, nil
 }
 
 // NewRoom constructs a room in the Lobby state with a single host participant.

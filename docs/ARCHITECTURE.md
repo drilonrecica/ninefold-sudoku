@@ -2,6 +2,7 @@
 
 **Document:** `docs/ARCHITECTURE.md`  
 **Status:** Canonical implementation architecture  
+**Current implementation scope:** Full MVP (`0.3.0`); deferred-feature architecture is provisional
 **Product:** Ninefold Sudoku  
 **Public URL:** `https://ninefold.recica.dev`  
 **Repository:** `ninefold-sudoku`  
@@ -43,6 +44,12 @@ Gameplay rules and invariants are defined in `docs/DOMAIN.md`. Product scope and
 
 When implementation convenience conflicts with this document or `DOMAIN.md`, the implementation must change.
 
+Current-scope rule:
+
+- architecture described for the `0.3.0` MVP is binding;
+- Race, Duel, Daily Ninefold, offline Solo, PWA installation, host approval, full spectator UX, reporting, and additional locales are provisional;
+- do not scaffold empty modules, routes, tables, flags, or generated contracts for deferred features.
+
 ---
 
 ## 2. Architectural priorities
@@ -81,7 +88,7 @@ The architecture should remain:
 - semantic HTML
 - CSS Grid for the Sudoku board
 - Dexie over IndexedDB for local data
-- SvelteKit service worker for PWA shell caching
+- optional SvelteKit service worker after PWA installation enters scope
 - Vitest
 - Testing Library
 - Playwright
@@ -227,16 +234,18 @@ The application is one deployable Go server with internal business modules:
 - Room
 - Match
 - Puzzle
-- Daily
 - Solo
 - Replay
-- Reporting
 - Administration
 - Realtime
 - Persistence
 - Platform
 
+Daily and Reporting modules are added only when their product features enter scope.
+
 The frontend is a separate deployable SvelteKit application within the same monorepo.
+
+The directory examples in this document describe boundaries, not a requirement to create empty packages.
 
 ### 5.1 Why a modular monolith
 
@@ -302,7 +311,6 @@ ninefold-sudoku/
 │   │   │   │   └── utils/
 │   │   │   ├── app.html
 │   │   │   ├── hooks.server.ts
-│   │   │   ├── service-worker.ts
 │   │   │   └── app.d.ts
 │   │   ├── static/
 │   │   ├── tests/
@@ -320,10 +328,8 @@ ninefold-sudoku/
 │       │   ├── room/
 │       │   ├── match/
 │       │   ├── puzzle/
-│       │   ├── daily/
 │       │   ├── solo/
 │       │   ├── replay/
-│       │   ├── reporting/
 │       │   ├── admin/
 │       │   ├── realtime/
 │       │   ├── persistence/
@@ -357,6 +363,7 @@ ninefold-sudoku/
 │   └── README.md
 │
 ├── docs/
+│   ├── README.md
 │   ├── PRODUCT.md
 │   ├── DOMAIN.md
 │   ├── ARCHITECTURE.md
@@ -470,7 +477,8 @@ type RequestID string
 type RoomCode string
 type CellIndex uint8
 type Digit uint8
-type AggregateVersion uint64
+type RoomVersion uint64
+type MatchVersion uint64
 type EventNumber uint64
 ```
 
@@ -497,7 +505,7 @@ type PlaceValueCommand struct {
     MatchID         MatchID
     ParticipantID   ParticipantID
     RequestID       RequestID
-    ExpectedVersion AggregateVersion
+    ExpectedVersion MatchVersion
     ClientSequence  uint64
     Cell            CellIndex
     Value           Digit
@@ -627,6 +635,8 @@ An actor may deactivate when:
 
 Reactivation reconstructs state from persistence.
 
+Long Room-expiration deadlines do not keep an idle actor resident. Persist those deadlines and let the maintenance scheduler enqueue expiration after reactivation. Only near-term Match, Countdown, reconnect, or recovery timers keep an actor active.
+
 ---
 
 ## 11. WebSocket connection architecture
@@ -708,7 +718,9 @@ Client begins with:
   "type": "connection.initialize",
   "protocolVersion": 1,
   "roomCode": "7KMP4R",
-  "lastEventNumber": 42
+  "lastRoomVersion": 12,
+  "lastMatchId": "019...",
+  "lastMatchEventNumber": 42
 }
 ```
 
@@ -726,9 +738,8 @@ Server responds with either:
 {
   "type": "match.place_value",
   "requestId": "019...",
-  "roomId": "019...",
   "matchId": "019...",
-  "expectedVersion": 42,
+  "expectedMatchVersion": 42,
   "clientSequence": 18,
   "payload": {
     "cell": 37,
@@ -741,11 +752,12 @@ Required fields depend on command type, but state-changing commands include:
 
 - `type`
 - `requestId`
-- `expectedVersion`
 - `clientSequence`
+- `expectedRoomVersion` for Room commands, or
+- `matchId` and `expectedMatchVersion` for Match commands;
 - structured payload
 
-The server derives participant identity from the session.
+The server derives Room ID and participant identity from the Room session. It never trusts a client-supplied Room ID. Match ID remains explicit so delayed commands from an older rematch can be rejected.
 
 ### 12.3 Server event envelope
 
@@ -755,16 +767,20 @@ The server derives participant identity from the session.
   "roomId": "019...",
   "matchId": "019...",
   "eventNumber": 814,
-  "version": 43,
+  "matchVersion": 43,
   "occurredAt": "2026-07-24T18:42:10.422Z",
-  "payload": {
+  "publicActorId": "019...",
+  "publicPayload": {
     "schemaVersion": 1,
     "cell": 37,
-    "value": 8,
-    "actorId": "019..."
+    "value": 8
   }
 }
 ```
+
+Durable Match events carry Match event number and Match version. Room updates carry Room version and are recovered through an authoritative Room snapshot. Ephemeral focus, soft-lock, presence, and reaction messages carry neither durable event number nor aggregate version.
+
+A durable ping receives a Match event number but leaves Match version unchanged because it does not mutate authoritative gameplay state.
 
 ### 12.4 Acknowledgement
 
@@ -773,6 +789,7 @@ The server derives participant identity from the session.
   "type": "command.acknowledged",
   "requestId": "019...",
   "accepted": true,
+  "aggregate": "match",
   "resultingVersion": 43
 }
 ```
@@ -790,15 +807,19 @@ The server derives participant identity from the session.
 }
 ```
 
+Clients may send a non-mutating `command.status` query with a prior RequestID. The server returns the stored terminal receipt or `COMMAND_OUTCOME_UNKNOWN`. This is the reconciliation path after acknowledgement timeout.
+
 ### 12.6 Idempotency
 
-Each state-changing command has a unique RequestID.
+Each state-changing command has a globally unique UUIDv7 RequestID.
 
-The server remembers processed RequestIDs for at least 10 minutes and enforces durable uniqueness where a Match event was produced.
+The server durably records terminal outcomes for HTTP and WebSocket mutations in a command-receipt store. Match events additionally enforce unique RequestID values.
 
 A retry using the same RequestID returns the original outcome.
 
 A retry with a new RequestID is a new command and must not be used as the default timeout behavior.
+
+Command receipts remain for at least 24 hours and never expire while the associated active Room or Match still needs retry safety.
 
 ### 12.7 Client sequence
 
@@ -812,9 +833,9 @@ The server rejects:
 
 A recognized retry with the same RequestID is still allowed.
 
-### 12.8 Aggregate version
+### 12.8 Aggregate versions
 
-The expected version prevents stale-state mutations.
+Room and Match versions are independent. The expected version for the command’s target aggregate prevents stale-state mutations.
 
 On mismatch:
 
@@ -987,20 +1008,30 @@ All application APIs use:
 |---|---|---|
 | `POST` | `/api/v1/rooms` | Create Room and host participant |
 | `GET` | `/api/v1/rooms/{code}` | Safe Room preview |
-| `POST` | `/api/v1/rooms/{code}/join` | Join or request approval |
+| `POST` | `/api/v1/rooms/{code}/join` | Join an unlocked Room |
 | `POST` | `/api/v1/rooms/{code}/resume` | Resume room session |
 | `POST` | `/api/v1/rooms/{code}/leave` | Explicit leave intent |
 | `POST` | `/api/v1/solo/puzzles` | Request Solo puzzle |
 | `POST` | `/api/v1/solo/attempts/{id}/hint` | Request Solo hint |
-| `GET` | `/api/v1/daily` | Load Daily Ninefold |
-| `GET` | `/api/v1/replays/{token}` | Retrieve replay |
-| `DELETE` | `/api/v1/replays/{token}` | Delete shared replay |
+| `POST` | `/api/v1/solo/attempts/{id}/complete` | Validate Solo completion |
+| `GET` | `/api/v1/replays/{replayId}` | Retrieve replay using capability header |
+| `DELETE` | `/api/v1/replays/{replayId}` | Delete replay using originating Room session |
 | `GET` | `/health/live` | Liveness |
 | `GET` | `/health/ready` | Readiness |
 | `GET` | `/health/status` | Protected operational status |
 | `GET` | `/internal/metrics` | Private metrics |
 
 Gameplay mutations are not duplicated over HTTP.
+
+`GET /api/v1/daily` is added only when Daily Ninefold enters scope.
+
+Every state-changing HTTP request includes:
+
+```text
+Idempotency-Key: <UUIDv7 RequestID>
+```
+
+The same key and authenticated scope return the original terminal outcome after retry, including across server restart.
 
 ### 16.2 Room creation request
 
@@ -1012,6 +1043,8 @@ Gameplay mutations are not duplicated over HTTP.
 }
 ```
 
+Create and join responses rotate the single `ninefold_room_session` cookie. If the browser already has a different active Room session, the server rejects with `ACTIVE_ROOM_SESSION_EXISTS` until the client submits an explicit leave/replacement intent. The client must explain the consequence before replacement.
+
 ### 16.3 Safe Room preview
 
 Preview may include:
@@ -1021,10 +1054,11 @@ Preview may include:
 - state;
 - available seats;
 - spectator availability;
-- approval requirement;
 - lock state.
 
 It must not expose participant names.
+
+Approval requirement is added when the deferred host-approval workflow enters scope.
 
 ### 16.4 Leave intent
 
@@ -1034,8 +1068,8 @@ Example values:
 
 - `leave_lobby`
 - `become_spectator`
-- `abandon_race`
-- `resign_duel`
+
+Race abandonment and Duel resignation intents are added with those modes.
 
 ### 16.5 Error envelope
 
@@ -1043,7 +1077,7 @@ Example values:
 {
   "error": {
     "code": "ROOM_FULL",
-    "message": "This room has no available player seats.",
+    "messageKey": "error.room_full",
     "requestId": "019...",
     "details": {
       "spectatorAvailable": true
@@ -1052,9 +1086,41 @@ Example values:
 }
 ```
 
-The frontend must act on `code`, not parse `message`.
+The frontend acts on `code`, localizes `messageKey`, and interpolates only named safe details. The server does not duplicate user-facing English prose in transport contracts.
 
-### 16.6 Status mapping
+### 16.6 Replay capability transport
+
+The shareable browser URL is:
+
+```text
+https://ninefold.recica.dev/replay/{replayId}#cap={capability}
+```
+
+URL fragments are not sent in HTTP request lines. The client reads the fragment in memory and fetches the replay with:
+
+```text
+Authorization: Bearer {capability}
+```
+
+Requirements:
+
+- capability tokens are never placed in API paths, query strings, logs, analytics, or persistent browser storage;
+- on initial load, the client copies the fragment capability into memory and immediately removes the fragment from browser history with `history.replaceState`;
+- the Share action reconstructs the fragment URL from the in-memory capability for copying without navigating to it;
+- replay pages use `noindex` and `Referrer-Policy: no-referrer`;
+- possession of a read capability permits reading only;
+- deletion requires the still-valid originating `ninefold_room_session` cookie and confirmed destructive action;
+- replacing the one active Room session removes the browser’s early-delete authority for the older Room.
+
+### 16.7 Solo assignment proof
+
+`POST /api/v1/solo/puzzles` returns clues, puzzle metadata, an attempt ID, and a signed opaque assignment proof. The proof binds puzzle revision, transformation, issued time, and format version without containing the solution.
+
+The client stores the proof with device-local attempt state. Hint and completion requests submit the proof and current board. The server validates them against its Puzzle catalog without storing personal Solo progress. Request bodies are never logged.
+
+The assignment proof is a puzzle-validation capability, not a player identity or Room credential.
+
+### 16.8 Status mapping
 
 | Situation | HTTP status |
 |---|---:|
@@ -1117,11 +1183,13 @@ Required fixtures include:
 
 - Room creation;
 - Co-op placement;
-- Race finish;
-- Duel timeout;
+- Co-op Challenge rejection;
+- durable ping;
 - stale command;
 - snapshot recovery;
 - replay proof.
+
+Race and Duel fixtures are added with those modes.
 
 ---
 
@@ -1236,11 +1304,23 @@ Room uses:
 
 Room is not reconstructed exclusively from an unbounded Room event stream.
 
-### 19.3 Puzzle persistence
+Every accepted Room mutation and its command receipt commit atomically. This preserves idempotency for creation, join, readiness, settings, host controls, Countdown, and rematch across process restart.
+
+### 19.3 Session persistence
+
+The MVP supports one active Room session per browser profile.
+
+- The browser holds one opaque `ninefold_room_session` cookie.
+- The server stores only its hash.
+- Creating or joining another Room requires explicit replacement of the prior Room session.
+- Multiple tabs may use the same Room session, subject to controller-lease rules.
+- Historical participation remains server-side only long enough to authorize replay deletion and retention cleanup.
+
+### 19.4 Puzzle persistence
 
 Puzzle uses explicit fields and immutable clue/solution blobs.
 
-### 19.4 Cross-aggregate transaction
+### 19.5 Cross-aggregate transaction
 
 Critical lifecycle operations update Room and Match atomically.
 
@@ -1260,11 +1340,11 @@ Canonical tables:
 
 ```text
 puzzles
-daily_challenges
 
 rooms
 room_participants
 room_blocks
+room_sessions
 
 matches
 match_participants
@@ -1272,11 +1352,15 @@ match_events
 match_snapshots
 match_results
 match_result_players
+match_tombstones
 
-problem_reports
+command_receipts
+replay_capabilities
+replay_seals
 admin_audit_log
-feature_flags
 ```
+
+Add `daily_challenges`, reporting tables, or feature-flag tables only when the corresponding feature enters scope.
 
 ### 20.1 Identifiers
 
@@ -1302,11 +1386,14 @@ Minimum fields:
 match_id
 event_number
 aggregate_version
-event_type
-actor_id
+public_event_type
+public_actor_id
 request_id
 occurred_at_ms
-payload_json
+public_payload_json
+private_payload_blob
+private_payload_salt
+private_payload_digest
 previous_hash
 event_hash
 ```
@@ -1316,7 +1403,9 @@ Constraints:
 - primary key `(match_id, event_number)`;
 - unique `(match_id, request_id)` where RequestID exists;
 - event number strictly increasing;
-- payload contains schema version.
+- public payload contains schema version;
+- private fields are nullable and never returned by ordinary replay queries;
+- aggregate version may remain unchanged for a durable non-state event such as a Co-op ping.
 
 ### 20.4 Snapshots
 
@@ -1337,6 +1426,55 @@ Recommended encoding:
 
 Prefer standard gzip initially for simplicity.
 
+### 20.5 Sessions and command receipts
+
+`room_sessions` stores:
+
+```text
+token_hash
+room_id
+participant_id
+created_at_ms
+expires_at_ms
+revoked_at_ms
+```
+
+Plaintext session tokens are never persisted.
+
+`command_receipts` stores:
+
+```text
+request_id
+authenticated_scope_hash
+command_type
+request_fingerprint
+terminal_status
+safe_response_json
+created_at_ms
+expires_at_ms
+```
+
+A repeated RequestID with a different authenticated scope, command type, or request fingerprint is rejected rather than replaying another outcome.
+
+### 20.6 Replay access and proofs
+
+`replay_capabilities` stores only capability-token hashes, Replay ID, Match ID, expiration, and revocation/deletion state.
+
+`replay_seals` stores:
+
+```text
+match_id
+final_event_number
+final_event_hash
+terminal_at_ms
+signing_key_id
+signature
+proof_version
+created_at_ms
+```
+
+Replay proof rows and access records are not Match events.
+
 ---
 
 ## 21. Match commit transaction
@@ -1344,13 +1482,14 @@ Prefer standard gzip initially for simplicity.
 Every accepted durable Match command commits atomically:
 
 1. insert produced events;
-2. update Match aggregate version;
+2. update Match aggregate version when authoritative state changed;
 3. update next event number;
 4. update state projection;
 5. update participant projections;
 6. update result projection if finalizing;
 7. update Room state if lifecycle changed;
-8. commit.
+8. insert or finalize the command receipt;
+9. commit.
 
 Only after commit:
 
@@ -1451,7 +1590,7 @@ Persist a Match snapshot:
 - every 50 durable events;
 - every 30 seconds while durable changes are occurring;
 - before planned shutdown;
-- when Match completes.
+- when Match reaches a retained terminal result.
 
 ### 23.1 Recovery
 
@@ -1476,7 +1615,7 @@ Replay response includes:
 - assigned puzzle snapshot;
 - immutable MatchRules;
 - participant snapshots;
-- ordered sanitized events;
+- ordered public-safe event envelopes;
 - optional seek snapshots;
 - result;
 - replay proof;
@@ -1486,12 +1625,11 @@ Replay response includes:
 
 Replay projection must enforce:
 
-- hidden Race values are not revealed before allowed timeline point;
-- private Duel notes are omitted;
-- rejected Duel digits are omitted;
 - session credentials are omitted;
 - server-only correctness metadata is omitted unless rules permit disclosure;
 - participant data is limited to temporary display names and markers.
+
+For future visibility-sensitive modes, hidden payloads are represented only by salted commitments. Exact Race and Duel visibility projections must be ratified with those modes.
 
 ### 24.3 Seek performance
 
@@ -1510,46 +1648,49 @@ For ordinary Matches:
 
 Hashing must use one stable canonical representation.
 
-Recommended approach:
-
-- JSON-compatible payload;
-- deterministic key ordering;
-- UTF-8;
-- no insignificant whitespace;
-- normalized number representation;
-- explicit proof format version.
-
-Use a standardized canonical JSON algorithm such as JCS where implementation quality is acceptable.
+Use RFC 8785 JSON Canonicalization Scheme over a versioned public-safe event envelope. Cross-language Go and TypeScript fixtures are mandatory.
 
 ### 25.2 Event hash
 
 Each durable event computes:
 
 ```text
-SHA-256(
-  proof_version
-  || match_id
-  || event_number
-  || aggregate_version
-  || event_type
-  || actor_id_or_empty
-  || occurred_at_ms
-  || canonical_payload
-  || previous_event_hash
-)
+event_hash = SHA-256(JCS({
+  proofVersion,
+  matchId,
+  eventNumber,
+  aggregateVersion,
+  publicEventType,
+  publicActorId,
+  occurredAtMs,
+  publicPayload,
+  privatePayloadDigest,
+  previousEventHash
+}))
 ```
 
-The first event uses a defined genesis hash.
+The first event uses a proof-version-defined genesis hash.
+
+For a hidden payload:
+
+```text
+private_payload_digest =
+  SHA-256(random_128_bit_or_larger_salt || JCS(private_payload))
+```
+
+The browser receives the digest, not the payload or salt. The server verifies private payload integrity during recovery.
 
 ### 25.3 Signature
 
-At completion:
+At a replay-retained terminal result:
 
 - sign final digest with Ed25519;
 - store signing key ID;
 - store proof version;
 - store signature;
 - expose public key to replay verifier.
+
+The final hashed Match event is the terminal gameplay/lifecycle fact. Replay sealing, capability creation, verification results, deletion, expiration, and result amendments are stored separately and never appended after the signed event.
 
 ### 25.4 Key management
 
@@ -1563,20 +1704,23 @@ Private signing key:
 
 Public keys:
 
-- published in a versioned trusted-key registry;
-- embedded or fetched from a same-origin endpoint;
+- embedded in the versioned web build;
 - retained long enough to verify all unexpired replays.
+
+A same-origin registry may publish key metadata, but it is not a substitute for the client’s embedded trust set. Key rotation deploys the new public key before the server begins signing with it.
 
 ### 25.5 Browser verifier
 
 The web client verifies:
 
 - sequential event numbers;
-- canonical payloads;
+- canonical public envelopes;
 - hash chain;
 - final digest;
 - Ed25519 signature;
 - trusted key ID.
+
+For hidden events, the browser verifies the signed digest commitment and does not claim to verify undisclosed content.
 
 Use Web Crypto where supported by the browser matrix. If a fallback is required, it must be small, audited, lazy-loaded, and covered by known test vectors.
 
@@ -1666,31 +1810,26 @@ Canonical routes:
 ├── /room/[code]
 ├── /play/[matchId]
 ├── /solo
-├── /daily
-├── /replay/[token]
+├── /replay/[replayId]
 ├── /settings
-├── /about
 ├── /how-to-play
-├── /modes/coop
-├── /modes/race
-├── /modes/duel
 ├── /privacy
 ├── /accessibility
 └── /admin
 ```
+
+Daily, About, and dedicated mode routes are added only when their product scope is activated.
 
 ### 27.1 Rendering strategy
 
 SSR:
 
 - home;
-- About;
-- mode pages;
 - privacy;
 - accessibility;
 - help;
 - safe Room preview;
-- localized SEO pages.
+- English SEO content.
 
 Client-heavy:
 
@@ -1743,8 +1882,8 @@ solo-state.svelte.ts
 ```ts
 type MatchClientState = {
   confirmed: MatchSnapshot;
-  version: number;
-  lastEventNumber: number;
+  matchVersion: number;
+  lastMatchEventNumber: number;
   pendingCommands: Map<string, PendingCommand>;
   connection: ConnectionState;
 };
@@ -1793,9 +1932,10 @@ solo_attempts
 solo_replays
 local_statistics
 recent_puzzles
-daily_progress
 connection_checkpoints
 ```
+
+Add `daily_progress` when Daily Ninefold enters scope.
 
 ### 29.1 LocalStorage
 
@@ -1826,9 +1966,11 @@ Session credentials are HTTP-only and are not copied into IndexedDB.
 
 ## 30. PWA and offline behavior
 
-### 30.1 Service worker cache
+PWA installation and service-worker caching are deferred. The MVP remains an ordinary responsive web application.
 
-May cache:
+### 30.1 Future service worker cache
+
+When implemented, it may cache:
 
 - application shell;
 - fonts;
@@ -1854,13 +1996,13 @@ No gameplay mutations are accepted offline.
 
 ### 30.3 Solo
 
-Architecture supports eventual offline Solo, but initial MVP may require connectivity to begin and validate new attempts.
+MVP Solo requires connectivity to begin an attempt, request a hint, and validate completion. Values, notes, timer, and preferences persist locally.
 
-Offline Solo remains behind a feature flag until explicitly enabled.
+Offline Solo requires a future scope decision; do not create a dormant feature flag or offline solution package in the MVP.
 
-### 30.4 Update behavior
+### 30.4 Future update behavior
 
-A new service-worker version:
+When a service worker exists, a new version:
 
 - must not force reload during active Match;
 - shows update available;
@@ -1882,10 +2024,8 @@ PlayerRoster
 MatchHeader
 ConnectionBanner
 RoomSettings
-ReadyCheck
+LobbyReadyControl
 CoopActivityPanel
-RaceProgressPanel
-DuelScoreboard
 ReplayTimeline
 ResultSummary
 LanguageSelector
@@ -1952,7 +2092,7 @@ Required controls:
 - `1–9`: place digit;
 - Backspace/Delete: erase;
 - `N` or Space: notes mode;
-- `Ctrl/Cmd + Z`: undo where allowed;
+- `Ctrl/Cmd + Z`: undo only in modes that explicitly support it; Co-op MVP does not;
 - `H`: hint where allowed;
 - Escape: close overlay or clear selection.
 
@@ -1992,13 +2132,22 @@ Manual checks include:
 - touch targets;
 - color-independent interpretation.
 
+Sizing requirements:
+
+- each Sudoku cell target is at least 24×24 CSS pixels;
+- number-pad buttons and primary controls are at least 44×44 CSS pixels;
+- the board is treated as an essential two-dimensional layout while surrounding controls reflow at 200% zoom.
+
 ---
 
 ## 33. Localization architecture
 
-Supported locales:
+Current MVP locale:
 
 - English `en`
+
+Planned pre-1.0 locales:
+
 - German `de`
 - Albanian `sq`
 - Turkish `tr`
@@ -2007,16 +2156,15 @@ Supported locales:
 
 ```text
 apps/web/src/lib/i18n/
-├── en.json
-├── de.json
-├── sq.json
-└── tr.json
+└── en.json
 ```
+
+Development also uses a generated pseudo-locale for expansion testing. Add real locale catalogs only when translation work enters scope.
 
 ### 33.2 Rules
 
 - English is canonical source.
-- Every locale must contain all required keys.
+- Every shipped locale must contain all required keys.
 - Development reports missing keys.
 - Production may fall back to English.
 - Use named placeholders.
@@ -2044,20 +2192,18 @@ SEO applies to public pages, not private gameplay state.
 ### 34.1 Indexable pages
 
 - `/`
-- `/about`
 - `/how-to-play`
-- `/modes/coop`
-- `/modes/race`
-- `/modes/duel`
 - `/privacy`
 - `/accessibility`
+
+About and mode pages are post-MVP routes.
 
 ### 34.2 Requirements
 
 - SSR meaningful content;
 - canonical URL;
-- localized metadata;
-- `hreflang` for supported locales;
+- English metadata;
+- `hreflang` only for locales actually shipped;
 - `sitemap.xml`;
 - `robots.txt`;
 - Open Graph;
@@ -2074,7 +2220,7 @@ Private pages:
 - noindex;
 - no participant names in metadata;
 - no Room code in public sitemap;
-- no replay token in logs or analytics;
+- no replay capability in logs or analytics;
 - no server-side preview card exposing Match state.
 
 ---
@@ -2086,7 +2232,6 @@ Private pages:
 Canonical cookies:
 
 ```text
-ninefold_device
 ninefold_room_session
 ```
 
@@ -2099,6 +2244,10 @@ Production attributes:
 - explicit expiration
 
 Server stores session-token hashes, not plaintext tokens.
+
+The MVP supports one active Room session per browser profile. Creating or joining a different Room requires an explicit leave/replacement flow. The cookie rotates on create, join, resume, and privilege-sensitive transitions.
+
+Replay read capabilities are intentionally shareable and therefore cannot be HTTP-only cookies. They are limited read credentials kept in a URL fragment and in memory only, as defined in section 16.6.
 
 ### 35.2 CSRF and origin
 
@@ -2142,6 +2291,15 @@ Initial per-session limits:
 
 Failed Room-code lookups receive progressive delay and temporary blocking.
 
+Room codes are generated with a cryptographically secure random source, inserted under a uniqueness constraint, and retried on collision. Do not reuse a code while any Room, session, block, replay-deletion authority, or retained access-control record still refers to it.
+
+When IP-based abuse controls are needed:
+
+- derive the client address only from a configured trusted proxy chain;
+- use a rotating keyed digest for application rate-limit keys;
+- do not persist raw IP addresses in product data;
+- document any unavoidable reverse-proxy security-log retention.
+
 ### 35.5 CAPTCHA
 
 No CAPTCHA in normal flow.
@@ -2168,6 +2326,20 @@ Coolify environment secrets:
 
 Secrets are never committed.
 
+### 35.8 Browser security headers
+
+Production responses must define and test:
+
+- Content Security Policy restricted to same-origin application needs;
+- `Strict-Transport-Security`;
+- `Referrer-Policy: no-referrer` on replay and private gameplay pages;
+- `X-Content-Type-Options: nosniff`;
+- `Permissions-Policy` disabling unused sensitive browser capabilities;
+- `frame-ancestors 'none'` or an equivalent anti-framing policy;
+- a restrictive `base-uri` and `form-action`.
+
+Room-code and replay routes must be logged by route template or redacted path, including at the reverse proxy. Raw replay capabilities must never reach an access log.
+
 ---
 
 ## 36. Privacy architecture
@@ -2192,10 +2364,12 @@ Never log:
 
 - cookies;
 - plaintext session tokens;
-- full puzzle solutions;
+- standalone puzzle solutions;
 - full WebSocket payloads by default;
 - private Duel notes;
 - raw replay capability tokens;
+- raw Room-session or Solo-assignment proofs;
+- raw URL fragments or unredacted capability-bearing paths;
 - personal Solo history.
 
 ### 36.3 Data minimization
@@ -2209,6 +2383,14 @@ Server stores only data required for:
 - administration;
 - operational reliability.
 
+Retention enforcement:
+
+- keep participant-linked Match events, snapshots, names, result projections, private payloads, and replay capabilities for at most seven days;
+- early replay deletion immediately revokes capabilities and removes replay-accessible payloads without rewriting the sealed Match stream;
+- scrub remaining participant-linked Match data at the seven-day boundary;
+- retain only the field-limited non-identifying Match tombstone defined by `DOMAIN.md` for 30 days;
+- delete expired Room sessions and command receipts when no active retry, reconnect, or replay-deletion authority depends on them.
+
 ### 36.4 Local clear action
 
 Settings must expose a client-side action to clear:
@@ -2218,6 +2400,8 @@ Settings must expose a client-side action to clear:
 - cached Solo data;
 - local statistics;
 - local replays.
+
+If a service worker is introduced later, the action also clears applicable Cache Storage.
 
 Server session cookie clearing is handled separately.
 
@@ -2303,7 +2487,7 @@ Metrics must not contain:
 - participant IDs as labels;
 - Room codes;
 - puzzle values;
-- replay tokens.
+- replay capabilities.
 
 High-cardinality labels are prohibited.
 
@@ -2425,7 +2609,13 @@ On startup:
 11. allow reconnect;
 12. resume or cancel according to domain rules.
 
-Duel recovery restarts the interrupted turn from its beginning.
+For MVP Co-op:
+
+- resume when at least one eligible player reconnects;
+- cancel when nobody reconnects within five minutes;
+- exclude the entire server-caused RecoveryPending interval from active elapsed time.
+
+Race and Duel recovery is provisional.
 
 ---
 
@@ -2437,7 +2627,8 @@ One internal scheduler in the Go process performs:
 - session cleanup;
 - replay expiration;
 - result retention cleanup;
-- report expiration;
+- participant-data scrubbing;
+- 30-day Match tombstone expiration;
 - old snapshot cleanup;
 - WAL checkpoint;
 - `PRAGMA optimize`;
@@ -2472,6 +2663,8 @@ Planned approach:
 - S3-compatible storage;
 - daily snapshot;
 - retention policy;
+- encryption in transit and at rest;
+- deletion behavior documented for retained backup generations;
 - documented restore test.
 
 Do not blindly copy only the SQLite main file while WAL is active.
@@ -2657,14 +2850,17 @@ Required coverage:
 - readiness reset;
 - host authorization;
 - Co-op commands;
-- Race rankings;
-- Duel scoring;
+- Countdown cancellation;
+- error presets and shared penalties;
+- Nudge and Reveal hints;
+- durable pings and ephemeral reactions;
 - timers;
 - reconnects;
 - idempotency;
 - Match completion;
-- invalidation;
 - replay event application.
+
+Race ranking, Duel scoring, and result invalidation tests are added with those features.
 
 ### 49.2 Property tests
 
@@ -2690,7 +2886,9 @@ Test:
 - version conflict;
 - atomic commit;
 - snapshot recovery;
-- cleanup;
+- seven-day participant-data scrubbing;
+- replay deletion and 30-day tombstone cleanup;
+- command receipts;
 - graceful restart.
 
 ### 49.4 WebSocket tests
@@ -2717,8 +2915,19 @@ Vitest:
 - keyboard navigation;
 - local persistence;
 - replay reconstruction;
-- localization;
+- English localization and pseudo-localized expansion;
 - accessibility helpers.
+
+Replay integrity tests use the same committed fixtures in Go and TypeScript and cover:
+
+- RFC 8785 canonicalization;
+- genesis and chained hashes;
+- public payload tampering;
+- hidden-payload digest commitments;
+- event gaps and reordering;
+- Ed25519 signatures;
+- trusted and unknown key IDs;
+- signing-key rotation.
 
 ### 49.6 End-to-end tests
 
@@ -2730,10 +2939,12 @@ Playwright multi-context scenarios:
 4. Refresh and reconnect.
 5. Complete and replay.
 6. Rematch.
-7. Race finishing window.
-8. Duel timeout and resignation.
-9. Second-tab read-only behavior.
-10. Go server restart and recovery.
+7. Error presets and hints.
+8. Ping/reaction persistence distinction.
+9. Replay verification, tampering, and deletion.
+10. Solo resume, hint, and completion validation.
+11. Second-tab read-only behavior.
+12. Go server restart and recovery with paused elapsed time.
 
 ### 49.7 Accessibility
 
@@ -2776,10 +2987,10 @@ Model:
 - stale versions;
 - stale timers;
 - reconnects;
-- Race finish;
-- Duel turn ownership;
 - recovery;
 - completion.
+
+Race finish and Duel turn ownership are added when those modes enter scope.
 
 Do not model all 81 Sudoku cells. Use a reduced finite model.
 
@@ -2803,33 +3014,23 @@ At minimum:
 - one host;
 - one effect per RequestID;
 - no completed-to-active transition;
-- active-player-only Duel move;
-- at-most-one first Race finisher;
 - stale timer cannot mutate current state;
 - no broadcast before commit as an abstract ordering property.
+
+Mode-specific invariants are added with their modes.
 
 ---
 
 ## 51. Feature flags
 
-Small server-side flags:
+The MVP does not create a feature-flag subsystem or table for features that do not exist.
 
-```text
-duel_enabled
-daily_enabled
-replay_key_moments_enabled
-offline_solo_enabled
-host_approval_enabled
-```
-
-Rules:
+When staged access is first required, use a small validated server configuration before considering persisted flags.
 
 - flags may enable access;
 - flags may not rewrite MatchRules of an existing Match;
 - historical replay remains valid after flag changes;
 - no third-party feature-flag platform.
-
-Flags may come from environment or a simple SQLite settings table.
 
 ---
 
@@ -2850,7 +3051,8 @@ NINEFOLD_REPLAY_SIGNING_KEY_ID
 NINEFOLD_ADMIN_PROXY_HEADER
 NINEFOLD_LOG_LEVEL
 NINEFOLD_REPLAY_RETENTION
-NINEFOLD_RESULT_RETENTION
+NINEFOLD_MATCH_TOMBSTONE_RETENTION
+NINEFOLD_COMMAND_RECEIPT_RETENTION
 NINEFOLD_SHUTDOWN_TIMEOUT
 ```
 
@@ -2858,6 +3060,7 @@ Requirements:
 
 - fail startup on missing mandatory values;
 - reject placeholder secrets in production;
+- reject retention values that exceed domain policy;
 - do not read environment throughout business code;
 - expose sanitized effective config in protected status.
 
@@ -2880,11 +3083,9 @@ Requirements:
 Lazy-load:
 
 - replay;
-- Race UI;
-- Duel UI;
 - admin;
-- advanced Solo hints;
-- non-default locales where appropriate.
+
+Race, Duel, advanced hints, and non-default locales are added to this list only after they exist.
 
 Do not lazy-load critical board interaction after entering Match.
 
@@ -2945,22 +3146,7 @@ Do not prematurely implement distributed infrastructure.
 
 Create an ADR for decisions expensive to reverse.
 
-Initial ADRs:
-
-```text
-ADR-001 Modular monolith
-ADR-002 SvelteKit and Go split
-ADR-003 SQLite in production
-ADR-004 Single-instance Room actor
-ADR-005 Native WebSocket protocol
-ADR-006 Server-authoritative Match state
-ADR-007 Deterministic event replay
-ADR-008 SHA-256 and Ed25519 replay proofs
-ADR-009 TLA+ model checking
-ADR-010 Temporary identity without accounts
-ADR-011 IndexedDB for client persistence
-ADR-012 Coolify single-VPS deployment
-```
+This architecture specification is the initial decision record. Do not duplicate its baseline decisions into boilerplate ADRs.
 
 An ADR is required before changing:
 
@@ -3036,7 +3222,7 @@ A feature is architecture-complete only when:
 
 AI agents and contributors must not:
 
-- send puzzle solutions to multiplayer clients;
+- send standalone puzzle-solution artifacts to multiplayer clients;
 - broadcast before persistence commit;
 - mutate Room or Match outside actor serialization;
 - place domain logic in Chi handlers;
@@ -3082,10 +3268,11 @@ Recommended architecture implementation order:
 18. Ed25519 sealing
 19. TLA+ model
 20. Solo
-21. Daily
-22. Race
-23. Duel
-24. admin and public hardening
+21. MVP administration and public hardening
+22. Race after a focused domain review
+23. Duel after a focused domain review
+24. Daily Ninefold after a focused domain review
+25. remaining public-ready features
 
 ---
 

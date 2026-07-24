@@ -7,6 +7,8 @@
 Repository: `ninefold-sudoku`  
 Default branch: `master`
 
+The current implementation target is the full `0.3.0` MVP: Co-op, online Solo, replay integrity, rematch, English, accessibility, and Coolify deployment. Race, Duel, Daily Ninefold, offline Solo, Explain hints, full spectator UX, and additional locales are deferred.
+
 ## Documentation Authority
 
 Before coding, read the relevant documents in this order:
@@ -31,7 +33,7 @@ Higher-ranked documents override lower-ranked ones. Do not silently resolve cont
 ## Non-Negotiable Engineering Rules
 
 - Multiplayer state is server-authoritative.
-- Never send the complete multiplayer puzzle solution to clients.
+- Never send a standalone multiplayer solution artifact to clients. Accepted Match events may naturally reconstruct a completed board.
 - Commit durable events to SQLite before acknowledgement or broadcast.
 - Serialize room and match mutations through the room actor.
 - Domain code must not import HTTP, WebSocket, SQLite, or UI packages.
@@ -58,13 +60,15 @@ Evaluate trade-offs in this order:
 6. SEO
 7. Feature breadth
 
-Mode priority: Co-op, Race, Duel, Solo, Daily Ninefold.
+Current MVP delivery order: Co-op vertical slice, then online Solo and MVP hardening.
+
+Post-MVP mode order: Race, Duel, Daily Ninefold.
 
 The first vertical slice is:
 
 `Create room → Join by code → Ready check → Co-op game → Complete → Replay → Rematch`
 
-Do not implement deferred features unless `docs/PRODUCT.md` explicitly includes them in the current scope.
+Do not implement deferred features unless `docs/PRODUCT.md` explicitly moves them into the current scope. Detailed deferred-feature rules are provisional.
 
 ## Privacy
 
@@ -86,9 +90,12 @@ Target WCAG 2.2 AA. Every gameplay feature must support:
 - non-color-only indicators,
 - reduced motion,
 - 200% zoom,
-- touch targets of at least 44×44 CSS pixels.
+- Sudoku cells of at least 24×24 CSS pixels;
+- primary controls and number-pad buttons of at least 44×44 CSS pixels.
 
-Supported locales: English (`en`), German (`de`), Albanian (`sq`), Turkish (`tr`).
+Current MVP locale: English (`en`).
+
+Planned pre-1.0 locales: German (`de`), Albanian (`sq`), Turkish (`tr`).
 
 Use translation keys and named placeholders. Never concatenate translated sentence fragments.
 
@@ -110,7 +117,7 @@ For each behavior change:
 2. Add or update domain tests first.
 3. Update HTTP, WebSocket, or event contracts.
 4. Implement backend behavior, then deterministic frontend reducer handling.
-5. Verify stale commands, reconnects, keyboard, mobile, localization, and accessibility.
+5. Verify stale commands, reconnects, keyboard, mobile, pseudo-localized expansion, and accessibility.
 6. Update canonical documentation and run all relevant checks.
 
 ## Definition of Done

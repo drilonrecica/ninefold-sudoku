@@ -2,6 +2,7 @@
 
 **Document:** `docs/PRODUCT.md`  
 **Status:** Canonical product requirements and scope  
+**Current implementation scope:** Full MVP (`0.3.0`)
 **Product:** Ninefold Sudoku  
 **Compact brand:** Ninefold  
 **Tagline:** *Solve together. Race the grid.*  
@@ -46,13 +47,19 @@ When documents conflict:
 3. `PRODUCT.md` controls scope, positioning, and product outcomes.
 4. `DESIGN.md` controls visual and interaction expression.
 
+Current-scope rule:
+
+- only features listed in section 29.1 are required for the `0.3.0` MVP;
+- sections for Race, Duel, Daily Ninefold, offline Solo, Explain hints, full spectator UX, additional locales, PWA installation, and dedicated mode pages describe future direction and are provisional;
+- a provisional feature must receive a focused product and domain review before implementation.
+
 ---
 
 ## 2. Product summary
 
 Ninefold Sudoku is a privacy-first, multiplayer-first Sudoku web application built for private play among family and friends and designed to function as a high-quality public portfolio showcase.
 
-The product allows people to:
+The complete product direction allows people to:
 
 - create a private Sudoku room;
 - invite others with a short code or link;
@@ -62,6 +69,8 @@ The product allows people to:
 - play alone in Solo mode;
 - return for one shared Daily Ninefold puzzle;
 - view deterministic, cryptographically verifiable match replays.
+
+The current MVP exposes Co-op and Solo. Race, Duel, and Daily Ninefold are not advertised as available gameplay.
 
 Ninefold does not require player accounts.
 
@@ -273,12 +282,13 @@ People discovering Ninefold through search or shared links who want:
 
 - private multiplayer Sudoku;
 - a refined Solo experience;
-- Daily Ninefold;
 - a trustworthy account-free product.
+
+The future product direction also serves players who want a shared Daily Ninefold puzzle.
 
 ### 7.3 User characteristics
 
-The product must support users who:
+The current MVP must support users who:
 
 - are new to Sudoku;
 - are casual players;
@@ -288,7 +298,9 @@ The product must support users who:
 - use assistive technology;
 - have slower networks;
 - do not want to create an account;
-- speak English, German, Albanian, or Turkish.
+- use the English UI.
+
+German, Albanian, and Turkish support is required before `1.0.0`, not for the current MVP.
 
 ---
 
@@ -384,7 +396,6 @@ The homepage and navigation must emphasize:
 1. Create Room
 2. Join Room
 3. Play Solo
-4. Daily Ninefold
 
 Co-op is the flagship mode.
 
@@ -447,6 +458,11 @@ Examples:
 
 ## 11. Core product modes
 
+Status:
+
+- Co-op and online Solo are current MVP modes.
+- Race, Duel, and Daily Ninefold are provisional post-MVP modes.
+
 ### 11.1 Co-op
 
 Co-op is the primary mode.
@@ -466,7 +482,7 @@ Co-op must feel collaborative rather than like multiple cursors fighting over on
 
 ### 11.2 Race
 
-Race is the second-priority multiplayer mode.
+Race is the first post-MVP mode.
 
 Players:
 
@@ -482,7 +498,7 @@ Race must feel tense and fair without enabling copying.
 
 ### 11.3 Duel
 
-Duel is the third-priority multiplayer mode.
+Duel follows Race after Race is stable.
 
 Two players:
 
@@ -518,6 +534,8 @@ Solo exists to provide practice, onboarding, and a complete account-free experie
 
 ### 11.5 Daily Ninefold
 
+Daily Ninefold follows Duel and is not part of the current MVP.
+
 Daily Ninefold provides:
 
 - one shared puzzle per UTC day;
@@ -533,7 +551,7 @@ It gives users a reason to return without creating an account.
 
 ## 12. Product feature hierarchy
 
-### 12.1 Essential
+### 12.1 Current MVP
 
 - responsive homepage;
 - Create Room;
@@ -550,31 +568,34 @@ It gives users a reason to return without creating an account.
 - results;
 - rematch;
 - replay;
+- replay integrity verification;
+- online Solo with device-local progress;
+- Nudge and Reveal hints;
+- pings and reactions;
+- basic host controls;
+- light and dark themes;
+- TLA+ models for MVP concurrency-sensitive behavior;
+- How to Play/help;
 - privacy page;
-- accessibility basics;
+- accessibility page;
+- WCAG 2.2 AA core-flow accessibility;
 - English localization.
 
-### 12.2 Important
-
-- Solo;
-- Daily Ninefold;
-- light and dark themes;
-- German, Albanian, and Turkish;
-- pings and reactions;
-- host controls;
-- replay integrity verification;
-- polished SEO pages;
-- mobile installability;
-- formal verification artifacts.
-
-### 12.3 Expansion
+### 12.2 Required before public-ready 1.0
 
 - Race;
 - Duel;
+- Daily Ninefold;
+- German, Albanian, and Turkish;
+- polished SEO pages;
+
+### 12.3 Deferred expansion
+
 - active spectators;
 - richer replay;
 - Explain hints;
 - offline Solo;
+- PWA installation;
 - advanced admin tools;
 - broader public promotion.
 
@@ -591,12 +612,10 @@ Recommended order:
 3. Create Room
 4. Join-code input
 5. Play Solo
-6. Daily Ninefold
-7. Brief Co-op demonstration
-8. Mode overview
-9. Privacy/accessibility highlights
-10. Portfolio and architecture links
-11. Footer
+6. Brief Co-op demonstration
+7. Future-mode overview clearly labelled as unavailable
+8. Privacy/accessibility highlights
+9. Footer
 
 ### 13.1 Recommended headline
 
@@ -607,7 +626,7 @@ Sudoku is better together.
 ### 13.2 Supporting copy
 
 ```text
-Create a private room, invite friends, and solve the same grid together—or compete in Race and Duel modes.
+Create a private room, invite friends, and solve the same Sudoku grid together.
 ```
 
 ### 13.3 Primary actions
@@ -618,7 +637,6 @@ Create a private room, invite friends, and solve the same grid together—or com
 ### 13.4 Secondary actions
 
 - Play solo
-- Daily Ninefold
 
 ### 13.5 Homepage constraints
 
@@ -638,10 +656,11 @@ Create a private room, invite friends, and solve the same grid together—or com
 A player creates a Room by selecting:
 
 - temporary display name;
-- mode;
 - difficulty.
 
-Additional settings can be changed in the lobby.
+Co-op is the only enabled multiplayer mode in the MVP. The contract retains an explicit mode value, but the MVP UI does not present unavailable mode choices.
+
+Additional Co-op settings can be changed in the lobby.
 
 ### 14.2 Invitation
 
@@ -678,13 +697,10 @@ Only settings relevant to the selected mode should be visible.
 
 Host can:
 
-- configure mode;
 - configure difficulty;
-- configure timer;
 - configure errors;
 - configure hints;
 - lock Room;
-- enable approval;
 - remove or block participants;
 - transfer host;
 - start;
@@ -699,6 +715,8 @@ Host can:
 - No indexing of invitation pages.
 - No password in V1.
 - Code/link possession grants join request capability.
+- MVP Rooms accept valid joins immediately when unlocked and capacity is available.
+- Host-approval workflow is deferred.
 
 ---
 
@@ -720,7 +738,6 @@ The product should communicate that:
 There is no account registration requirement for:
 
 - Solo;
-- Daily;
 - private multiplayer;
 - replay access with valid capability.
 
@@ -729,14 +746,13 @@ There is no account registration requirement for:
 Local-only statistics may include:
 
 - multiplayer games played;
-- Race wins;
-- Duel record;
 - Co-op completions;
 - best Solo times;
 - average times;
-- Daily streak;
 - hint usage;
 - mistakes.
+
+Race, Duel, and Daily statistics may be added locally when those modes enter scope.
 
 The product must clearly state that these are stored on the device and may disappear if browser data is cleared.
 
@@ -874,11 +890,15 @@ Must support:
 
 #### Race
 
+Provisional:
+
 - side-by-side boards;
 - synchronized progress;
 - finish order.
 
 #### Duel
+
+Provisional:
 
 - turns;
 - score changes;
@@ -901,8 +921,10 @@ The interface must explain that this verifies the replay was not changed after s
 
 - Multiplayer replay: 7 days
 - Solo replay: device-local
-- Participant may delete shared replay early
+- A participant with a still-valid originating Room session may delete the shared replay early
 - Replays are not publicly indexed
+- Participant-linked Match events, snapshots, and names are scrubbed when replay retention ends
+- A non-identifying operational Match tombstone may remain for 30 days
 
 ---
 
@@ -920,10 +942,10 @@ TLA+ models cover:
 - duplicate commands;
 - stale timers;
 - reconnect;
-- Race finish;
-- Duel turn ownership;
 - recovery;
 - completion.
+
+Race finish and Duel turn ownership are added to the formal model when those modes enter scope.
 
 Portfolio framing:
 
@@ -976,6 +998,10 @@ The privacy page must explain:
 - local statistics;
 - retention.
 
+Full participant-linked multiplayer data is retained for at most seven days. After that, names, participant links, event payloads, snapshots, and replay capabilities are removed. A minimal non-identifying Match tombstone may remain for operational diagnosis for up to 30 days.
+
+IP addresses may be processed transiently for abuse prevention. Application rate limiting should use short-lived keyed representations rather than persist raw addresses where practical.
+
 ### 20.3 Cookie banner
 
 Do not show a consent banner when only essential cookies and local storage are used.
@@ -1022,10 +1048,11 @@ WCAG 2.2 AA
 - reduced motion;
 - scalable text;
 - 200% zoom;
-- touch targets at least 44×44 CSS pixels;
-- textual Race progress;
-- accessible Duel turn status;
+- Sudoku cells at least 24×24 CSS pixels;
+- number-pad buttons and primary controls at least 44×44 CSS pixels;
 - accessible connection status.
+
+Textual Race progress and accessible Duel turn status become requirements when those provisional modes enter scope.
 
 ### 21.2 Release quality
 
@@ -1043,19 +1070,20 @@ Every gameplay state must be understandable without relying only on:
 
 Before readiness, players must understand:
 
-- overall time limit;
-- Duel turn duration;
 - reconnect rules;
-- finishing window;
-- timeout consequences.
+
+The MVP has no overall Match deadline. Duel turn duration, Race finishing windows, and timeout consequences become requirements with those modes.
 
 ---
 
 ## 22. Localization product requirements
 
-Launch locales:
+Current MVP locale:
 
 - English (`en`)
+
+Planned pre-1.0 locales:
+
 - German (`de`)
 - Albanian (`sq`)
 - Turkish (`tr`)
@@ -1070,6 +1098,7 @@ Arabic is explicitly excluded.
 - User may override in Settings.
 - Saved preference wins on return.
 - English is fallback.
+- MVP layouts are tested with pseudo-localized expansion before the additional catalogs exist.
 
 ### 22.2 Translation quality
 
@@ -1099,13 +1128,11 @@ SEO matters for portfolio discovery and public consumer discovery.
 ### 23.1 Indexable pages
 
 - Home
-- About
 - How to Play
-- Co-op mode page
-- Race mode page
-- Duel mode page
 - Privacy
 - Accessibility
+
+About and dedicated mode pages are deferred until post-MVP public presentation work.
 
 ### 23.2 Search positioning
 
@@ -1115,9 +1142,9 @@ Content may naturally target:
 - cooperative Sudoku;
 - play Sudoku with friends;
 - private Sudoku room;
-- online Sudoku race;
-- turn-based Sudoku;
 - account-free Sudoku.
+
+Race- and Duel-specific search positioning is deferred until those modes are available.
 
 ### 23.3 Metadata
 
@@ -1130,7 +1157,7 @@ Ninefold Sudoku — Multiplayer Sudoku
 Primary description:
 
 ```text
-Play Sudoku together in private co-op rooms, race friends on identical puzzles, or challenge someone to a turn-based duel.
+Play Sudoku together in private co-op rooms or solve a personal puzzle without creating an account.
 ```
 
 ### 23.4 SEO constraints
@@ -1355,7 +1382,7 @@ Do not add analytics solely to measure this ratio.
 
 ## 29. MVP definition
 
-The MVP is not the full product.
+The `0.3.0` MVP is the current implementation target. It is not the full product.
 
 ### 29.1 MVP scope
 
@@ -1367,26 +1394,35 @@ MVP includes:
 - temporary display names;
 - Co-op mode;
 - 1–6 players;
-- ready check;
+- one active multiplayer Room per browser profile;
+- Lobby readiness;
 - shared board;
 - shared notes;
 - soft locks;
 - player attribution;
-- pings/reactions;
+- durable targeted pings;
+- ephemeral reactions;
 - error presets;
 - hints: Nudge and Reveal;
+- basic host settings, lock, remove/block, transfer, start/cancel, and rematch controls;
 - reconnect;
+- server-restart recovery;
 - completion;
 - result;
 - basic replay;
 - replay integrity verification;
+- TLA+ models for Room lifecycle, idempotency, stale timers, recovery, and completion;
 - rematch;
 - Solo;
 - light/dark mode;
 - responsive mobile and desktop;
 - English;
+- pseudo-localized expansion testing;
+- How to Play/help page;
 - privacy page;
-- accessibility baseline;
+- accessibility page;
+- WCAG 2.2 AA core-flow accessibility;
+- private MVP administration;
 - Coolify deployment.
 
 ### 29.2 MVP replay
@@ -1430,9 +1466,16 @@ Active spectator UX may remain limited until later phases.
 
 - Race
 - Duel
+- Daily Ninefold
 - full Explain hints
 - full offline Solo
-- advanced Daily experience
+- host-approval join workflow
+- multiplayer undo
+- optional overall Match deadlines
+- full spectator UX
+- German, Albanian, and Turkish catalogs
+- PWA installation
+- About and dedicated mode/SEO pages
 - public rankings
 - account system
 - public matchmaking
@@ -1499,35 +1542,35 @@ No later feature should be built before this slice is coherent.
 
 ### 31.3 Milestone C — Portfolio beta
 
+- full `0.3.0` MVP;
 - polished responsive design;
 - basic replay;
 - cryptographic replay verification;
+- MVP TLA+ models and CI checks;
 - Solo;
-- Daily;
-- public pages;
-- SEO;
-- English plus additional translations;
+- Home, How to Play, Privacy, and Accessibility pages;
+- English and pseudo-localized layout testing;
 - Coolify;
 - public repository;
-- architecture case study.
+- private administration and production hardening.
 
-### 31.4 Milestone D — Multiplayer expansion
+### 31.4 Post-MVP sequence
 
-- Race;
-- Duel;
-- full spectators;
-- richer replay;
-- Explain hints;
-- stronger public-launch hardening.
+1. Race
+2. Duel
+3. Daily Ninefold
+4. full spectators, richer replay, Explain hints, and PWA installation
+5. additional locales, SEO mode pages, backups, and public-launch hardening
 
 ### 31.5 Version map
 
 ```text
 0.1.0  Co-op local prototype
 0.2.0  Persistent multiplayer alpha
-0.3.0  Portfolio beta
+0.3.0  Full MVP / portfolio beta
 0.4.0  Race mode
 0.5.0  Duel mode
+0.6.0  Daily Ninefold
 1.0.0  Public-ready release
 ```
 
@@ -1785,8 +1828,10 @@ Mitigation:
 - User can join with code or link.
 - Temporary name is sufficient.
 - Participant names are not exposed before join.
-- Full Room offers spectator option where permitted.
+- Full Room explains that no player seat is available.
 - Locked Room is clearly communicated.
+
+An active spectator option is added when spectator UX enters scope.
 
 ### 38.3 Co-op
 
@@ -1800,6 +1845,8 @@ Mitigation:
 
 ### 38.4 Race
 
+These criteria are provisional and apply when Race enters scope.
+
 - Same puzzle assigned to all.
 - Boards are isolated.
 - Opponent values remain hidden.
@@ -1809,6 +1856,8 @@ Mitigation:
 - Ranking is deterministic.
 
 ### 38.5 Duel
+
+These criteria are provisional and apply when Duel enters scope.
 
 - Exactly two players.
 - Only active player can move.
@@ -1857,9 +1906,11 @@ Mitigation:
 
 - Public pages render useful HTML.
 - Canonicals are correct.
-- Localized metadata exists.
+- English metadata exists.
 - Private pages are noindex.
 - Sitemap excludes Rooms and replays.
+
+Additional localized metadata is required when those locales enter scope.
 
 ---
 
@@ -1874,7 +1925,7 @@ Sudoku is better together.
 ### 39.2 Home supporting text
 
 ```text
-Create a private room, invite friends, and solve the same grid together—or compete in Race and Duel modes.
+Create a private room, invite friends, and solve the same Sudoku grid together.
 ```
 
 ### 39.3 Privacy summary
@@ -1903,6 +1954,8 @@ A privacy-first multiplayer Sudoku game built with SvelteKit, Go, WebSockets, SQ
 
 ## 40. About page requirements
 
+This page is deferred until after the MVP.
+
 The About page should explain:
 
 - why Ninefold exists;
@@ -1928,13 +1981,12 @@ The product should include clear instructions for:
 - notes;
 - Guided versus Classic;
 - Co-op;
-- Race;
-- Duel;
 - hints;
 - error presets;
-- timers;
 - reconnect;
 - replay.
+
+Race, Duel, and mode-specific timer instructions are added when those features enter scope.
 
 Instructions should use:
 
@@ -1986,8 +2038,8 @@ Use contextual, dismissible guidance for:
 - first notes use;
 - first Co-op ping;
 - first replay;
-- first Duel turn;
-- first Race progress view.
+
+Race and Duel onboarding is added with those modes.
 
 Guidance should not repeatedly interrupt experienced users.
 
@@ -1995,11 +2047,11 @@ Guidance should not repeatedly interrupt experienced users.
 
 ## 44. Installation
 
-Ninefold may be installable as a PWA.
+PWA installation is deferred until after the MVP.
 
-Do not show an immediate install prompt.
+When implemented, do not show an immediate install prompt.
 
-Offer a subtle install action after:
+When PWA installation enters scope, offer a subtle install action after:
 
 - completing a Solo puzzle; or
 - completing a multiplayer Match.
@@ -2071,7 +2123,7 @@ A feature is product-complete only when:
 - visual and interaction design is complete;
 - mobile and desktop behavior is complete;
 - accessibility is complete;
-- localization is complete;
+- current-scope localization is complete;
 - privacy impact is acceptable;
 - performance budget is reviewed;
 - errors and empty states exist;

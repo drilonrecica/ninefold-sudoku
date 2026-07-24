@@ -2,6 +2,7 @@
 
 **Document:** `docs/DOMAIN.md`  
 **Status:** Canonical domain specification  
+**Current implementation scope:** Full MVP (`0.3.0`); deferred-mode rules are provisional
 **Product:** Ninefold Sudoku  
 **Public URL:** `https://ninefold.recica.dev`  
 **Repository:** `ninefold-sudoku`  
@@ -33,6 +34,12 @@ When another document conflicts with this one about gameplay behavior or invaria
 
 The rollout scope of a feature is controlled by `PRODUCT.md`. A feature may be fully specified here while still disabled or deferred in the current release.
 
+For the current `0.3.0` MVP:
+
+- Co-op and online Solo rules are canonical;
+- Race, Duel, Daily Ninefold, offline Solo, Explain hints, host approval, overall Match deadlines, multiplayer undo, and full spectator behavior are provisional;
+- provisional rules must receive a focused domain review before implementation.
+
 ---
 
 ## 2. Product domain summary
@@ -46,6 +53,8 @@ The supported play experiences are, in priority order:
 3. **Duel** — two players alternate turns on one shared board and compete by score.
 4. **Solo** — one player solves a personal puzzle.
 5. **Daily Ninefold** — one shared daily puzzle for all visitors.
+
+The current MVP implements Co-op and online Solo. Post-MVP implementation order is Race, Duel, then Daily Ninefold.
 
 The product does not require player accounts. Multiplayer uses room-scoped temporary identities. Public matchmaking, permanent social graphs, direct messaging, public profiles, and account-based ranking are outside the defined V1 domain.
 
@@ -69,6 +78,7 @@ For multiplayer:
 - client time, client score, client correctness claims, and client completion claims are never authoritative;
 - no client may directly mutate shared domain state;
 - a state-changing command becomes real only after server validation and durable commit.
+- multiplayer clients never receive a standalone solution artifact; accepted events may naturally reconstruct a completed board after the Match is solved.
 
 ### 3.2 Determinism
 
@@ -320,20 +330,20 @@ A participant:
 
 A display name:
 
-- contains 2–20 visible characters;
-- is trimmed at both ends;
+- contains 2–20 Unicode grapheme clusters after normalization;
+- is trimmed using Unicode whitespace rules;
+- is normalized to NFC for display;
 - may include Unicode letters, numbers, spaces, punctuation, and emoji;
-- is stored in its visible original form;
-- is normalized for duplicate detection;
-- must be unique within the room using case-insensitive comparison where casing exists;
+- is stored in its normalized visible form;
+- uses a locale-independent NFKC case-folded, whitespace-collapsed comparison key for duplicate detection;
+- must have a unique comparison key within the room;
 - must reject control characters;
-- must reject bidirectional control-character abuse;
-- must reject invisible-formatting abuse;
-- must reject URLs;
-- must reject excessive repeated-character or emoji-sequence abuse;
-- may be rejected by a small configurable prohibited-slur list.
+- must reject bidirectional control characters and unsafe invisible formatting;
+- must contain at least one visible non-whitespace grapheme.
 
 When a duplicate is submitted, the client may suggest a suffix such as `Alex 2`.
+
+The MVP does not apply URL, repeated-character, emoji-sequence, or prohibited-word heuristics. In private Rooms, content moderation is handled through host remove and block controls.
 
 Display-name errors must not reveal filtering details. A safe user message is:
 
@@ -362,6 +372,8 @@ Each participant has a secret reconnect credential. Domain behavior requires:
 - historical events always retain the original participant identity;
 - a removed or blocked participant cannot reuse the same room session.
 
+The MVP supports one active multiplayer Room session per browser profile. Creating or joining another Room requires an explicit leave or replacement of the current Room session. Multiple tabs for that same Room share the participant session but only one tab may control gameplay.
+
 ---
 
 ## 8. Room configuration
@@ -372,15 +384,13 @@ A room configuration contains at least:
 - difficulty;
 - error preset;
 - hint policy;
-- optional match time limit;
 - Co-op note behavior;
-- Race finishing-window duration;
-- Duel turn duration;
 - spectator policy;
-- host-approval policy;
 - reconnect policy;
 - reaction/ping policy;
 - room lock state.
+
+Race finishing-window duration, Duel turn duration, host approval, and optional overall Match deadlines are provisional post-MVP settings.
 
 ### 8.1 Supported modes
 
@@ -429,9 +439,9 @@ Spectators never consume player seats.
 
 ### 8.5 Match time limits
 
-Default multiplayer behavior has no overall time limit.
+The MVP has no overall Match deadline. It records elapsed active time only.
 
-Optional host-selected limits:
+Provisional post-MVP host-selected limits:
 
 - 5 minutes
 - 10 minutes
@@ -501,8 +511,7 @@ Canonical hint availability:
 ### 9.1 States
 
 ```text
-Open
-ReadyCheck
+Lobby
 Countdown
 InMatch
 Results
@@ -515,22 +524,19 @@ TerminatedByAdmin
 ### 9.2 Normal transitions
 
 ```text
-Open → ReadyCheck
-ReadyCheck → Countdown
+Lobby → Countdown
+Countdown → Lobby           # host cancellation before activation
 Countdown → InMatch
 InMatch → Results
-Results → ReadyCheck        # rematch
-Open → Expired
-ReadyCheck → Expired
+Results → Lobby             # rematch
+Lobby → Expired
 Results → Expired
 ```
 
 ### 9.3 Exceptional transitions
 
 ```text
-Open → Cancelled
-ReadyCheck → Cancelled
-Countdown → Cancelled
+Lobby → Cancelled
 InMatch → RecoveryPending
 RecoveryPending → InMatch
 RecoveryPending → Cancelled
@@ -548,8 +554,8 @@ At all times:
 5. Spectators never consume player seats.
 6. Only the host may change gameplay settings.
 7. A gameplay setting change resets every participant’s ready state.
-8. Settings cannot change during Countdown or InMatch.
-9. Only ready players are included when a Match is created.
+8. MatchRules settings cannot change during Countdown or InMatch. Room access locking remains a separate host control.
+9. Every seated player must be ready when a Match is created.
 10. Race cannot start with fewer than two players.
 11. Duel cannot start with any count other than two players.
 12. A room code is not publicly searchable.
@@ -600,14 +606,17 @@ Before joining, a visitor may see only:
 - room state;
 - available player seats;
 - spectator availability;
-- whether host approval is required;
 - whether the room is locked.
 
 Participant names are not exposed before a successful join.
 
+An approval-required field is added only if the deferred host-approval workflow enters scope.
+
 ### 10.3 Join approval
 
-Host approval is optional.
+Host approval is deferred and is not part of the MVP. In the MVP, an unlocked Room accepts a valid join immediately when capacity is available.
+
+Provisional post-MVP approval flow:
 
 When disabled:
 
@@ -656,13 +665,10 @@ After a match begins:
 
 The host may:
 
-- choose mode;
 - choose difficulty;
-- choose timer;
 - choose error preset;
 - choose hint policy;
 - choose spectator policy;
-- enable or disable host approval;
 - enable or disable reactions;
 - lock or unlock the room;
 - remove a participant;
@@ -671,6 +677,8 @@ The host may:
 - cancel Countdown;
 - create a rematch;
 - transfer host status.
+
+Mode selection, overall Match deadlines, and host approval may be added after their deferred rules enter scope.
 
 ### 11.1 Host transfer
 
@@ -687,6 +695,8 @@ Automatic transfer after host disconnect:
 3. Otherwise transfer authority to the longest-present active participant.
 4. Host transfer never changes an active Match’s rules or state.
 
+An explicit host leave transfers authority immediately to the longest-present active participant. If none exists, the Room remains without an active controller until an eligible participant reconnects or the Room expires.
+
 ### 11.2 Removing participants
 
 Before match start:
@@ -698,11 +708,15 @@ Before match start:
 
 During a match:
 
-- normal behavior is `RemoveAfterMatch`;
-- immediate removal is reserved for abuse or severe technical disruption;
-- immediate removal must apply mode-specific abandonment, resignation, or spectator-conversion rules.
+- MVP Co-op removal is immediate;
+- mutation authority and the participant’s Room session are revoked;
+- the seat is released;
+- accepted contributions and historical attribution remain;
+- the Match continues for remaining players.
 
 A host may block a participant from rejoining that room.
+
+Participant muting is a local client preference. The host controls whether Room-wide pings and reactions are enabled; there are no domain-level `MuteParticipant` commands in the MVP.
 
 ---
 
@@ -713,6 +727,7 @@ A host may block a participant from rejoining that room.
 - Each player controls their own ready state.
 - Spectators do not need to become ready.
 - The host cannot mark another player ready.
+- Every seated player must be ready before Countdown can start.
 - A gameplay-setting change resets all player ready states.
 - Cosmetic changes do not reset readiness.
 
@@ -721,10 +736,11 @@ A host may block a participant from rejoining that room.
 The host may begin Countdown only when:
 
 - minimum mode player count is met;
-- every included player is ready;
+- every seated player is ready;
 - no required approval is pending;
-- room is not locked against existing participants in a way that invalidates current seats;
 - no other active Match exists.
+
+The approval condition applies only after the deferred host-approval feature enters scope.
 
 ### 12.3 Countdown
 
@@ -733,12 +749,22 @@ Default countdown duration is 3 seconds.
 On Countdown start:
 
 - room settings become locked;
-- included player seats are fixed;
+- all seated player seats are fixed;
 - Match rules are copied immutably;
 - puzzle assignment is fixed;
 - server determines the countdown deadline.
 
-Host may cancel Countdown before Match activation. Cancellation returns to ReadyCheck and preserves room configuration but resets readiness as appropriate.
+Host may cancel Countdown before Match activation. Cancellation:
+
+- marks the prepared Match `Cancelled`;
+- clears the Room’s current Match reference;
+- returns the Room to `Lobby`;
+- preserves Room configuration;
+- resets every player’s readiness;
+- does not expose the assigned puzzle board to clients;
+- does not count the unexposed Puzzle against Room repetition history.
+
+The next start creates a new Match ID.
 
 ---
 
@@ -807,13 +833,12 @@ A MatchRules value contains:
 - difficulty;
 - error preset;
 - hint policy;
-- overall time limit;
-- Duel turn duration;
-- Race finishing-window duration;
 - spectator policy;
 - reconnect policy;
 - note auto-removal setting;
 - any rule version needed for historical reconstruction.
+
+Overall Match deadline, Duel turn duration, and Race finishing-window duration are included only by later rule versions after those provisional features are approved.
 
 ---
 
@@ -963,6 +988,8 @@ The final hint model has three levels:
 
 The same situation may escalate through these levels.
 
+The MVP implements `Nudge` and `Reveal`. `Explain` remains provisional until the logical explanation engine and translated instructional content are ready.
+
 ### 17.2 Availability
 
 - Solo: enabled.
@@ -1026,11 +1053,7 @@ Every Co-op note mutation is immediately shared with connected players after aut
 
 A player may erase any non-clue value subject to current rules.
 
-Undo behavior:
-
-- a player may undo only their own latest reversible action;
-- any player may directly erase a non-fixed value;
-- undo does not erase history; it emits inverse events.
+Multiplayer undo is deferred. MVP clients must not expose Co-op undo; explicit erase and note toggles are the supported reversal operations.
 
 ### 18.5 Wrong entries
 
@@ -1038,31 +1061,52 @@ Co-op uses the room’s selected error preset.
 
 Default: `Casual`.
 
+Every solution-wrong attempt increments the acting participant’s mistake count:
+
+- `Casual`: accept the value and expose its incorrect state;
+- `Challenge`: reject the value and add five seconds to the shared result penalty;
+- `Blind`: accept the value without exposing solution correctness during play;
+- `Clean`: reject the value without a time penalty.
+
+The result reports active elapsed time and accumulated penalties separately. Adjusted result time equals active elapsed time plus penalties.
+
 ### 18.6 Hints
 
-Hints are allowed. Hint events are shared and replay-visible.
+MVP Co-op supports `Nudge` and `Reveal`.
+
+- Nudge returns a structured cell or region target without a value.
+- Reveal atomically places one correct value with system/hint attribution, clears notes as required, and applies note auto-removal.
+- A revealed value does not count as a participant contribution.
+- Hint events are shared and replay-visible.
 
 ### 18.7 Pings and reactions
 
 Co-op supports lightweight communication without text chat.
 
-Canonical ping/reaction intents:
+Canonical targeted ping intents:
 
 - `look_here`
-- `agree`
 - `unsure`
 - `try_this_area`
+
+Canonical untargeted reaction intents:
+
+- `agree`
 - `nice_move`
 
 Properties:
 
 - structured intent, never pretranslated sentence;
-- may target a cell or region;
+- a ping must target a cell or region;
+- a reaction does not target board state;
 - expires visually after several seconds;
 - rate-limited;
 - may be disabled by host;
 - may be muted per participant;
-- included in replay as lightweight timeline events when replay policy enables them.
+- pings are durable MVP replay events;
+- reactions are ephemeral and never persisted.
+
+Persisting a ping increments Match event number but does not increment Match aggregate version because it does not mutate authoritative gameplay state.
 
 ### 18.8 Joining after start
 
@@ -1101,6 +1145,8 @@ Completion produces:
 
 ## 19. Race mode
 
+**Status:** Provisional; not an implementation contract until Race enters scope.
+
 ### 19.1 Core model
 
 Race uses:
@@ -1118,10 +1164,10 @@ Race uses:
 Race start sequence:
 
 ```text
-Lobby → ReadyCheck → 3-second Countdown → Active
+Lobby → 3-second Countdown → Active
 ```
 
-Players not ready when Countdown starts are not included.
+Every seated Race player must be ready before Countdown can start. A participant who does not want to race must switch to spectator or leave while still in Lobby.
 
 ### 19.3 Opponent visibility
 
@@ -1234,6 +1280,16 @@ Race replay:
 ---
 
 ## 20. Duel mode
+
+**Status:** Provisional; not an implementation contract until Duel enters scope.
+
+Before implementation, the Duel review must resolve:
+
+- score farming through erase and re-placement;
+- whether accepted correct values are immutable;
+- whether voluntary pass exists;
+- exact recovery fairness;
+- visibility and replay treatment for private note activity.
 
 ### 20.1 Core model
 
@@ -1400,6 +1456,8 @@ Each player receives one protected disconnect pause per Duel:
 
 ## 21. Solo mode
 
+Online Solo is current MVP scope. Offline Solo rules are provisional.
+
 ### 21.1 Entry points
 
 Solo supports:
@@ -1501,6 +1559,8 @@ The current release scope determines whether OfflineSolo is enabled.
 ---
 
 ## 22. Daily Ninefold
+
+**Status:** Provisional; not an implementation contract until Daily Ninefold enters scope.
 
 ### 22.1 Assignment
 
@@ -1741,7 +1801,9 @@ Replay-relevant durable events include:
 - resignation;
 - abandonment;
 - join/disconnect/reconnect where relevant;
-- pings/reactions when configured for replay.
+- targeted Co-op pings.
+
+Co-op reactions, soft locks, focus, and other ephemeral coordination are not replay events.
 
 Raw pointer motion and keyboard events are never recorded.
 
@@ -1758,7 +1820,7 @@ Cell selection may be included in an extended replay mode, but:
 - Replay is not publicly indexed.
 - Only people with the capability may view it.
 - Replay expires after 7 days.
-- Any authenticated room participant may request immediate deletion.
+- Any participant with a still-valid originating Room session may request immediate deletion.
 - One deletion removes the shared replay for everyone.
 - Solo replay remains device-local.
 - Replay never exposes session credentials.
@@ -1780,7 +1842,7 @@ A shareable result summary may include:
 
 It must not expose:
 
-- puzzle solution;
+- a standalone puzzle-solution artifact;
 - private notes;
 - session tokens;
 - hidden opponent data;
@@ -1792,27 +1854,39 @@ It must not expose:
 
 ### 25.1 Hash chain
 
-Every durable event participates in a SHA-256 hash chain.
+Every durable Match event participates in one SHA-256 hash chain using a versioned, public-safe event envelope.
 
-Conceptually:
+The canonical envelope contains:
 
 ```text
-event_hash = SHA-256(
-    match_id
-    + event_number
-    + event_type
-    + canonical_payload
-    + previous_event_hash
-)
+proof_version
+match_id
+event_number
+aggregate_version
+public_event_type
+public_actor_id_or_empty
+occurred_at_ms
+public_payload
+private_payload_digest_or_empty
+previous_event_hash
 ```
 
-The first event uses a defined genesis value.
+The envelope is serialized with RFC 8785 JSON Canonicalization Scheme and then hashed. Raw string concatenation is prohibited.
 
-Canonicalization rules must be stable and versioned.
+When an authoritative event contains information that a replay viewer may not receive:
+
+- the replay exposes only a neutral public envelope;
+- the private payload is salted with at least 128 bits of server-generated randomness;
+- `private_payload_digest = SHA-256(salt || canonical_private_payload)`;
+- the private payload and salt remain server-side;
+- the digest binds the hidden bytes into the signed chain without permitting low-entropy guessing;
+- the browser verifies the signed commitment but does not claim to verify hidden content.
+
+The first event uses a proof-version-defined genesis hash. MVP Co-op events are public-safe; the private commitment mechanism exists for later visibility-sensitive modes.
 
 ### 25.2 Match seal
 
-At Match completion, the final event hash is sealed with Ed25519.
+When a Match reaches a replay-retained terminal result, the final durable Match event hash is sealed with Ed25519.
 
 A Match proof contains at least:
 
@@ -1824,20 +1898,22 @@ A Match proof contains at least:
 - Ed25519 signature;
 - proof format version.
 
+Replay capability creation, sealing metadata, browser verification outcomes, replay deletion, replay expiration, and result invalidation are not appended to the sealed Match event stream. They are separate access, proof, or audit records. This avoids circular signing and post-seal mutation.
+
 ### 25.3 Browser verification
 
 A replay verifier must be able to confirm:
 
 1. Event numbers are sequential.
-2. Event payload canonicalization is valid.
+2. Public event-envelope canonicalization is valid.
 3. Each event hash links to the prior hash.
-4. No event was inserted, removed, or changed after sealing.
+4. No public event or private-payload commitment was inserted, removed, or changed after sealing.
 5. Final hash matches the signed digest.
 6. Signature matches a trusted Ninefold public key.
 
 ### 25.4 Meaning of verification
 
-A valid proof establishes that the replay has not been altered after the authoritative server sealed it.
+A valid proof establishes that the presented public replay and its hidden-payload commitments have not been altered after the authoritative server sealed them.
 
 It does not independently prove that the server’s rule implementation was correct at runtime. That assurance is strengthened through:
 
@@ -1865,29 +1941,33 @@ A finalized result contains:
 - mistakes;
 - hints;
 - assistance flags;
-- Duel scores;
-- timeouts;
 - disconnect outcomes;
 - replay availability;
 - invalidation metadata where applicable.
+
+Duel scores and turn timeouts are added by a later result schema when Duel enters scope.
 
 ### 26.2 Result reasons
 
 Canonical reasons include:
 
 - `PuzzleCompleted`
-- `FinishingWindowExpired`
-- `Resignation`
-- `DisconnectForfeit`
-- `ConsecutiveTimeoutAbandonment`
-- `HostTermination`
 - `AdministrativeTermination`
 - `RecoveryFailure`
 - `CancelledBeforeStart`
 
+Provisional mode-specific reasons:
+
+- `FinishingWindowExpired`
+- `Resignation`
+- `DisconnectForfeit`
+- `ConsecutiveTimeoutAbandonment`
+
 ### 26.3 Invalidation
 
 An administrator may invalidate a completed result.
+
+Result invalidation is deferred. When introduced, it is an append-only administrative amendment that references the original sealed proof; it does not append to or reopen the sealed Match event stream.
 
 Invalidation:
 
@@ -1909,7 +1989,7 @@ A rematch:
 - selects a different canonical Puzzle;
 - copies current Room settings into new immutable MatchRules;
 - retains current participants;
-- returns Room to ReadyCheck;
+- returns Room to `Lobby`;
 - resets ready states;
 - resets boards, scores, penalties, and timers;
 - increments Room rematch number;
@@ -1956,10 +2036,12 @@ After server interruption:
 1. Reconstruct Room and Match from latest valid snapshot plus later events.
 2. Mark active state `RecoveryPending`.
 3. Give participants up to 5 minutes to reconnect.
-4. Resume Co-op and Race.
-5. Resume Duel at the beginning of the interrupted turn.
+4. Resume Co-op when at least one eligible player reconnects.
+5. Pause Co-op active elapsed time for the entire server-caused `RecoveryPending` interval.
 6. Cancel if nobody reconnects before recovery deadline.
 7. Preserve original event order and aggregate versions.
+
+Race and Duel recovery behavior is provisional and must be ratified before those modes enter scope.
 
 ### 28.5 Recovery invariants
 
@@ -1977,11 +2059,10 @@ Authoritative timers include:
 
 - room expiration;
 - ready countdown;
-- match time limit;
-- Duel turn deadline;
-- Race finishing window;
 - reconnect grace;
 - recovery deadline.
+
+Duel turn deadlines, Race finishing windows, and optional overall Match deadlines are post-MVP timers.
 
 Timer events must include generation identity so stale timers cannot affect newer state.
 
@@ -1995,12 +2076,12 @@ Server timestamps determine all outcomes.
 
 The following catalog defines domain intent. Transport names may differ but must map one-to-one.
 
+Only commands belonging to current-scope features are implemented. Commands in explicitly provisional subsections are design placeholders, not current contracts.
+
 ### 30.1 Room commands
 
 - `CreateRoom`
 - `RequestJoin`
-- `ApproveJoin`
-- `RejectJoin`
 - `ResumeRoomSession`
 - `LeaveRoom`
 - `ChangeParticipationRole`
@@ -2008,8 +2089,6 @@ The following catalog defines domain intent. Transport names may differ but must
 - `ChangeRoomSettings`
 - `LockRoom`
 - `UnlockRoom`
-- `MuteParticipant`
-- `UnmuteParticipant`
 - `RemoveParticipant`
 - `BlockParticipant`
 - `TransferHost`
@@ -2030,11 +2109,9 @@ The following catalog defines domain intent. Transport names may differ but must
 - `UseHint`
 - `ParticipantDisconnected`
 - `ParticipantReconnected`
-- `MatchDeadlineReached`
 - `EnterRecovery`
 - `ResumeRecoveredMatch`
 - `CancelRecoveredMatch`
-- `InvalidateResult`
 
 ### 30.3 Co-op commands
 
@@ -2043,16 +2120,19 @@ The following catalog defines domain intent. Transport names may differ but must
 - `OverrideSoftLock`
 - `SendPing`
 - `SendReaction`
-- `UndoOwnLatestAction`
 - `ConvertCoopPlayerToSpectator`
 
 ### 30.4 Race commands
+
+Provisional:
 
 - `SubmitRaceCompletion`
 - `RaceFinishingWindowElapsed`
 - `AbandonRace`
 
 ### 30.5 Duel commands
+
+Provisional:
 
 - `PlaceDuelValue`
 - `EraseDuelValue`
@@ -2068,6 +2148,9 @@ The following catalog defines domain intent. Transport names may differ but must
 - `ActivatePuzzle`
 - `RetirePuzzle`
 - `AssignPuzzle`
+
+Provisional Daily command:
+
 - `ReplaceScheduledDailyPuzzle`
 
 ### 30.7 Replay commands
@@ -2076,6 +2159,21 @@ The following catalog defines domain intent. Transport names may differ but must
 - `DeleteReplay`
 - `SealReplay`
 - `VerifyReplay`
+
+These are application operations. They do not produce events inside the sealed Match event stream.
+
+Deferred host-approval commands:
+
+- `ApproveJoin`
+- `RejectJoin`
+
+Deferred overall-deadline command:
+
+- `MatchDeadlineReached`
+
+Deferred result-invalidation command:
+
+- `InvalidateResult`
 
 ---
 
@@ -2086,8 +2184,6 @@ The following catalog defines domain intent. Transport names may differ but must
 - `RoomCreated`
 - `JoinRequested`
 - `ParticipantJoined`
-- `ParticipantJoinApproved`
-- `ParticipantJoinRejected`
 - `ParticipantLeft`
 - `ParticipantRemoved`
 - `ParticipantBlocked`
@@ -2126,20 +2222,18 @@ The following catalog defines domain intent. Transport names may differ but must
 - `MatchCancelled`
 - `MatchAbandoned`
 - `MatchCompleted`
-- `MatchResultInvalidated`
 
 ### 31.3 Co-op events
 
-- `CellSoftLocked`
-- `CellSoftLockRefreshed`
-- `CellSoftLockReleased`
-- `CellSoftLockOverridden`
 - `CoopPingSent`
-- `CoopReactionSent`
 - `CoopContributionRecorded`
 - `CoopPuzzleCompleted`
 
+Soft-lock and reaction messages are ephemeral realtime messages, not durable domain events.
+
 ### 31.4 Race events
+
+Provisional:
 
 - `RaceProgressChanged`
 - `RacePlayerFinished`
@@ -2150,6 +2244,8 @@ The following catalog defines domain intent. Transport names may differ but must
 - `RaceRankingFinalized`
 
 ### 31.5 Duel events
+
+Provisional:
 
 - `DuelStartingPlayerSelected`
 - `DuelTurnStarted`
@@ -2172,16 +2268,30 @@ The following catalog defines domain intent. Transport names may differ but must
 - `PuzzleActivated`
 - `PuzzleAssigned`
 - `PuzzleRetired`
+
+Provisional Daily events:
+
 - `DailyPuzzleScheduled`
 - `DailyPuzzleReplaced`
 
-### 31.7 Replay events
+### 31.7 Replay metadata and audit records
 
 - `ReplayCapabilityCreated`
 - `ReplaySealed`
 - `ReplayVerified`
 - `ReplayDeleted`
 - `ReplayExpired`
+
+These records are append-only within their own lifecycle but are outside the sealed Match event stream.
+
+Deferred host-approval events:
+
+- `ParticipantJoinApproved`
+- `ParticipantJoinRejected`
+
+Deferred result-invalidation audit record:
+
+- `MatchResultInvalidated`
 
 ---
 
@@ -2236,6 +2346,7 @@ Errors are machine-readable and transport-independent.
 - `SPECTATOR_CAPACITY_REACHED`
 - `SESSION_INVALID`
 - `SESSION_EXPIRED`
+- `ACTIVE_ROOM_SESSION_EXISTS`
 - `NAME_INVALID`
 - `NAME_ALREADY_USED`
 - `JOIN_APPROVAL_REQUIRED`
@@ -2290,6 +2401,7 @@ Errors are machine-readable and transport-independent.
 - `RECONNECT_WINDOW_EXPIRED`
 - `TIMER_TOKEN_STALE`
 - `COMMAND_NOT_RETRYABLE`
+- `COMMAND_OUTCOME_UNKNOWN`
 - `SERVER_BUSY`
 - `RATE_LIMITED`
 - `PERSISTENCE_FAILED`
@@ -2316,14 +2428,14 @@ User-facing localized text is not part of the domain error.
 
 ## 34. Formal properties for TLA+ verification
 
-The TLA+ model should verify at least the following safety properties.
+The current MVP TLA+ model should verify at least the following safety properties.
 
 ### 34.1 Room safety
 
 - At most one active Match exists per Room.
 - At most one participant has host authority.
 - A Match cannot start unless mode-specific player count is valid.
-- A Match cannot start unless included players are ready.
+- A current-scope Co-op Match cannot start unless every seated player is ready.
 - Settings cannot mutate after Countdown starts.
 - A stale host-transfer event cannot override a newer host.
 
@@ -2340,10 +2452,16 @@ The TLA+ model should verify at least the following safety properties.
 - A completed Match never becomes Active.
 - Completion is finalized at most once.
 - Fixed clues never change.
-- Duel move acceptance is possible only for active player.
+- No durable event is broadcast before commit.
+
+When Race enters scope, add:
+
 - Race first finisher is declared at most once.
 - Finishing window cannot reopen after completion.
-- No durable event is broadcast before commit.
+
+When Duel enters scope, add:
+
+- Duel move acceptance is possible only for the active player.
 
 ### 34.4 Recovery safety
 
@@ -2357,10 +2475,16 @@ The TLA+ model should verify at least the following safety properties.
 Subject to fair scheduling and available persistence:
 
 - a valid ready room eventually starts or is cancelled;
-- an active Race entering Finishing eventually completes;
-- a disconnected Duel player eventually reconnects or forfeits;
 - a Match in RecoveryPending eventually resumes or terminates;
 - a Room in Results eventually rematches or expires.
+
+When Race enters scope, add:
+
+- an active Race entering Finishing eventually completes.
+
+When Duel enters scope, add:
+
+- a disconnected Duel player eventually reconnects or forfeits.
 
 ---
 
@@ -2368,16 +2492,28 @@ Subject to fair scheduling and available persistence:
 
 ### 35.1 Server-retained domain data
 
-- Active room records: until completion or expiration
+- Active and Results Room records: until expiration or terminal cleanup
 - Abandoned room records: 24 hours
-- Replay events: 7 days
-- Match result summaries: 90 days
+- Participant-linked Match events, snapshots, names, results, and replay capabilities: 7 days
+- Non-identifying Match tombstones: 30 days
 - Temporary participant sessions: 7 days after last room
 - Puzzle catalog: indefinitely
-- Problem reports: 30 days
 - Administrative audit history: 1 year
 
-Retention jobs may remove expired data but must not leave dangling references that break still-retained results.
+At the seven-day boundary, retention removes display names, participant links, event payloads, private payloads and salts, snapshots, replay capabilities, and other replayable gameplay data.
+
+The 30-day tombstone may contain only:
+
+- Match ID;
+- mode and difficulty;
+- terminal reason;
+- start and end timestamps;
+- schema and proof versions;
+- replay deletion or expiration timestamp.
+
+It must not contain Room ID, Participant ID, display name, board values, notes, event payloads, or capability material.
+
+Retention jobs must preserve referential integrity without retaining participant-linked data merely to satisfy obsolete references.
 
 ### 35.2 Local-only data
 
@@ -2408,9 +2544,12 @@ Ninefold does not require or intentionally store:
 
 Domain values and events use stable machine identifiers.
 
-Supported locales:
+Current locale:
 
 - English: `en`
+
+Planned pre-1.0 locales:
+
 - German: `de`
 - Albanian: `sq`
 - Turkish: `tr`
@@ -2457,7 +2596,7 @@ These scenarios are canonical examples. Implementations must preserve equivalent
 
 **Given**
 
-- Mila and Noah are ready in a Race room.
+- Mila and Noah are ready in a Co-op room.
 
 **When**
 
@@ -2504,6 +2643,8 @@ These scenarios are canonical examples. Implementations must preserve equivalent
 
 ### 37.5 Race finish
 
+Provisional acceptance scenario.
+
 **Given**
 
 - four players are active;
@@ -2523,6 +2664,8 @@ These scenarios are canonical examples. Implementations must preserve equivalent
 
 ### 37.6 Race hint
 
+Provisional acceptance scenario.
+
 **Given**
 
 - hints are enabled.
@@ -2539,6 +2682,8 @@ These scenarios are canonical examples. Implementations must preserve equivalent
 - hint appears in result and replay.
 
 ### 37.7 Duel incorrect move
+
+Provisional acceptance scenario.
 
 **Given**
 
@@ -2558,6 +2703,8 @@ These scenarios are canonical examples. Implementations must preserve equivalent
 
 ### 37.8 Duel scoring
 
+Provisional acceptance scenario.
+
 **Given**
 
 - Noah places a correct value that completes one row and one box.
@@ -2575,6 +2722,8 @@ These scenarios are canonical examples. Implementations must preserve equivalent
 - turn passes to Mila.
 
 ### 37.9 Duel timeout abandonment
+
+Provisional acceptance scenario.
 
 **Given**
 
@@ -2611,7 +2760,7 @@ These scenarios are canonical examples. Implementations must preserve equivalent
 
 **Given**
 
-- active Race has committed events and a valid snapshot.
+- active Co-op has committed events and a valid snapshot.
 
 **When**
 
@@ -2622,7 +2771,9 @@ These scenarios are canonical examples. Implementations must preserve equivalent
 - Match enters RecoveryPending;
 - state reconstructs from snapshot and later events;
 - participants have 5 minutes to reconnect;
-- Race resumes without duplicating events.
+- Co-op resumes when an eligible player reconnects;
+- active elapsed time excludes the RecoveryPending interval;
+- no event is duplicated.
 
 ### 37.12 Replay verification
 
@@ -2643,7 +2794,7 @@ These scenarios are canonical examples. Implementations must preserve equivalent
 
 **Given**
 
-- a Duel is complete.
+- a Co-op Match is complete.
 
 **When**
 
@@ -2654,8 +2805,78 @@ These scenarios are canonical examples. Implementations must preserve equivalent
 - new Match ID is created;
 - new Puzzle is assigned;
 - old Match remains immutable;
-- prior starting player is not selected again;
-- participants return to ReadyCheck.
+- participants return to `Lobby`;
+- all readiness is reset.
+
+### 37.14 Countdown cancellation
+
+**Given**
+
+- all Co-op players are ready;
+- the host has started Countdown.
+
+**When**
+
+- the host cancels before activation.
+
+**Then**
+
+- the prepared Match is cancelled;
+- no puzzle board was exposed;
+- the Room returns to `Lobby`;
+- all readiness is reset;
+- a later start creates a different Match ID.
+
+### 37.15 Co-op Challenge mistake
+
+**Given**
+
+- Co-op uses the `Challenge` error preset.
+
+**When**
+
+- Noah attempts a solution-wrong value.
+
+**Then**
+
+- the value is rejected;
+- Noah’s mistake count increments;
+- the shared result penalty increases by five seconds;
+- active elapsed time is unchanged.
+
+### 37.16 Co-op social events
+
+**Given**
+
+- pings and reactions are enabled.
+
+**When**
+
+- Mila sends a targeted `look_here` ping and Noah sends an `agree` reaction.
+
+**Then**
+
+- both appear live;
+- only the ping is durably committed and included in replay;
+- the reaction and all soft-lock state remain ephemeral.
+
+### 37.17 Replay deletion
+
+**Given**
+
+- a replay exists;
+- Mila has a valid originating Room session.
+
+**When**
+
+- Mila confirms deletion.
+
+**Then**
+
+- replay access is removed for everyone;
+- capability use returns `REPLAY_DELETED`;
+- deletion does not rewrite the sealed Match stream;
+- retention cleanup removes replay payloads according to policy.
 
 ---
 

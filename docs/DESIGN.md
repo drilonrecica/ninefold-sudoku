@@ -2,6 +2,7 @@
 
 **Document:** `docs/DESIGN.md`  
 **Status:** Canonical product design, interaction, and accessibility specification  
+**Current implementation scope:** Full MVP (`0.3.0`); deferred-feature designs are provisional
 **Product:** Ninefold Sudoku  
 **Compact brand:** Ninefold  
 **Tagline:** *Solve together. Race the grid.*  
@@ -50,6 +51,12 @@ When documents conflict:
 2. `ARCHITECTURE.md` controls implementation constraints.
 3. `PRODUCT.md` controls scope and priorities.
 4. `DESIGN.md` controls visual and interaction expression.
+
+Current-scope rule:
+
+- Co-op, online Solo, replay, and the MVP public pages are binding designs;
+- Race, Duel, Daily Ninefold, offline Solo, PWA installation, host approval, full spectator UX, additional locales, About, and dedicated mode pages are provisional;
+- do not implement or scaffold provisional screens merely because they are described here.
 
 ---
 
@@ -773,7 +780,8 @@ Do not assume one specific phone width.
 - no horizontal scroll;
 - Match status remains visible;
 - secondary panels collapse;
-- touch targets remain at least 44×44 CSS pixels.
+- Sudoku cells remain at least 24×24 CSS pixels;
+- number-pad buttons and primary controls remain at least 44×44 CSS pixels.
 
 ### 14.2 Medium layout goals
 
@@ -802,9 +810,11 @@ Desktop navigation may include:
 
 - Play
 - How to Play
-- Modes
-- About
-- Settings or language/theme controls
+- Privacy
+- Accessibility
+- Settings or theme controls
+
+Modes and About may be added after those pages enter scope.
 
 Mobile navigation should use a compact menu.
 
@@ -844,7 +854,6 @@ Must include:
 - Create Room;
 - Join code input;
 - Play Solo;
-- Daily Ninefold.
 
 Recommended headline:
 
@@ -855,7 +864,7 @@ Sudoku is better together.
 Recommended supporting copy:
 
 ```text
-Create a private room, invite friends, and solve the same grid together—or compete in Race and Duel modes.
+Create a private room, invite friends, and solve the same Sudoku grid together.
 ```
 
 ### 16.2 Primary interaction block
@@ -882,7 +891,7 @@ Room code
 Below the play block:
 
 - short Co-op visual;
-- mode cards;
+- future-mode cards only when clearly labelled as unavailable;
 - privacy statement;
 - replay integrity statement;
 - accessibility statement;
@@ -909,12 +918,15 @@ Create Room should be one concise flow.
 Required fields:
 
 - display name;
-- mode;
 - difficulty.
 
 Optional advanced settings should remain collapsed until lobby or advanced toggle.
 
+Co-op is the only enabled multiplayer mode in the MVP.
+
 ### 17.2 Mode selection
+
+Mode selection is deferred until Race enters scope.
 
 Mode cards should include:
 
@@ -983,10 +995,12 @@ Opening `/join/[code]` shows:
 - mode;
 - difficulty;
 - available role;
-- lock/approval state;
+- lock state;
 - display-name field.
 
 Do not show participant names before successful join.
+
+Approval state is added only with the deferred host-approval workflow.
 
 ### 18.3 Full player seats
 
@@ -997,6 +1011,8 @@ If players are full and spectator access exists:
 - do not silently change role.
 
 ### 18.4 Awaiting approval
+
+This state is deferred with the host-approval workflow.
 
 Approval pending state should show:
 
@@ -1113,8 +1129,9 @@ Reduced-motion mode may use instant number changes without scale animation.
 
 If host cancels:
 
-- transition back to ReadyCheck;
+- transition back to Lobby;
 - explain cancellation;
+- show that readiness was reset;
 - do not leave users on a frozen overlay.
 
 ---
@@ -1314,7 +1331,6 @@ Required buttons:
 - digits 1–9;
 - erase;
 - notes toggle;
-- undo where allowed.
 
 Optional controls:
 
@@ -1377,7 +1393,7 @@ Notes mode must have:
 - `1–9`: place digit
 - Backspace/Delete: erase
 - `N` or Space: toggle notes
-- `Ctrl/Cmd + Z`: undo where available
+- `Ctrl/Cmd + Z`: undo only in a mode that explicitly supports it; Co-op MVP does not
 - `H`: hint where enabled
 - Escape: close overlay or clear selection
 
@@ -1451,19 +1467,24 @@ Ping interaction:
 - label visible in activity panel;
 - rate-limited feedback.
 
+MVP pings use the targeted intents `look_here`, `unsure`, and `try_this_area`. A target cell or region is required. Pings are durable and appear in replay.
+
 ### 25.6 Reactions
 
 Use concise icons with localized labels:
 
-- Look here
 - I agree
-- Unsure
-- Try this area
 - Nice move
 
 Do not add free-form text chat in V1.
 
-### 25.7 Contribution summary
+Reactions are untargeted, ephemeral, and omitted from replay.
+
+### 25.7 Undo
+
+Co-op MVP has no undo command or control. Players reverse values with explicit erase and reverse notes with the normal note toggle.
+
+### 25.8 Contribution summary
 
 Results may show:
 
@@ -1478,6 +1499,8 @@ Do not rank Co-op contributors as winners/losers.
 ---
 
 ## 26. Race design
+
+**Status:** Provisional; do not implement until Race enters scope.
 
 ### 26.1 Primary feeling
 
@@ -1536,6 +1559,8 @@ Show:
 ---
 
 ## 27. Duel design
+
+**Status:** Provisional; do not implement until Duel enters scope and its erase, pass, recovery, scoring, and privacy rules are ratified.
 
 ### 27.1 Primary feeling
 
@@ -1622,6 +1647,8 @@ Resign action:
 
 ## 28. Solo design
 
+Online Solo is current MVP scope. Offline behavior is provisional.
+
 ### 28.1 Solo entry
 
 Show:
@@ -1687,6 +1714,8 @@ Resume should restore:
 ---
 
 ## 29. Daily Ninefold design
+
+**Status:** Provisional; do not implement until Daily Ninefold enters scope.
 
 ### 29.1 Entry card
 
@@ -1783,7 +1812,7 @@ Show:
 - shared board;
 - contributor markers;
 - player list;
-- pings/reactions;
+- targeted pings;
 - activity timeline.
 
 ### 30.6 Race replay
@@ -2077,9 +2106,8 @@ Sections:
 2. Gameplay
 3. Accessibility
 4. Sound and haptics
-5. Language
-6. Privacy and local data
-7. About
+5. Privacy and local data
+6. Language, after more than one locale ships
 
 ### 36.1 Appearance
 
@@ -2114,12 +2142,9 @@ Do not create unnecessary duplicate settings for OS preferences unless user cont
 
 ### 36.5 Language
 
-- English
-- Deutsch
-- Shqip
-- Türkçe
+The MVP ships English only and does not show a one-option language selector.
 
-Display language names in their own language.
+When additional locales ship, display language names in their own language.
 
 ---
 
@@ -2205,7 +2230,13 @@ At 200% zoom:
 
 ### 37.8 Touch targets
 
-Interactive controls:
+Sudoku board cells:
+
+- minimum 24×24 CSS pixels;
+- maximize available size without forcing horizontal page scrolling;
+- remain one coherent two-dimensional grid.
+
+Number-pad buttons and primary interactive controls:
 
 - minimum 44×44 CSS pixels;
 - adequate spacing;
@@ -2215,12 +2246,17 @@ Interactive controls:
 
 ## 38. Localization-sensitive design
 
-Supported locales:
+Current MVP locale:
 
 - English
+
+Planned pre-1.0 locales:
+
 - German
 - Albanian
 - Turkish
+
+Use a generated pseudo-locale during MVP development to test expansion and placeholder reordering.
 
 ### 38.1 Text expansion
 
@@ -2343,6 +2379,8 @@ Avoid humiliation, taunting, or aggressive loss messaging.
 
 ### 40.1 About
 
+Deferred until after the MVP.
+
 Sections:
 
 - product concept;
@@ -2369,6 +2407,8 @@ Sections:
 - replay.
 
 ### 40.3 Mode pages
+
+Deferred until the relevant modes are available.
 
 Each mode page should include:
 
@@ -2589,9 +2629,9 @@ Every major screen must be reviewed in:
 ### Locales
 
 - English
-- German
-- Albanian
-- Turkish
+- generated pseudo-locale
+
+Add German, Albanian, and Turkish to the matrix when their catalogs enter scope.
 
 ### Input
 
@@ -2633,7 +2673,7 @@ Every major screen must be reviewed in:
 - Start-disabled reason is clear.
 - Settings do not overwhelm.
 - Keyboard navigation works.
-- German labels do not truncate.
+- pseudo-localized expanded labels do not truncate.
 
 ### 49.3 Active board
 
@@ -2692,20 +2732,21 @@ Do not:
 - use canvas for the main Sudoku board;
 - rely on hover for required information;
 - use red/green alone for state;
-- shrink touch targets below 44×44;
+- shrink Sudoku cells below 24×24;
+- shrink number-pad buttons or primary controls below 44×44;
 - force account creation;
 - show cookie consent without non-essential cookies;
 - auto-play sound;
 - auto-play video;
 - force PWA installation;
 - show Room participant names before join;
-- display full puzzle solutions in replay metadata;
+- display standalone puzzle-solution artifacts in replay metadata;
 - block result display while replay loads;
 - put marketing navigation inside active Match;
 - use excessive confetti;
 - animate every move heavily;
 - use tiny low-contrast notes;
-- truncate critical German text;
+- truncate critical pseudo-localized or future German text;
 - hide host or turn status in icons only;
 - use generic “Submit” where a precise verb exists;
 - put technical stack jargon in primary gameplay;
@@ -2731,13 +2772,14 @@ Recommended order:
 11. Results
 12. Basic replay
 13. Solo
-14. Daily
-15. Localization
-16. Accessibility refinement
-17. Race
-18. Duel
-19. Public content pages
-20. Admin
+14. Home, How to Play, Privacy, and Accessibility pages
+15. MVP administration
+16. Race after scope review
+17. Duel after scope review
+18. Daily Ninefold after scope review
+19. additional locales and deferred public pages
+
+Accessibility, keyboard behavior, responsive layout, and pseudo-localization are implemented continuously from the first interactive component; they are not a late refinement phase.
 
 ---
 

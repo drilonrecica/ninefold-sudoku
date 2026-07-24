@@ -168,7 +168,7 @@ func (r *Repository) UpdateRoomTx(ctx context.Context, tx *sql.Tx, room gen.Room
 		return ErrConflict
 	}
 	for _, p := range participants {
-		if err := q.UpdateRoomParticipant(ctx, updateParticipantToParams(p)); err != nil {
+		if err := q.UpsertRoomParticipant(ctx, upsertParticipantToParams(p)); err != nil {
 			return err
 		}
 	}
@@ -307,6 +307,11 @@ func (r *Repository) GetMatchByID(ctx context.Context, id string) (gen.Match, er
 	return r.q.GetMatchByID(ctx, id)
 }
 
+// ListMatchParticipants returns the participants of a match.
+func (r *Repository) ListMatchParticipants(ctx context.Context, matchID string) ([]gen.MatchParticipant, error) {
+	return r.q.ListMatchParticipants(ctx, matchID)
+}
+
 // GetMatchEvents returns ordered durable events for a match.
 func (r *Repository) GetMatchEvents(ctx context.Context, matchID string) ([]gen.MatchEvent, error) {
 	return r.q.GetMatchEvents(ctx, matchID)
@@ -337,6 +342,26 @@ func (r *Repository) CreateCommandReceipt(ctx context.Context, tx *sql.Tx, recei
 // GetCommandReceipt retrieves a stored terminal outcome.
 func (r *Repository) GetCommandReceipt(ctx context.Context, requestID string) (gen.CommandReceipt, error) {
 	return r.q.GetCommandReceipt(ctx, requestID)
+}
+
+// RevokeRoomSession marks a session as revoked.
+func (r *Repository) RevokeRoomSession(ctx context.Context, tx *sql.Tx, hash []byte, revokedAtMs int64) error {
+	return r.q.WithTx(tx).UpdateRoomSession(ctx, gen.UpdateRoomSessionParams{
+		TokenHash:   hash,
+		RevokedAtMs: sql.NullInt64{Int64: revokedAtMs, Valid: true},
+	})
+}
+
+// CreateRoomSessionTx inserts a new room session inside a transaction.
+func (r *Repository) CreateRoomSessionTx(ctx context.Context, tx *sql.Tx, s gen.RoomSession) error {
+	return r.q.WithTx(tx).CreateRoomSession(ctx, gen.CreateRoomSessionParams{
+		TokenHash:     s.TokenHash,
+		RoomID:        s.RoomID,
+		ParticipantID: s.ParticipantID,
+		CreatedAtMs:   s.CreatedAtMs,
+		ExpiresAtMs:   s.ExpiresAtMs,
+		RevokedAtMs:   s.RevokedAtMs,
+	})
 }
 
 // --- Replay ---
@@ -452,6 +477,21 @@ func updateParticipantToParams(p gen.RoomParticipant) gen.UpdateRoomParticipantP
 		Role:          p.Role,
 		IsHost:        p.IsHost,
 		IsReady:       p.IsReady,
+		LeftAtMs:      p.LeftAtMs,
+		RemovedAtMs:   p.RemovedAtMs,
+		RemovedReason: p.RemovedReason,
+	}
+}
+
+func upsertParticipantToParams(p gen.RoomParticipant) gen.UpsertRoomParticipantParams {
+	return gen.UpsertRoomParticipantParams{
+		ID:            p.ID,
+		RoomID:        p.RoomID,
+		DisplayName:   p.DisplayName,
+		Role:          p.Role,
+		IsHost:        p.IsHost,
+		IsReady:       p.IsReady,
+		JoinedAtMs:    p.JoinedAtMs,
 		LeftAtMs:      p.LeftAtMs,
 		RemovedAtMs:   p.RemovedAtMs,
 		RemovedReason: p.RemovedReason,

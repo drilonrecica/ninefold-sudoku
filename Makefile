@@ -59,6 +59,9 @@ build:
 	cd apps/server && go build -trimpath -ldflags="-s -w -X main.buildVersion=development" -o bin/ninefold-api ./cmd/api
 	pnpm --filter @ninefold/web build
 
-tla:
-	@echo "TLA+ verification is not implemented until Phase 6." >&2
-	@exit 1
+tla: tools/tla2tools.jar
+	cd specs/room && java -XX:+UseParallelGC -cp ../../tools/tla2tools.jar tlc2.TLC RoomLifecycle.tla
+
+tools/tla2tools.jar:
+	mkdir -p tools
+	curl -L -o tools/tla2tools.jar https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar

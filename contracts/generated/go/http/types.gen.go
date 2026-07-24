@@ -11,6 +11,24 @@ import (
 	"github.com/oapi-codegen/runtime"
 )
 
+// Defines values for LeaveRoomRequestIntent.
+const (
+	BecomeSpectator LeaveRoomRequestIntent = "become_spectator"
+	LeaveLobby      LeaveRoomRequestIntent = "leave_lobby"
+)
+
+// Valid indicates whether the value is a known member of the LeaveRoomRequestIntent enum.
+func (e LeaveRoomRequestIntent) Valid() bool {
+	switch e {
+	case BecomeSpectator:
+		return true
+	case LeaveLobby:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for LivenessStatus.
 const (
 	Live LivenessStatus = "live"
@@ -26,14 +44,151 @@ func (e LivenessStatus) Valid() bool {
 	}
 }
 
+// Defines values for ReadinessStatus.
+const (
+	NotReady ReadinessStatus = "not_ready"
+	Ready    ReadinessStatus = "ready"
+)
+
+// Valid indicates whether the value is a known member of the ReadinessStatus enum.
+func (e ReadinessStatus) Valid() bool {
+	switch e {
+	case NotReady:
+		return true
+	case Ready:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RoomDifficulty.
+const (
+	Easy   RoomDifficulty = "Easy"
+	Expert RoomDifficulty = "Expert"
+	Hard   RoomDifficulty = "Hard"
+	Medium RoomDifficulty = "Medium"
+)
+
+// Valid indicates whether the value is a known member of the RoomDifficulty enum.
+func (e RoomDifficulty) Valid() bool {
+	switch e {
+	case Easy:
+		return true
+	case Expert:
+		return true
+	case Hard:
+		return true
+	case Medium:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RoomErrorPreset.
+const (
+	Blind     RoomErrorPreset = "Blind"
+	Casual    RoomErrorPreset = "Casual"
+	Challenge RoomErrorPreset = "Challenge"
+	Clean     RoomErrorPreset = "Clean"
+)
+
+// Valid indicates whether the value is a known member of the RoomErrorPreset enum.
+func (e RoomErrorPreset) Valid() bool {
+	switch e {
+	case Blind:
+		return true
+	case Casual:
+		return true
+	case Challenge:
+		return true
+	case Clean:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RoomMode.
+const (
+	Coop RoomMode = "Coop"
+)
+
+// Valid indicates whether the value is a known member of the RoomMode enum.
+func (e RoomMode) Valid() bool {
+	switch e {
+	case Coop:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RoomRole.
+const (
+	Player    RoomRole = "Player"
+	Spectator RoomRole = "Spectator"
+)
+
+// Valid indicates whether the value is a known member of the RoomRole enum.
+func (e RoomRole) Valid() bool {
+	switch e {
+	case Player:
+		return true
+	case Spectator:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RoomState.
+const (
+	RoomStateCountdown RoomState = "Countdown"
+	RoomStateInMatch   RoomState = "InMatch"
+	RoomStateLobby     RoomState = "Lobby"
+	RoomStateResults   RoomState = "Results"
+)
+
+// Valid indicates whether the value is a known member of the RoomState enum.
+func (e RoomState) Valid() bool {
+	switch e {
+	case RoomStateCountdown:
+		return true
+	case RoomStateInMatch:
+		return true
+	case RoomStateLobby:
+		return true
+	case RoomStateResults:
+		return true
+	default:
+		return false
+	}
+}
+
+// Countdown defines model for Countdown.
+type Countdown struct {
+	DeadlineAt SafeInteger `json:"deadlineAt"`
+	Generation SafeInteger `json:"generation"`
+	MatchId    UUIDv7      `json:"matchId"`
+}
+
+// CreateRoomRequest defines model for CreateRoomRequest.
+type CreateRoomRequest struct {
+	Difficulty  RoomDifficulty `json:"difficulty"`
+	DisplayName string         `json:"displayName"`
+	Mode        RoomMode       `json:"mode"`
+}
+
 // ErrorEnvelope defines model for ErrorEnvelope.
 type ErrorEnvelope struct {
 	Error struct {
 		Code       string                                                       `json:"code"`
 		Details    map[string]*ErrorEnvelope_Error_Details_AdditionalProperties `json:"details"`
 		MessageKey string                                                       `json:"messageKey"`
-		RequestId  UUIDv7                                                       `json:"requestId"`
-		Retryable  bool                                                         `json:"retryable"`
+		RequestId  string                                                       `json:"requestId"`
+		Retryable  *bool                                                        `json:"retryable,omitempty"`
 	} `json:"error"`
 }
 
@@ -51,6 +206,20 @@ type ErrorEnvelope_Error_Details_AdditionalProperties struct {
 	union json.RawMessage
 }
 
+// JoinRoomRequest defines model for JoinRoomRequest.
+type JoinRoomRequest struct {
+	DisplayName string    `json:"displayName"`
+	Role        *RoomRole `json:"role,omitempty"`
+}
+
+// LeaveRoomRequest defines model for LeaveRoomRequest.
+type LeaveRoomRequest struct {
+	Intent *LeaveRoomRequestIntent `json:"intent,omitempty"`
+}
+
+// LeaveRoomRequestIntent defines model for LeaveRoomRequest.Intent.
+type LeaveRoomRequestIntent string
+
 // Liveness defines model for Liveness.
 type Liveness struct {
 	Status  LivenessStatus `json:"status"`
@@ -59,6 +228,86 @@ type Liveness struct {
 
 // LivenessStatus defines model for Liveness.Status.
 type LivenessStatus string
+
+// Readiness defines model for Readiness.
+type Readiness struct {
+	Reason  *string         `json:"reason,omitempty"`
+	Status  ReadinessStatus `json:"status"`
+	Version *string         `json:"version,omitempty"`
+}
+
+// ReadinessStatus defines model for Readiness.Status.
+type ReadinessStatus string
+
+// Room defines model for Room.
+type Room struct {
+	Code           string            `json:"code"`
+	CurrentMatchId *UUIDv7           `json:"currentMatchId"`
+	HostId         *UUIDv7           `json:"hostId"`
+	Id             UUIDv7            `json:"id"`
+	Participants   []RoomParticipant `json:"participants"`
+	Settings       RoomSettings      `json:"settings"`
+	State          RoomState         `json:"state"`
+	Version        SafeInteger       `json:"version"`
+}
+
+// RoomDifficulty defines model for RoomDifficulty.
+type RoomDifficulty string
+
+// RoomErrorPreset defines model for RoomErrorPreset.
+type RoomErrorPreset string
+
+// RoomMode defines model for RoomMode.
+type RoomMode string
+
+// RoomParticipant defines model for RoomParticipant.
+type RoomParticipant struct {
+	Id       UUIDv7      `json:"id"`
+	IsHost   bool        `json:"isHost"`
+	IsReady  bool        `json:"isReady"`
+	JoinedAt SafeInteger `json:"joinedAt"`
+	Name     string      `json:"name"`
+	Role     RoomRole    `json:"role"`
+}
+
+// RoomPreviewResponse defines model for RoomPreviewResponse.
+type RoomPreviewResponse struct {
+	Difficulty              RoomDifficulty `json:"difficulty"`
+	Locked                  bool           `json:"locked"`
+	Mode                    RoomMode       `json:"mode"`
+	PlayerSeatsAvailable    int            `json:"playerSeatsAvailable"`
+	PlayerSeatsTotal        int            `json:"playerSeatsTotal"`
+	SpectatorSeatsAvailable int            `json:"spectatorSeatsAvailable"`
+	SpectatorSeatsTotal     int            `json:"spectatorSeatsTotal"`
+	State                   RoomState      `json:"state"`
+}
+
+// RoomResponse defines model for RoomResponse.
+type RoomResponse struct {
+	Countdown    *Countdown        `json:"countdown,omitempty"`
+	Participants []RoomParticipant `json:"participants"`
+	Room         Room              `json:"room"`
+	Self         struct {
+		ParticipantId UUIDv7 `json:"participantId"`
+	} `json:"self"`
+}
+
+// RoomRole defines model for RoomRole.
+type RoomRole string
+
+// RoomSettings defines model for RoomSettings.
+type RoomSettings struct {
+	AutoRemoveNotes   bool            `json:"autoRemoveNotes"`
+	Difficulty        RoomDifficulty  `json:"difficulty"`
+	ErrorPreset       RoomErrorPreset `json:"errorPreset"`
+	HintsEnabled      bool            `json:"hintsEnabled"`
+	Mode              RoomMode        `json:"mode"`
+	SharedNotes       bool            `json:"sharedNotes"`
+	SpectatorsAllowed bool            `json:"spectatorsAllowed"`
+}
+
+// RoomState defines model for RoomState.
+type RoomState string
 
 // SafeInteger defines model for SafeInteger.
 type SafeInteger = int64
@@ -74,6 +323,30 @@ type SuccessEnvelope struct {
 
 // UUIDv7 defines model for UUIDv7.
 type UUIDv7 = string
+
+// BadRequest defines model for BadRequest.
+type BadRequest = ErrorEnvelope
+
+// Conflict defines model for Conflict.
+type Conflict = ErrorEnvelope
+
+// NotFound defines model for NotFound.
+type NotFound = ErrorEnvelope
+
+// Unauthorized defines model for Unauthorized.
+type Unauthorized = ErrorEnvelope
+
+// Unprocessable defines model for Unprocessable.
+type Unprocessable = ErrorEnvelope
+
+// CreateRoomJSONRequestBody defines body for CreateRoom for application/json ContentType.
+type CreateRoomJSONRequestBody = CreateRoomRequest
+
+// JoinRoomJSONRequestBody defines body for JoinRoom for application/json ContentType.
+type JoinRoomJSONRequestBody = JoinRoomRequest
+
+// LeaveRoomJSONRequestBody defines body for LeaveRoom for application/json ContentType.
+type LeaveRoomJSONRequestBody = LeaveRoomRequest
 
 // AsErrorEnvelopeErrorDetails0 returns the union data inside the ErrorEnvelope_Error_Details_AdditionalProperties as a ErrorEnvelopeErrorDetails0
 func (t ErrorEnvelope_Error_Details_AdditionalProperties) AsErrorEnvelopeErrorDetails0() (ErrorEnvelopeErrorDetails0, error) {

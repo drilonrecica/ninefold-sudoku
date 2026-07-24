@@ -91,6 +91,7 @@ type Querier interface {
 	UpdateRoom(ctx context.Context, arg UpdateRoomParams) error
 	UpdateRoomParticipant(ctx context.Context, arg UpdateRoomParticipantParams) error
 	UpdateRoomSession(ctx context.Context, arg UpdateRoomSessionParams) error
+	UpsertRoomParticipant(ctx context.Context, arg UpsertRoomParticipantParams) error
 }
 
 var _ Querier = (*Queries)(nil)

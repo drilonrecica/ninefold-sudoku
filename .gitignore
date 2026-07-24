@@ -6,6 +6,7 @@ apps/web/.svelte-kit/
 apps/web/build/
 apps/server/bin/
 apps/server/data/
+tools/
 coverage/
 playwright-report/
 test-results/

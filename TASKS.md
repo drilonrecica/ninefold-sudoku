@@ -289,30 +289,30 @@ Implement secure account-free Room creation and joining, host authority, Lobby r
 
 ### Tasks
 
-- [ ] **P05-T01 — Generate secure Room codes.** Use a CSPRNG, the canonical alphabet and length, a database uniqueness constraint, bounded collision retry, and the no-reuse policy. Normalize lowercase input without accepting ambiguous characters.
-- [ ] **P05-T02 — Create temporary participants and hosts.** Create the host atomically with the Room, validate the display name, assign a non-color-only marker, and persist only required temporary identity.
-- [ ] **P05-T03 — Implement hashed Room sessions.** Issue the `ninefold_room_session` cookie with production attributes, store only its hash, rotate it on sensitive transitions, and never expose it to JavaScript or logs.
-- [ ] **P05-T04 — Enforce one active Room.** Reject create/join with `ACTIVE_ROOM_SESSION_EXISTS` while another Room session is active. Require an explicit leave/replacement request and return safe consequence data for UI confirmation.
-- [ ] **P05-T05 — Implement safe preview and joining.** Return only mode, difficulty, Room state, seat availability, spectator availability, and lock state. Never expose names before successful join. Unlocked valid joins are immediate; host approval is absent.
-- [ ] **P05-T06 — Implement Lobby state.** Model participant seats, host, current Co-op settings, lock state, ready flags, aggregate version, and activity timestamps. Do not introduce a separate ReadyCheck state.
-- [ ] **P05-T07 — Implement host controls.** Authorize settings, lock/unlock, remove/block, host transfer, start/cancel, and later rematch hooks. Define deterministic host transfer on explicit leave/disconnect according to Domain §11.
-- [ ] **P05-T08 — Implement readiness rules.** Require every seated player to be ready. Reset readiness on relevant setting/roster changes. Reject stale and unauthorized readiness mutations.
-- [ ] **P05-T09 — Implement Countdown.** Atomically create the prepared Match with immutable MatchRules and a verified puzzle assignment when Countdown starts, create a generation-tagged three-second server timer, freeze seats/settings, cancel on canonical invalidating changes, return to Lobby with readiness reset, and never expose the assigned board before activation.
-- [ ] **P05-T10 — Implement the Room actor registry.** Guarantee one active actor per Room, use bounded priority-aware queues, serialize every Room mutation, reject overload safely, and deactivate only when no timers/connections/in-flight work require the actor.
-- [ ] **P05-T11 — Implement Room HTTP endpoints.** Add create, safe preview, join, resume, and explicit leave/replacement endpoints with typed OpenAPI contracts, JSON-only state changes, Origin validation, Idempotency-Key, structured safe errors, and thin Chi handlers.
-- [ ] **P05-T12 — Implement Room TLA+ specification.** Model one host, one active Match reference, readiness, settings freeze, duplicate RequestIDs, stale versions, stale countdown generations, cancellation, and rematch return to Lobby.
-- [ ] **P05-T13 — Add Room acceptance tests.** Cover code collision, Unicode names, duplicate normalized names, blocked participants, full seats, locked Rooms, one-active-Room replacement, host transfer, readiness reset, simultaneous start/settings, stale timers, and restart-safe receipts.
-- [ ] **P05-T14 — Preserve minimal spectator protocol support.** Model the spectator role, read-only authorization, seat accounting, permitted Lobby conversion, and safe availability fields in domain/contracts. Do not add the deferred active spectator screens or full live-spectating experience.
+- [x] **P05-T01 — Generate secure Room codes.** Use a CSPRNG, the canonical alphabet and length, a database uniqueness constraint, bounded collision retry, and the no-reuse policy. Normalize lowercase input without accepting ambiguous characters.
+- [x] **P05-T02 — Create temporary participants and hosts.** Create the host atomically with the Room, validate the display name, assign a non-color-only marker, and persist only required temporary identity.
+- [x] **P05-T03 — Implement hashed Room sessions.** Issue the `ninefold_room_session` cookie with production attributes, store only its hash, rotate it on sensitive transitions, and never expose it to JavaScript or logs.
+- [x] **P05-T04 — Enforce one active Room.** Reject create/join with `ACTIVE_ROOM_SESSION_EXISTS` while another Room session is active. Require an explicit leave/replacement request and return safe consequence data for UI confirmation.
+- [x] **P05-T05 — Implement safe preview and joining.** Return only mode, difficulty, Room state, seat availability, spectator availability, and lock state. Never expose names before successful join. Unlocked valid joins are immediate; host approval is absent.
+- [x] **P05-T06 — Implement Lobby state.** Model participant seats, host, current Co-op settings, lock state, ready flags, aggregate version, and activity timestamps. Do not introduce a separate ReadyCheck state.
+- [x] **P05-T07 — Implement host controls.** Authorize settings, lock/unlock, remove/block, host transfer, start/cancel, and later rematch hooks. Define deterministic host transfer on explicit leave/disconnect according to Domain §11.
+- [x] **P05-T08 — Implement readiness rules.** Require every seated player to be ready. Reset readiness on relevant setting/roster changes. Reject stale and unauthorized readiness mutations.
+- [x] **P05-T09 — Implement Countdown.** Atomically create the prepared Match with immutable MatchRules and a verified puzzle assignment when Countdown starts, create a generation-tagged three-second server timer, freeze seats/settings, cancel on canonical invalidating changes, return to Lobby with readiness reset, and never expose the assigned board before activation.
+- [x] **P05-T10 — Implement the Room actor registry.** Guarantee one active actor per Room, use bounded priority-aware queues, serialize every Room mutation, reject overload safely, and deactivate only when no timers/connections/in-flight work require the actor.
+- [x] **P05-T11 — Implement Room HTTP endpoints.** Add create, safe preview, join, resume, and explicit leave/replacement endpoints with typed OpenAPI contracts, JSON-only state changes, Origin validation, Idempotency-Key, structured safe errors, and thin Chi handlers.
+- [x] **P05-T12 — Implement Room TLA+ specification.** Model one host, one active Match reference, readiness, settings freeze, duplicate RequestIDs, stale versions, stale countdown generations, cancellation, and rematch return to Lobby.
+- [x] **P05-T13 — Add Room acceptance tests.** Cover code collision, Unicode names, duplicate normalized names, blocked participants, full seats, locked Rooms, one-active-Room replacement, host transfer, readiness reset, simultaneous start/settings, stale timers, and restart-safe receipts.
+- [x] **P05-T14 — Preserve minimal spectator protocol support.** Model the spectator role, read-only authorization, seat accounting, permitted Lobby conversion, and safe availability fields in domain/contracts. Do not add the deferred active spectator screens or full live-spectating experience.
 
 ### Phase gates
 
-- [ ] HTTP contract fixtures and generated clients reproduce without drift.
-- [ ] Domain tests cover every Room transition and current Room error code.
-- [ ] Real-SQLite integration tests prove Room projection and receipt atomicity.
-- [ ] Actor concurrency tests prove no double host, double start, stale timer mutation, or unbounded queue.
-- [ ] TLC completes the bounded Room model with all Domain §34 current invariants.
-- [ ] Security tests verify cookie attributes, Origin enforcement, preview minimization, rate limits, and redacted routes.
-- [ ] All cumulative checks pass.
+- [x] HTTP contract fixtures and generated clients reproduce without drift.
+- [x] Domain tests cover every Room transition and current Room error code.
+- [x] Real-SQLite integration tests prove Room projection and receipt atomicity.
+- [x] Actor concurrency tests prove no double host, double start, stale timer mutation, or unbounded queue.
+- [x] TLC completes the bounded Room model with all Domain §34 current invariants.
+- [x] Security tests verify cookie attributes, Origin enforcement, preview minimization, rate limits, and redacted routes.
+- [x] All cumulative checks pass.
 
 ### Commit
 

@@ -2149,3 +2149,39 @@ func (q *Queries) UpdateRoomSession(ctx context.Context, arg UpdateRoomSessionPa
 	_, err := q.db.ExecContext(ctx, updateRoomSession, arg.ExpiresAtMs, arg.RevokedAtMs, arg.TokenHash)
 	return err
 }
+
+const upsertRoomParticipant = `-- name: UpsertRoomParticipant :exec
+INSERT OR REPLACE INTO room_participants (
+    id, room_id, display_name, role, is_host, is_ready, joined_at_ms,
+    left_at_ms, removed_at_ms, removed_reason
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+`
+
+type UpsertRoomParticipantParams struct {
+	ID            string         `json:"id"`
+	RoomID        string         `json:"room_id"`
+	DisplayName   string         `json:"display_name"`
+	Role          string         `json:"role"`
+	IsHost        int64          `json:"is_host"`
+	IsReady       int64          `json:"is_ready"`
+	JoinedAtMs    int64          `json:"joined_at_ms"`
+	LeftAtMs      sql.NullInt64  `json:"left_at_ms"`
+	RemovedAtMs   sql.NullInt64  `json:"removed_at_ms"`
+	RemovedReason sql.NullString `json:"removed_reason"`
+}
+
+func (q *Queries) UpsertRoomParticipant(ctx context.Context, arg UpsertRoomParticipantParams) error {
+	_, err := q.db.ExecContext(ctx, upsertRoomParticipant,
+		arg.ID,
+		arg.RoomID,
+		arg.DisplayName,
+		arg.Role,
+		arg.IsHost,
+		arg.IsReady,
+		arg.JoinedAtMs,
+		arg.LeftAtMs,
+		arg.RemovedAtMs,
+		arg.RemovedReason,
+	)
+	return err
+}

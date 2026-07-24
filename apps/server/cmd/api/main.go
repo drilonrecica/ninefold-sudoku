@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/persistence/migrate"
+	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/persistence/repository"
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/persistence/sqlite"
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/platform/config"
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/platform/server"
@@ -48,7 +49,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	httpServer := server.New(cfg.HTTPAddress, buildVersion, db, logger)
+	repo := repository.New(db)
+
+	httpServer := server.New(cfg.HTTPAddress, buildVersion, cfg, db, repo, logger)
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 

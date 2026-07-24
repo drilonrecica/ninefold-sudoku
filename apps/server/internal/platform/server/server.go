@@ -12,16 +12,21 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/persistence/migrate"
+	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/persistence/repository"
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/persistence/sqlite"
+	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/platform/config"
+	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/room/actor"
+	roomhttp "github.com/drilonrecica/ninefold-sudoku/apps/server/internal/room/transport/http"
 )
 
 type Server struct {
 	httpServer *http.Server
 	logger     *slog.Logger
 	db         *sqlite.DB
+	registry   *actor.Registry
 }
 
-func New(address, buildVersion string, db *sqlite.DB, logger *slog.Logger) *Server {
+func New(address, buildVersion string, cfg config.Config, db *sqlite.DB, repo *repository.Repository, logger *slog.Logger) *Server {
 	router := chi.NewRouter()
 	router.Get("/health/live", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -67,6 +72,10 @@ func New(address, buildVersion string, db *sqlite.DB, logger *slog.Logger) *Serv
 		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ready", "version": buildVersion})
 	})
 
+	registry := actor.NewRegistry(repo, logger)
+	roomHandler := roomhttp.NewHandler(repo, registry, cfg, logger)
+	roomHandler.RegisterRoutes(router)
+
 	return &Server{
 		httpServer: &http.Server{
 			Addr:              address,
@@ -77,8 +86,9 @@ func New(address, buildVersion string, db *sqlite.DB, logger *slog.Logger) *Serv
 			IdleTimeout:       60 * time.Second,
 			MaxHeaderBytes:    1 << 20,
 		},
-		logger: logger,
-		db:     db,
+		logger:   logger,
+		db:       db,
+		registry: registry,
 	}
 }
 
@@ -91,5 +101,6 @@ func (s *Server) Serve(listener net.Listener) error {
 }
 
 func (s *Server) Shutdown(ctx context.Context) error {
+	s.registry.ShutdownAll()
 	return s.httpServer.Shutdown(ctx)
 }

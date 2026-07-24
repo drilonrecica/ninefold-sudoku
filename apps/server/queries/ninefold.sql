@@ -67,6 +67,12 @@ UPDATE room_participants SET
     removed_at_ms = ?, removed_reason = ?
 WHERE id = ?;
 
+-- name: UpsertRoomParticipant :exec
+INSERT OR REPLACE INTO room_participants (
+    id, room_id, display_name, role, is_host, is_ready, joined_at_ms,
+    left_at_ms, removed_at_ms, removed_reason
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
 -- name: GetRoomParticipantByID :one
 SELECT * FROM room_participants WHERE id = ?;
 

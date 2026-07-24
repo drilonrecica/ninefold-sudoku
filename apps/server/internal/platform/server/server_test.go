@@ -6,13 +6,16 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/persistence/migrate"
+	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/persistence/repository"
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/persistence/sqlite"
+	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/platform/config"
 )
 
 func newTestServer(t *testing.T) (*Server, *sqlite.DB, net.Listener) {
@@ -29,7 +32,9 @@ func newTestServer(t *testing.T) (*Server, *sqlite.DB, net.Listener) {
 	if err != nil {
 		t.Fatalf("listen: %v", err)
 	}
-	instance := New(listener.Addr().String(), "test-version", db, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	cfg := config.Config{Environment: config.Test, PublicURL: &url.URL{Scheme: "http", Host: "localhost"}}
+	repo := repository.New(db)
+	instance := New(listener.Addr().String(), "test-version", cfg, db, repo, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	return instance, db, listener
 }
 

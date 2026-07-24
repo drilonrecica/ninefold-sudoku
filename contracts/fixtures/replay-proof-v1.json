@@ -1,0 +1,61 @@
+{
+  "events": [
+    {
+      "canonical": "{\"aggregateVersion\":1,\"eventNumber\":1,\"matchId\":\"01900000-0000-7000-8000-000000000001\",\"occurredAtMs\":1767225600000,\"previousEventHash\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\"privatePayloadDigest\":\"\",\"proofVersion\":1,\"publicActorId\":\"\",\"publicEventType\":\"MatchPrepared\",\"publicPayload\":{\"schemaVersion\":1}}",
+      "envelope": {
+        "proofVersion": 1,
+        "matchId": "01900000-0000-7000-8000-000000000001",
+        "eventNumber": 1,
+        "aggregateVersion": 1,
+        "publicEventType": "MatchPrepared",
+        "publicActorId": "",
+        "occurredAtMs": 1767225600000,
+        "publicPayload": { "schemaVersion": 1 },
+        "privatePayloadDigest": "",
+        "previousEventHash": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+      },
+      "eventHash": "ef2de7a7cb31959cb569e183ab24bd83a34346fc02aae0ac86001aabdd11c376"
+    },
+    {
+      "canonical": "{\"aggregateVersion\":2,\"eventNumber\":2,\"matchId\":\"01900000-0000-7000-8000-000000000001\",\"occurredAtMs\":1767225600123,\"previousEventHash\":\"7y3np8sxlZy1aeGDqyS9g6NDRvwCquCshgAaq90Rw3Y=\",\"privatePayloadDigest\":\"adf4323e076b147e54f48a319ebb77050213761074bd0e73d2204ae640e4baa0\",\"proofVersion\":1,\"publicActorId\":\"01900000-0000-7000-8000-000000000002\",\"publicEventType\":\"HiddenAttempt\",\"publicPayload\":{\"schemaVersion\":1}}",
+      "envelope": {
+        "proofVersion": 1,
+        "matchId": "01900000-0000-7000-8000-000000000001",
+        "eventNumber": 2,
+        "aggregateVersion": 2,
+        "publicEventType": "HiddenAttempt",
+        "publicActorId": "01900000-0000-7000-8000-000000000002",
+        "occurredAtMs": 1767225600123,
+        "publicPayload": { "schemaVersion": 1 },
+        "privatePayloadDigest": "adf4323e076b147e54f48a319ebb77050213761074bd0e73d2204ae640e4baa0",
+        "previousEventHash": "7y3np8sxlZy1aeGDqyS9g6NDRvwCquCshgAaq90Rw3Y="
+      },
+      "eventHash": "b31514d31de585f2c9d19315ba810b7731e0b71a8fae5df12536edf2d381a015"
+    }
+  ],
+  "expectedFailures": [
+    "payload-mutated",
+    "time-mutated",
+    "order-mutated",
+    "previous-hash-mutated",
+    "private-digest-mutated",
+    "signature-mutated",
+    "unknown-key",
+    "missing-event",
+    "duplicate-event"
+  ],
+  "genesisHash": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+  "hiddenCommitment": {
+    "canonicalPrivatePayload": "{\"attemptedDigit\":7,\"schemaVersion\":1}",
+    "digest": "adf4323e076b147e54f48a319ebb77050213761074bd0e73d2204ae640e4baa0",
+    "salt": "000102030405060708090a0b0c0d0e0f"
+  },
+  "proofVersion": 1,
+  "signing": {
+    "finalHash": "b31514d31de585f2c9d19315ba810b7731e0b71a8fae5df12536edf2d381a015",
+    "keyId": "development-1",
+    "privateKeyPkcs8": "MC4CAQAwBQYDK2VwBCIEIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    "publicKey": "O2onvM62pC1io6jQKm8Nc2UyFXcd4kOmOsBIoYtZ2ik=",
+    "signature": "4LwGgBsahNRq02hd9anCiBZSD5h8fusN4A9SlonzRDtk0sNUukZHEQYPmoA6SSocE4MX9/NXsnSY7J1UgPgGBg=="
+  }
+}

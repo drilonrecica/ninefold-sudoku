@@ -5,6 +5,8 @@
 
   import SudokuBoard from '$lib/components/SudokuBoard.svelte';
   import { replayStateAt, type ReplayDocument, type ReplayState } from '$lib/replay/reducer';
+  import { trustedReplayKeys } from '$lib/replay/trusted-keys';
+  import type { VerificationResult } from '$lib/replay/verifier';
 
   let { data } = $props();
   let replay = $state<ReplayDocument | null>(null);
@@ -14,6 +16,7 @@
   let playing = $state(false);
   let speed = $state<0.5 | 1 | 2 | 4>(1);
   let copied = $state(false);
+  let integrity = $state<VerificationResult | null>(null);
   let timer: ReturnType<typeof setTimeout> | undefined;
 
   const participants = $derived.by(() => {
@@ -84,6 +87,8 @@
         replay = (await response.json()) as ReplayDocument;
         projection = replayStateAt(replay, 0);
         status = 'ready';
+        const { verifyReplay } = await import('$lib/replay/verifier');
+        integrity = await verifyReplay(replay, trustedReplayKeys);
       })
       .catch(() => {
         capability = '';
@@ -116,7 +121,33 @@
       <div>
         <p class="eyebrow">Co-op · {replay.rules.difficulty}</p>
         <h1>Match replay</h1>
-        <p>Integrity signature pending. The accepted server event history is shown as recorded.</p>
+        <div class="integrity" role="status" aria-live="polite">
+          {#if integrity === null}
+            <strong>Verifying replay integrity…</strong>
+          {:else if integrity.status === 'verified'}
+            <strong>✓ Replay integrity verified</strong>
+            <p>
+              Verification confirms that this replay has not been altered since the Ninefold server
+              sealed it.
+            </p>
+            {#if integrity.hiddenCommitments > 0}
+              <p>
+                This replay contains {integrity.hiddenCommitments} signed hidden-data
+                {integrity.hiddenCommitments === 1 ? 'commitment' : 'commitments'}. The hidden
+                content itself is not disclosed or verified by this browser.
+              </p>
+            {/if}
+          {:else if integrity.status === 'unknown-key'}
+            <strong>Replay integrity could not be verified: unknown signing key.</strong>
+          {:else if integrity.status === 'unsupported'}
+            <strong>Replay verification is not supported by this browser.</strong>
+          {:else if integrity.status === 'legacy'}
+            <strong>Integrity verification is unavailable for this older replay.</strong>
+          {:else}
+            <strong>Replay integrity could not be verified.</strong>
+            <p>The replay may be incomplete, corrupted, or use unsupported data.</p>
+          {/if}
+        </div>
       </div>
       <button class="button secondary" type="button" onclick={copyShareLink}>
         {copied ? 'Link copied' : 'Copy replay link'}
@@ -198,7 +229,7 @@
             {#each replay.events as event, index (event.eventNumber)}
               <li class:current={projection.eventIndex === index + 1}>
                 <button type="button" onclick={() => seek(index + 1)}>
-                  {event.eventNumber}. {event.type.replaceAll(/([A-Z])/g, ' $1').trim()}
+                  {event.eventNumber}. {event.publicEventType.replaceAll(/([A-Z])/g, ' $1').trim()}
                 </button>
               </li>
             {/each}
@@ -232,6 +263,12 @@
     color: var(--brand-primary);
     font-weight: 800;
     margin: 0;
+  }
+  .integrity {
+    max-width: 44rem;
+  }
+  .integrity p {
+    margin-block: var(--space-1);
   }
   .replay-layout {
     display: grid;

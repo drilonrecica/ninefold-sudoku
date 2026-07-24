@@ -1,11 +1,16 @@
 import type { Digit, MatchCell } from '$lib/game/types';
 
 export interface ReplayEvent {
+  proofVersion: 1;
   eventNumber: number;
   aggregateVersion: number;
-  serverTimestamp: number;
-  type: string;
-  payload: Record<string, unknown>;
+  publicEventType: string;
+  publicActorId: string;
+  occurredAtMs: number;
+  publicPayload: Record<string, unknown>;
+  privatePayloadDigest: string;
+  previousEventHash: string;
+  eventHash: string;
 }
 
 export interface ReplayDocument {
@@ -24,6 +29,15 @@ export interface ReplayDocument {
   };
   participants: { id: string; name: string }[];
   events: ReplayEvent[];
+  proof: {
+    proofVersion: 1;
+    matchId: string;
+    finalEventNumber: number;
+    finalEventHash: string;
+    terminalAtMs: number;
+    keyId: string;
+    signature: string;
+  };
 }
 
 export interface ReplayState {
@@ -59,9 +73,9 @@ export function validateReplay(document: ReplayDocument): void {
   if (!/^[0-9]{81}$/.test(document.clues)) throw new Error('Invalid replay clues');
   document.events.forEach((event, index) => {
     if (event.eventNumber !== index + 1) throw new Error(`Replay event gap at ${index + 1}`);
-    if (event.payload.schemaVersion !== 1) throw new Error('Unsupported event schema');
-    if (!supportedEvents.has(event.type))
-      throw new Error(`Unsupported replay event: ${event.type}`);
+    if (event.publicPayload.schemaVersion !== 1) throw new Error('Unsupported event schema');
+    if (!supportedEvents.has(event.publicEventType))
+      throw new Error(`Unsupported replay event: ${event.publicEventType}`);
   });
 }
 
@@ -90,10 +104,10 @@ export function replayStateAt(document: ReplayDocument, eventIndex: number): Rep
 }
 
 function applyEvent(state: ReplayState, event: ReplayEvent): void {
-  const payload = event.payload;
+  const payload = event.publicPayload;
   const cellIndex = typeof payload.cell === 'number' ? payload.cell : -1;
   const cell = state.cells[cellIndex];
-  switch (event.type) {
+  switch (event.publicEventType) {
     case 'ValuePlaced':
       if (!cell || typeof payload.value !== 'number') throw new Error('Invalid value event');
       cell.value = payload.value as Digit;

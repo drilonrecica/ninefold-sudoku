@@ -6,10 +6,12 @@ package gen
 
 import (
 	"context"
+	"database/sql"
 )
 
 type Querier interface {
 	AnonymizeRoomParticipants(ctx context.Context, roomID string) error
+	ClearCurrentMatchByID(ctx context.Context, currentMatchID sql.NullString) error
 	CountActivePuzzlesByDifficultyAndMultiplayer(ctx context.Context, arg CountActivePuzzlesByDifficultyAndMultiplayerParams) (int64, error)
 	CountActiveRoomParticipants(ctx context.Context, roomID string) (int64, error)
 	CountActiveRoomPlayers(ctx context.Context, roomID string) (int64, error)
@@ -43,6 +45,7 @@ type Querier interface {
 	DeleteMatchResultByMatch(ctx context.Context, matchID string) error
 	DeleteMatchResultPlayersByMatch(ctx context.Context, matchID string) error
 	DeleteMatchSnapshots(ctx context.Context, matchID string) error
+	DeleteMatchTombstonesBefore(ctx context.Context, endedAtMs int64) error
 	DeleteReplayCapabilitiesByMatch(ctx context.Context, matchID string) error
 	DeleteReplaySealByMatch(ctx context.Context, matchID string) error
 	DeleteRoomBlock(ctx context.Context, arg DeleteRoomBlockParams) error
@@ -86,6 +89,7 @@ type Querier interface {
 	ListReplayCapabilitiesExpired(ctx context.Context, expiresAtMs int64) ([]ReplayCapability, error)
 	ListRoomSessionsExpired(ctx context.Context, expiresAtMs int64) ([]RoomSession, error)
 	ListRoomsExpired(ctx context.Context, expiresAtMs int64) ([]Room, error)
+	ListTerminalMatchesBefore(ctx context.Context, arg ListTerminalMatchesBeforeParams) ([]Match, error)
 	RevokeReplayCapabilitiesByMatch(ctx context.Context, arg RevokeReplayCapabilitiesByMatchParams) error
 	RevokeReplayCapability(ctx context.Context, arg RevokeReplayCapabilityParams) error
 	ScrubParticipantLinkedMatchData(ctx context.Context, matchID string) error

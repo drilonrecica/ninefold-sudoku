@@ -12,6 +12,7 @@ import (
 	matchdomain "github.com/drilonrecica/ninefold-sudoku/apps/server/internal/match/domain"
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/persistence/gen"
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/persistence/repository"
+	replayproof "github.com/drilonrecica/ninefold-sudoku/apps/server/internal/replay/proof"
 	roomdomain "github.com/drilonrecica/ninefold-sudoku/apps/server/internal/room/domain"
 )
 
@@ -23,6 +24,7 @@ type Registry struct {
 	logger *slog.Logger
 	mu     sync.Mutex
 	actors map[shared.RoomID]*actorEntry
+	signer replayproof.Signer
 }
 
 // RecoverNonTerminal reconstructs every active match before readiness. Recovered
@@ -69,12 +71,16 @@ type actorEntry struct {
 }
 
 // NewRegistry creates an empty registry backed by the supplied repository.
-func NewRegistry(repo *repository.Repository, logger *slog.Logger) *Registry {
-	return &Registry{
+func NewRegistry(repo *repository.Repository, logger *slog.Logger, signers ...replayproof.Signer) *Registry {
+	registry := &Registry{
 		repo:   repo,
 		logger: logger,
 		actors: make(map[shared.RoomID]*actorEntry),
 	}
+	if len(signers) > 0 {
+		registry.signer = signers[0]
+	}
+	return registry
 }
 
 // Acquire returns the active actor for a room, creating it from persistence if needed.
@@ -132,7 +138,7 @@ func (reg *Registry) Release(roomID shared.RoomID) {
 func (reg *Registry) Activate(room *roomdomain.Room) *Actor {
 	reg.mu.Lock()
 	defer reg.mu.Unlock()
-	actor := NewActor(room, nil, reg.repo, reg.logger)
+	actor := NewActor(room, nil, reg.repo, reg.logger, reg.signer)
 	reg.actors[room.ID] = &actorEntry{actor: actor, refs: 1}
 	return actor
 }
@@ -295,7 +301,7 @@ func (reg *Registry) loadActor(ctx context.Context, roomID shared.RoomID) (*Acto
 		match.RoomID = shared.RoomID(gm.RoomID)
 		match.Version = shared.MatchVersion(gm.Version)
 	}
-	actor := NewActor(room, match, reg.repo, reg.logger)
+	actor := NewActor(room, match, reg.repo, reg.logger, reg.signer)
 	actor.lastEventNumber = lastEventNumber
 	actor.lastEventHash = lastEventHash
 	if validSnapshot != nil {

@@ -12,7 +12,8 @@
     "clues",
     "rules",
     "participants",
-    "events"
+    "events",
+    "proof"
   ],
   "properties": {
     "schemaVersion": { "const": 1 },
@@ -62,14 +63,57 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["eventNumber", "aggregateVersion", "serverTimestamp", "type", "payload"],
+        "required": [
+          "proofVersion",
+          "eventNumber",
+          "aggregateVersion",
+          "publicEventType",
+          "publicActorId",
+          "occurredAtMs",
+          "publicPayload",
+          "privatePayloadDigest",
+          "previousEventHash",
+          "eventHash"
+        ],
         "properties": {
+          "proofVersion": { "const": 1 },
           "eventNumber": { "$ref": "#/$defs/safePositiveInteger" },
           "aggregateVersion": { "$ref": "#/$defs/safePositiveInteger" },
-          "serverTimestamp": { "$ref": "#/$defs/safePositiveInteger" },
-          "type": { "type": "string", "minLength": 1, "maxLength": 64 },
-          "payload": { "type": "object", "additionalProperties": true }
+          "publicEventType": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "publicActorId": { "type": "string", "maxLength": 64 },
+          "occurredAtMs": { "$ref": "#/$defs/safePositiveInteger" },
+          "publicPayload": { "type": "object", "additionalProperties": true },
+          "privatePayloadDigest": {
+            "oneOf": [{ "const": "" }, { "type": "string", "pattern": "^[0-9a-f]{64}$" }]
+          },
+          "previousEventHash": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9+/]{43}=$"
+          },
+          "eventHash": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
         }
+      }
+    },
+    "proof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "proofVersion",
+        "matchId",
+        "finalEventNumber",
+        "finalEventHash",
+        "terminalAtMs",
+        "keyId",
+        "signature"
+      ],
+      "properties": {
+        "proofVersion": { "const": 1 },
+        "matchId": { "$ref": "#/$defs/uuidv7" },
+        "finalEventNumber": { "$ref": "#/$defs/safePositiveInteger" },
+        "finalEventHash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "terminalAtMs": { "$ref": "#/$defs/safePositiveInteger" },
+        "keyId": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$" },
+        "signature": { "type": "string", "minLength": 86, "maxLength": 88 }
       }
     }
   },

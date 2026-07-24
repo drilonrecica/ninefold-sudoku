@@ -17,6 +17,7 @@ import (
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/persistence/gen"
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/persistence/repository"
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/platform/idgen"
+	replayproof "github.com/drilonrecica/ninefold-sudoku/apps/server/internal/replay/proof"
 	roomdomain "github.com/drilonrecica/ninefold-sudoku/apps/server/internal/room/domain"
 )
 
@@ -74,6 +75,7 @@ type Actor struct {
 	controllers       map[shared.ParticipantID]controllerInfo
 	controllersMu     sync.RWMutex
 	recoveryTimer     *time.Timer
+	replaySigner      replayproof.Signer
 }
 
 type bufferedEvent struct {
@@ -117,7 +119,7 @@ type actorResult struct {
 }
 
 // NewActor creates an actor for an already loaded room.
-func NewActor(room *roomdomain.Room, match *matchdomain.Match, repo *repository.Repository, logger *slog.Logger) *Actor {
+func NewActor(room *roomdomain.Room, match *matchdomain.Match, repo *repository.Repository, logger *slog.Logger, signers ...replayproof.Signer) *Actor {
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -133,6 +135,9 @@ func NewActor(room *roomdomain.Room, match *matchdomain.Match, repo *repository.
 		subscribers: make(map[shared.ConnectionID]subscriber),
 		controllers: make(map[shared.ParticipantID]controllerInfo),
 		eventBuffer: make([]bufferedEvent, 0, eventBufferCapacity),
+	}
+	if len(signers) > 0 {
+		a.replaySigner = signers[0]
 	}
 	a.wg.Add(1)
 	go a.run()
@@ -606,6 +611,25 @@ func (a *Actor) process(ctx context.Context, env Envelope) (Result, error) {
 				return Result{}, shared.DomainError{Code: shared.ErrPersistenceFailed}
 			}
 			if matchResult != nil {
+				if !a.replaySigner.Valid() {
+					return Result{}, shared.DomainError{Code: shared.ErrPersistenceFailed}
+				}
+				signature, signErr := a.replaySigner.Sign(lastHash)
+				if signErr != nil {
+					return Result{}, shared.DomainError{Code: shared.ErrPersistenceFailed}
+				}
+				if err := txRepo.CreateReplaySeal(ctx, tx, gen.ReplaySeal{
+					MatchID:          workingMatch.ID.String(),
+					FinalEventNumber: int64(matchEventsGen[len(matchEventsGen)-1].EventNumber),
+					FinalEventHash:   append([]byte(nil), lastHash...),
+					TerminalAtMs:     now.UnixMilli(),
+					SigningKeyID:     a.replaySigner.KeyID,
+					Signature:        signature,
+					ProofVersion:     strconv.Itoa(replayproof.Version),
+					CreatedAtMs:      now.UnixMilli(),
+				}); err != nil {
+					return Result{}, shared.DomainError{Code: shared.ErrPersistenceFailed}
+				}
 				resultPlayers := make([]gen.MatchResultPlayer, 0, len(workingMatch.Participants))
 				for _, participantID := range workingMatch.Participants {
 					resultPlayers = append(resultPlayers, gen.MatchResultPlayer{

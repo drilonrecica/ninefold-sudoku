@@ -19,6 +19,15 @@ func (q *Queries) AnonymizeRoomParticipants(ctx context.Context, roomID string) 
 	return err
 }
 
+const clearCurrentMatchByID = `-- name: ClearCurrentMatchByID :exec
+UPDATE rooms SET current_match_id = NULL WHERE current_match_id = ?
+`
+
+func (q *Queries) ClearCurrentMatchByID(ctx context.Context, currentMatchID sql.NullString) error {
+	_, err := q.db.ExecContext(ctx, clearCurrentMatchByID, currentMatchID)
+	return err
+}
+
 const countActivePuzzlesByDifficultyAndMultiplayer = `-- name: CountActivePuzzlesByDifficultyAndMultiplayer :one
 SELECT COUNT(*) FROM puzzles
 WHERE state = 'Active' AND difficulty = ? AND multiplayer_approved = ?
@@ -744,6 +753,15 @@ DELETE FROM match_snapshots WHERE match_id = ?
 
 func (q *Queries) DeleteMatchSnapshots(ctx context.Context, matchID string) error {
 	_, err := q.db.ExecContext(ctx, deleteMatchSnapshots, matchID)
+	return err
+}
+
+const deleteMatchTombstonesBefore = `-- name: DeleteMatchTombstonesBefore :exec
+DELETE FROM match_tombstones WHERE ended_at_ms <= ?
+`
+
+func (q *Queries) DeleteMatchTombstonesBefore(ctx context.Context, endedAtMs int64) error {
+	_, err := q.db.ExecContext(ctx, deleteMatchTombstonesBefore, endedAtMs)
 	return err
 }
 
@@ -1969,6 +1987,64 @@ func (q *Queries) ListRoomsExpired(ctx context.Context, expiresAtMs int64) ([]Ro
 			&i.LastActivityAtMs,
 			&i.ExpiresAtMs,
 			&i.RematchNumber,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTerminalMatchesBefore = `-- name: ListTerminalMatchesBefore :many
+SELECT id, room_id, state, version, mode, difficulty, error_preset, hints_enabled, auto_remove_notes, rule_version, puzzle_id, puzzle_revision, transformation_seed, puzzle_difficulty, generator_version, solver_version, started_at_ms, completed_at_ms, result_reason, elapsed_ms, assisted, created_at_ms FROM matches
+WHERE completed_at_ms IS NOT NULL AND completed_at_ms <= ?
+ORDER BY completed_at_ms, id
+LIMIT ?
+`
+
+type ListTerminalMatchesBeforeParams struct {
+	CompletedAtMs sql.NullInt64 `json:"completed_at_ms"`
+	Limit         int64         `json:"limit"`
+}
+
+func (q *Queries) ListTerminalMatchesBefore(ctx context.Context, arg ListTerminalMatchesBeforeParams) ([]Match, error) {
+	rows, err := q.db.QueryContext(ctx, listTerminalMatchesBefore, arg.CompletedAtMs, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Match{}
+	for rows.Next() {
+		var i Match
+		if err := rows.Scan(
+			&i.ID,
+			&i.RoomID,
+			&i.State,
+			&i.Version,
+			&i.Mode,
+			&i.Difficulty,
+			&i.ErrorPreset,
+			&i.HintsEnabled,
+			&i.AutoRemoveNotes,
+			&i.RuleVersion,
+			&i.PuzzleID,
+			&i.PuzzleRevision,
+			&i.TransformationSeed,
+			&i.PuzzleDifficulty,
+			&i.GeneratorVersion,
+			&i.SolverVersion,
+			&i.StartedAtMs,
+			&i.CompletedAtMs,
+			&i.ResultReason,
+			&i.ElapsedMs,
+			&i.Assisted,
+			&i.CreatedAtMs,
 		); err != nil {
 			return nil, err
 		}

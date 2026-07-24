@@ -177,6 +177,10 @@ func Parse(lookup LookupFunc) (Config, error) {
 	}
 
 	if cfg.Environment == Production {
+		zeroSeedKey := ed25519.NewKeyFromSeed(make([]byte, ed25519.SeedSize))
+		if cfg.ReplaySigningKey.Equal(zeroSeedKey) {
+			return cfg, errors.New("NINEFOLD_REPLAY_SIGNING_KEY contains the test-only development key")
+		}
 		for name, value := range map[string]string{
 			"NINEFOLD_COOKIE_SECRET":         cookieSecret,
 			"NINEFOLD_REPLAY_SIGNING_KEY":    signingKey,

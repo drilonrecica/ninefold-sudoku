@@ -755,3 +755,70 @@ func TestMatchLifecyclePersistence(t *testing.T) {
 		t.Fatalf("events out of order: %+v", events)
 	}
 }
+
+func TestScrubTerminalMatchesKeepsOnlyTombstone(t *testing.T) {
+	repo := newTestRepo(t)
+	ctx := context.Background()
+	puzzle := createPuzzle(t, repo, "Medium")
+	room, participant := createRoomAndParticipant(t, repo, "SCRUB1")
+	endedAt := NowMs() - int64(8*24*60*60*1000)
+	match := gen.Match{
+		ID: matchID(t), RoomID: room.ID, State: "Completed", Version: 2,
+		Mode: "Coop", Difficulty: "Medium", ErrorPreset: "Casual",
+		HintsEnabled: 1, AutoRemoveNotes: 1, RuleVersion: 1,
+		PuzzleID: puzzle.ID, PuzzleRevision: puzzle.Revision, PuzzleDifficulty: puzzle.Difficulty,
+		GeneratorVersion: puzzle.GeneratorVersion, SolverVersion: puzzle.SolverVersion,
+		StartedAtMs:   sql.NullInt64{Int64: endedAt - 1000, Valid: true},
+		CompletedAtMs: sql.NullInt64{Int64: endedAt, Valid: true},
+		ResultReason:  sql.NullString{String: "Solved", Valid: true}, CreatedAtMs: endedAt - 1000,
+	}
+	tx, txRepo, err := repo.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := txRepo.CreateMatchTx(ctx, tx, match, []gen.MatchParticipant{{
+		MatchID: match.ID, ParticipantID: participant.ID, Connected: 1,
+	}}, []gen.MatchEvent{{
+		MatchID: match.ID, EventNumber: 1, AggregateVersion: 2,
+		PublicEventType: "MatchCompleted", OccurredAtMs: endedAt,
+		PublicPayloadJson: `{"schemaVersion":1}`, PreviousHash: make([]byte, 32),
+		EventHash: make([]byte, 32),
+	}}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := txRepo.CreateReplaySeal(ctx, tx, gen.ReplaySeal{
+		MatchID: match.ID, FinalEventNumber: 1, FinalEventHash: make([]byte, 32),
+		TerminalAtMs: endedAt, SigningKeyID: "test-1", Signature: make([]byte, 64),
+		ProofVersion: "1", CreatedAtMs: endedAt,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := TxCommit(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	scrubbedAt := NowMs()
+	count, err := repo.ScrubTerminalMatches(ctx, scrubbedAt-int64(7*24*60*60*1000), scrubbedAt, 10)
+	if err != nil || count != 1 {
+		t.Fatalf("scrub count=%d err=%v", count, err)
+	}
+	if _, err := repo.GetMatchByID(ctx, match.ID); err != sql.ErrNoRows {
+		t.Fatalf("match retained after scrub: %v", err)
+	}
+	tombstone, err := repo.q.GetMatchTombstone(ctx, match.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tombstone.MatchID != match.ID || tombstone.ReplayExpiredAtMs.Int64 != scrubbedAt {
+		t.Fatalf("invalid tombstone: %+v", tombstone)
+	}
+	count, err = repo.ScrubTerminalMatches(ctx, scrubbedAt, scrubbedAt, 10)
+	if err != nil || count != 0 {
+		t.Fatalf("idempotent scrub count=%d err=%v", count, err)
+	}
+}
+
+func matchID(t *testing.T) string {
+	t.Helper()
+	return newUUID(t)
+}

@@ -289,6 +289,12 @@ DELETE FROM admin_audit_log WHERE created_at_ms <= ?;
 -- name: ListNonTerminalMatches :many
 SELECT * FROM matches WHERE state NOT IN ('Completed', 'Cancelled', 'Abandoned', 'Invalidated');
 
+-- name: ListTerminalMatchesBefore :many
+SELECT * FROM matches
+WHERE completed_at_ms IS NOT NULL AND completed_at_ms <= ?
+ORDER BY completed_at_ms, id
+LIMIT ?;
+
 -- name: ListExpiredRooms :many
 SELECT * FROM rooms WHERE expires_at_ms <= ? AND state NOT IN ('Expired', 'Cancelled', 'TerminatedByAdmin');
 
@@ -331,6 +337,9 @@ DELETE FROM match_events WHERE match_id = ?;
 -- name: DeleteMatchByID :exec
 DELETE FROM matches WHERE id = ?;
 
+-- name: ClearCurrentMatchByID :exec
+UPDATE rooms SET current_match_id = NULL WHERE current_match_id = ?;
+
 -- name: AnonymizeRoomParticipants :exec
 UPDATE room_participants SET display_name = '' WHERE room_id = ?;
 
@@ -360,6 +369,9 @@ SELECT * FROM room_sessions WHERE expires_at_ms <= ?;
 
 -- name: ListMatchTombstonesExpired :many
 SELECT * FROM match_tombstones WHERE ended_at_ms <= ?;
+
+-- name: DeleteMatchTombstonesBefore :exec
+DELETE FROM match_tombstones WHERE ended_at_ms <= ?;
 
 -- name: ListRoomsExpired :many
 SELECT * FROM rooms WHERE expires_at_ms <= ?;

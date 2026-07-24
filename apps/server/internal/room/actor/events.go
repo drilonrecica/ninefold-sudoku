@@ -2,36 +2,18 @@ package actor
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
-
-	"github.com/gowebpki/jcs"
 
 	shared "github.com/drilonrecica/ninefold-sudoku/apps/server/internal/domain"
 	matchdomain "github.com/drilonrecica/ninefold-sudoku/apps/server/internal/match/domain"
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/persistence/gen"
+	replayproof "github.com/drilonrecica/ninefold-sudoku/apps/server/internal/replay/proof"
 )
 
-const proofVersion = 1
-
-// genesisHash is the previous-hash value for the first event in a Match.
-var genesisHash = make([]byte, sha256.Size)
-
-// matchEventPublicEnvelope is the canonical public envelope hashed for replay integrity.
-type matchEventPublicEnvelope struct {
-	ProofVersion         int             `json:"proofVersion"`
-	MatchID              string          `json:"matchId"`
-	EventNumber          uint64          `json:"eventNumber"`
-	AggregateVersion     uint64          `json:"aggregateVersion"`
-	PublicEventType      string          `json:"publicEventType"`
-	PublicActorID        string          `json:"publicActorId"`
-	OccurredAtMs         int64           `json:"occurredAtMs"`
-	PublicPayload        json.RawMessage `json:"publicPayload"`
-	PrivatePayloadDigest string          `json:"privatePayloadDigest"`
-	PreviousEventHash    []byte          `json:"previousEventHash"`
-}
+type matchEventPublicEnvelope = replayproof.Envelope
 
 // public payload structs used for persistence and broadcast.
 type valuePlacedPayload struct {
@@ -141,7 +123,7 @@ type matchCancelledPayload struct {
 
 func matchEventsToGen(requestID shared.RequestID, m *matchdomain.Match, events []matchdomain.Event, previousHash []byte) ([]gen.MatchEvent, []byte, error) {
 	if len(previousHash) == 0 {
-		previousHash = append([]byte(nil), genesisHash...)
+		previousHash = append([]byte(nil), replayproof.GenesisHash...)
 	}
 	out := make([]gen.MatchEvent, 0, len(events))
 	for index, e := range events {
@@ -156,7 +138,7 @@ func matchEventsToGen(requestID shared.RequestID, m *matchdomain.Match, events [
 			actorID = actor.String()
 		}
 		env := matchEventPublicEnvelope{
-			ProofVersion:      proofVersion,
+			ProofVersion:      replayproof.Version,
 			MatchID:           m.ID.String(),
 			EventNumber:       uint64(meta.EventNumber),
 			AggregateVersion:  uint64(meta.AggregateVersion),
@@ -195,7 +177,7 @@ func matchEventsToGen(requestID shared.RequestID, m *matchdomain.Match, events [
 }
 
 func validatePersistedEventChain(events []gen.MatchEvent) error {
-	previous := append([]byte(nil), genesisHash...)
+	previous := append([]byte(nil), replayproof.GenesisHash...)
 	var expectedNumber int64 = 1
 	for _, event := range events {
 		if event.EventNumber != expectedNumber {
@@ -205,7 +187,7 @@ func validatePersistedEventChain(events []gen.MatchEvent) error {
 			return fmt.Errorf("previous hash mismatch at event %d", event.EventNumber)
 		}
 		envelope := matchEventPublicEnvelope{
-			ProofVersion:         proofVersion,
+			ProofVersion:         replayproof.Version,
 			MatchID:              event.MatchID,
 			EventNumber:          uint64(event.EventNumber),
 			AggregateVersion:     uint64(event.AggregateVersion),
@@ -213,7 +195,7 @@ func validatePersistedEventChain(events []gen.MatchEvent) error {
 			PublicActorID:        event.PublicActorID.String,
 			OccurredAtMs:         event.OccurredAtMs,
 			PublicPayload:        json.RawMessage(event.PublicPayloadJson),
-			PrivatePayloadDigest: "",
+			PrivatePayloadDigest: hex.EncodeToString(event.PrivatePayloadDigest),
 			PreviousEventHash:    event.PreviousHash,
 		}
 		calculated, err := hashEnvelope(envelope)
@@ -443,12 +425,7 @@ func publicActorID(e matchdomain.Event) shared.ParticipantID {
 }
 
 func hashEnvelope(env matchEventPublicEnvelope) ([]byte, error) {
-	canonical, err := jcs.Transform(json.RawMessage(mustJSON(env)))
-	if err != nil {
-		return nil, err
-	}
-	h := sha256.Sum256(canonical)
-	return h[:], nil
+	return replayproof.HashEnvelope(env)
 }
 
 func mustJSON(v any) []byte {

@@ -484,6 +484,68 @@ func (r *Repository) DeleteExpiredReplayCapabilities(ctx context.Context, before
 	return r.q.DeleteExpiredReplayCapabilities(ctx, beforeMs)
 }
 
+// ScrubTerminalMatches replaces participant-linked match data with the bounded
+// non-identifying tombstone allowed by the retention policy.
+func (r *Repository) ScrubTerminalMatches(ctx context.Context, beforeMs, scrubbedAtMs int64, limit int64) (int, error) {
+	rows, err := r.q.ListTerminalMatchesBefore(ctx, gen.ListTerminalMatchesBeforeParams{
+		CompletedAtMs: sql.NullInt64{Int64: beforeMs, Valid: true},
+		Limit:         limit,
+	})
+	if err != nil {
+		return 0, err
+	}
+	scrubbed := 0
+	for _, match := range rows {
+		tx, q, err := r.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+		if err != nil {
+			return scrubbed, err
+		}
+		endedAt := match.CompletedAtMs.Int64
+		err = q.CreateMatchTombstone(ctx, tx, gen.MatchTombstone{
+			MatchID:           match.ID,
+			Mode:              match.Mode,
+			Difficulty:        match.Difficulty,
+			ResultReason:      match.ResultReason.String,
+			StartedAtMs:       match.StartedAtMs,
+			EndedAtMs:         endedAt,
+			SchemaVersion:     "1",
+			ProofVersion:      "1",
+			ReplayExpiredAtMs: sql.NullInt64{Int64: scrubbedAtMs, Valid: true},
+			CreatedAtMs:       scrubbedAtMs,
+		})
+		if err == nil {
+			err = q.q.WithTx(tx).ClearCurrentMatchByID(ctx, sql.NullString{String: match.ID, Valid: true})
+		}
+		if err == nil {
+			err = q.q.WithTx(tx).DeleteMatchByID(ctx, match.ID)
+		}
+		if err == nil {
+			err = TxCommit(tx)
+		} else {
+			_ = tx.Rollback()
+		}
+		if err != nil {
+			return scrubbed, err
+		}
+		scrubbed++
+	}
+	return scrubbed, nil
+}
+
+func (r *Repository) CreateMatchTombstone(ctx context.Context, tx *sql.Tx, tombstone gen.MatchTombstone) error {
+	return r.q.WithTx(tx).CreateMatchTombstone(ctx, gen.CreateMatchTombstoneParams{
+		MatchID: tombstone.MatchID, Mode: tombstone.Mode, Difficulty: tombstone.Difficulty,
+		ResultReason: tombstone.ResultReason, StartedAtMs: tombstone.StartedAtMs,
+		EndedAtMs: tombstone.EndedAtMs, SchemaVersion: tombstone.SchemaVersion,
+		ProofVersion: tombstone.ProofVersion, ReplayDeletedAtMs: tombstone.ReplayDeletedAtMs,
+		ReplayExpiredAtMs: tombstone.ReplayExpiredAtMs, CreatedAtMs: tombstone.CreatedAtMs,
+	})
+}
+
+func (r *Repository) DeleteExpiredMatchTombstones(ctx context.Context, beforeMs int64) error {
+	return r.q.DeleteMatchTombstonesBefore(ctx, beforeMs)
+}
+
 // --- Mapping helpers ---
 
 func roomToParams(r gen.Room) gen.CreateRoomParams {

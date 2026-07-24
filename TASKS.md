@@ -4,7 +4,7 @@
 
 **Execution model:** sequential phases, exactly one commit per completed phase
 
-**Current status:** Phases 1–11 complete; Phase 12 (cryptographically verifiable replay) is next.
+**Current status:** Phases 1–12 complete; Phase 13 (account-free online Solo) is next.
 
 ## 1. Authority and scope
 
@@ -647,27 +647,27 @@ Seal terminal multiplayer event chains and verify them independently in the brow
 
 ### Tasks
 
-- [ ] **P12-T01 — Freeze proof version 1 vectors.** Commit the exact genesis hash, RFC 8785 input envelopes, byte encodings, SHA-256 outputs, hidden payload commitments, Ed25519 keys/signatures, and expected failures used by Go and TypeScript. Fixture private keys must be unmistakably test-only and rejected by production configuration.
-- [ ] **P12-T02 — Validate event-chain creation.** Verify Phase 7 hashing includes proof version, MatchID, event number, aggregate version, public type/actor/payload, occurrence time, private digest, and previous hash exactly as Architecture §25.2 defines.
-- [ ] **P12-T03 — Seal terminal Matches.** After the terminal event commits, sign the final event hash with Ed25519, store key ID/proof version/signature separately, and never append replay/audit/deletion facts to the sealed Match stream.
-- [ ] **P12-T04 — Protect signing keys.** Load the private key only from validated server configuration, reject malformed/placeholder production keys, never log/export it, and expose only public trusted-key metadata needed by the browser verifier.
-- [ ] **P12-T05 — Implement key rotation.** Embed the trusted public-key set in the web build, accept unexpired older replay keys, reject unknown/retired-invalid keys, and document deployment ordering that publishes the new public key before new signatures.
-- [ ] **P12-T06 — Implement browser verification.** Verify event sequence, canonical envelopes, each hash, final digest, trusted key ID, and Ed25519 signature. Use Web Crypto when supported and add a fallback only if the supported-browser test matrix proves it necessary.
-- [ ] **P12-T07 — Report integrity accurately.** Distinguish verified, verifying, unavailable/legacy, corrupted/tampered, unknown key, and unsupported browser. State that verification proves the sealed replay was not altered, not that the server applied correct gameplay rules.
-- [ ] **P12-T08 — Respect hidden commitments.** Show that a signed digest commitment exists without claiming the browser verified undisclosed content. Never return private payloads, salts, or hidden Duel-oriented placeholders.
-- [ ] **P12-T09 — Implement early deletion and expiry.** Require the valid originating Room session and confirmation; replacing that one active Room session removes early-delete authority. Revoke all read capabilities and remove replay-accessible projections without rewriting the sealed Match stream. At seven days scrub the remaining participant-linked Match data, retain only the permitted 30-day tombstone, and make repeated deletion/cleanup idempotent.
-- [ ] **P12-T10 — Add tamper and rotation tests.** Cover every byte/payload/time/order/hash/signature mutation, missing/duplicate events, hidden-digest changes, unknown keys, valid old keys, changed scope, deleted/expired capability, and cross-language vector equality.
-- [ ] **P12-T11 — Measure replay loading.** Lazy-load verifier code, keep Results independent, compress replay HTTP responses, and measure an ordinary replay under the two-second product target.
+- [x] **P12-T01 — Freeze proof version 1 vectors.** Commit the exact genesis hash, RFC 8785 input envelopes, byte encodings, SHA-256 outputs, hidden payload commitments, Ed25519 keys/signatures, and expected failures used by Go and TypeScript. Fixture private keys must be unmistakably test-only and rejected by production configuration.
+- [x] **P12-T02 — Validate event-chain creation.** Verify Phase 7 hashing includes proof version, MatchID, event number, aggregate version, public type/actor/payload, occurrence time, private digest, and previous hash exactly as Architecture §25.2 defines.
+- [x] **P12-T03 — Seal terminal Matches.** After the terminal event commits, sign the final event hash with Ed25519, store key ID/proof version/signature separately, and never append replay/audit/deletion facts to the sealed Match stream.
+- [x] **P12-T04 — Protect signing keys.** Load the private key only from validated server configuration, reject malformed/placeholder production keys, never log/export it, and expose only public trusted-key metadata needed by the browser verifier.
+- [x] **P12-T05 — Implement key rotation.** Embed the trusted public-key set in the web build, accept unexpired older replay keys, reject unknown/retired-invalid keys, and document deployment ordering that publishes the new public key before new signatures.
+- [x] **P12-T06 — Implement browser verification.** Verify event sequence, canonical envelopes, each hash, final digest, trusted key ID, and Ed25519 signature. Use Web Crypto when supported and add a fallback only if the supported-browser test matrix proves it necessary.
+- [x] **P12-T07 — Report integrity accurately.** Distinguish verified, verifying, unavailable/legacy, corrupted/tampered, unknown key, and unsupported browser. State that verification proves the sealed replay was not altered, not that the server applied correct gameplay rules.
+- [x] **P12-T08 — Respect hidden commitments.** Show that a signed digest commitment exists without claiming the browser verified undisclosed content. Never return private payloads, salts, or hidden Duel-oriented placeholders.
+- [x] **P12-T09 — Implement early deletion and expiry.** Require the valid originating Room session and confirmation; replacing that one active Room session removes early-delete authority. Revoke all read capabilities and remove replay-accessible projections without rewriting the sealed Match stream. At seven days scrub the remaining participant-linked Match data, retain only the permitted 30-day tombstone, and make repeated deletion/cleanup idempotent.
+- [x] **P12-T10 — Add tamper and rotation tests.** Cover every byte/payload/time/order/hash/signature mutation, missing/duplicate events, hidden-digest changes, unknown keys, valid old keys, changed scope, deleted/expired capability, and cross-language vector equality.
+- [x] **P12-T11 — Measure replay loading.** Lazy-load verifier code, keep Results independent, compress replay HTTP responses, and measure an ordinary replay under the two-second product target.
 
 ### Phase gates
 
-- [ ] Go and TypeScript produce identical canonical bytes, hashes, commitments, and verification outcomes for every fixture.
-- [ ] A changed public field, event order, previous hash, final digest, signature, or trusted key fails verification.
-- [ ] Hidden payload/salt data never reaches browser contracts or public fixtures.
-- [ ] Completed seals remain immutable; deletion/expiration/audit state lives outside the signed event stream.
-- [ ] Replay deletion and seven-day expiry remove participant-linked replay data while preserving only the allowed 30-day tombstone.
-- [ ] Replay verification UI passes keyboard, screen-reader, reduced-motion, mobile, and honest-wording checks.
-- [ ] All cumulative checks pass.
+- [x] Go and TypeScript produce identical canonical bytes, hashes, commitments, and verification outcomes for every fixture.
+- [x] A changed public field, event order, previous hash, final digest, signature, or trusted key fails verification.
+- [x] Hidden payload/salt data never reaches browser contracts or public fixtures.
+- [x] Completed seals remain immutable; deletion/expiration/audit state lives outside the signed event stream.
+- [x] Replay deletion and seven-day expiry remove participant-linked replay data while preserving only the allowed 30-day tombstone.
+- [x] Replay verification UI passes keyboard, screen-reader, reduced-motion, mobile, and honest-wording checks.
+- [x] All cumulative checks pass.
 
 ### Commit
 

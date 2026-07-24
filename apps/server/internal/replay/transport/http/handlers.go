@@ -1,7 +1,10 @@
 package http
 
 import (
+	"compress/gzip"
 	"database/sql"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -46,11 +49,26 @@ type capabilityResponse struct {
 }
 
 type replayEvent struct {
-	EventNumber      int64          `json:"eventNumber"`
-	AggregateVersion int64          `json:"aggregateVersion"`
-	ServerTimestamp  int64          `json:"serverTimestamp"`
-	Type             string         `json:"type"`
-	Payload          map[string]any `json:"payload"`
+	ProofVersion         int            `json:"proofVersion"`
+	EventNumber          int64          `json:"eventNumber"`
+	AggregateVersion     int64          `json:"aggregateVersion"`
+	PublicEventType      string         `json:"publicEventType"`
+	PublicActorID        string         `json:"publicActorId"`
+	OccurredAtMs         int64          `json:"occurredAtMs"`
+	PublicPayload        map[string]any `json:"publicPayload"`
+	PrivatePayloadDigest string         `json:"privatePayloadDigest"`
+	PreviousEventHash    string         `json:"previousEventHash"`
+	EventHash            string         `json:"eventHash"`
+}
+
+type replayProof struct {
+	ProofVersion     int    `json:"proofVersion"`
+	MatchID          string `json:"matchId"`
+	FinalEventNumber int64  `json:"finalEventNumber"`
+	FinalEventHash   string `json:"finalEventHash"`
+	TerminalAtMs     int64  `json:"terminalAtMs"`
+	KeyID            string `json:"keyId"`
+	Signature        string `json:"signature"`
 }
 
 type replayParticipant struct {
@@ -76,6 +94,7 @@ type replayDocument struct {
 	Rules         replayRules         `json:"rules"`
 	Participants  []replayParticipant `json:"participants"`
 	Events        []replayEvent       `json:"events"`
+	Proof         replayProof         `json:"proof"`
 }
 
 func (h *Handler) CreateCapability(w http.ResponseWriter, r *http.Request) {
@@ -144,9 +163,16 @@ func (h *Handler) GetReplay(w http.ResponseWriter, r *http.Request) {
 	}
 	stored, err := h.repo.GetReplayCapabilityByHash(r.Context(), capability.Hash(token))
 	now := time.Now().UnixMilli()
-	if err != nil || stored.ReplayID != chi.URLParam(r, "replayID") ||
-		stored.ExpiresAtMs <= now || stored.RevokedAtMs.Valid {
+	if err != nil || stored.ReplayID != chi.URLParam(r, "replayID") {
 		writeUnavailable(w)
+		return
+	}
+	if stored.RevokedAtMs.Valid {
+		writeReplayError(w, http.StatusGone, "REPLAY_DELETED", "error.replay_deleted")
+		return
+	}
+	if stored.ExpiresAtMs <= now {
+		writeReplayError(w, http.StatusGone, "REPLAY_EXPIRED", "error.replay_expired")
 		return
 	}
 	document, err := h.projectReplay(r, stored)
@@ -155,12 +181,21 @@ func (h *Handler) GetReplay(w http.ResponseWriter, r *http.Request) {
 		writeUnavailable(w)
 		return
 	}
-	writeJSON(w, http.StatusOK, document)
+	writeCompressedJSON(w, r, document)
 }
 
 func (h *Handler) DeleteReplay(w http.ResponseWriter, r *http.Request) {
 	setPrivateHeaders(w)
 	ctx := r.Context()
+	var confirmation struct {
+		Confirm bool `json:"confirm"`
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 1024)
+	if r.Header.Get("Content-Type") != "application/json" ||
+		json.NewDecoder(r.Body).Decode(&confirmation) != nil || !confirmation.Confirm {
+		writeReplayError(w, http.StatusBadRequest, "CONFIRMATION_REQUIRED", "error.confirmation_required")
+		return
+	}
 	stored, err := h.repo.GetReplayCapabilityByReplayID(ctx, chi.URLParam(r, "replayID"))
 	if err != nil {
 		writeUnavailable(w)
@@ -232,8 +267,12 @@ func (h *Handler) projectReplay(r *http.Request, stored gen.ReplayCapability) (r
 			return replayDocument{}, err
 		}
 		events = append(events, replayEvent{
-			EventNumber: row.EventNumber, AggregateVersion: row.AggregateVersion,
-			ServerTimestamp: row.OccurredAtMs, Type: row.PublicEventType, Payload: payload,
+			ProofVersion: 1, EventNumber: row.EventNumber, AggregateVersion: row.AggregateVersion,
+			PublicEventType: row.PublicEventType, PublicActorID: row.PublicActorID.String,
+			OccurredAtMs: row.OccurredAtMs, PublicPayload: payload,
+			PrivatePayloadDigest: hex.EncodeToString(row.PrivatePayloadDigest),
+			PreviousEventHash:    base64.StdEncoding.EncodeToString(row.PreviousHash),
+			EventHash:            hex.EncodeToString(row.EventHash),
 		})
 		expected++
 	}
@@ -245,6 +284,10 @@ func (h *Handler) projectReplay(r *http.Request, stored gen.ReplayCapability) (r
 	for _, participant := range resultPlayers {
 		participants = append(participants, replayParticipant{ID: participant.ParticipantID, Name: participant.DisplayName})
 	}
+	seal, err := h.repo.GetReplaySeal(ctx, stored.MatchID)
+	if err != nil {
+		return replayDocument{}, errors.New("replay seal unavailable")
+	}
 	return replayDocument{
 		SchemaVersion: 1, ReplayID: stored.ReplayID, MatchID: stored.MatchID,
 		ExpiresAt: stored.ExpiresAtMs, Clues: clues,
@@ -254,6 +297,11 @@ func (h *Handler) projectReplay(r *http.Request, stored gen.ReplayCapability) (r
 			RuleVersion: match.RuleVersion,
 		},
 		Participants: participants, Events: events,
+		Proof: replayProof{
+			ProofVersion: 1, MatchID: seal.MatchID, FinalEventNumber: seal.FinalEventNumber,
+			FinalEventHash: hex.EncodeToString(seal.FinalEventHash), TerminalAtMs: seal.TerminalAtMs,
+			KeyID: seal.SigningKeyID, Signature: base64.StdEncoding.EncodeToString(seal.Signature),
+		},
 	}, nil
 }
 
@@ -297,6 +345,26 @@ func writeUnavailable(w http.ResponseWriter) {
 		"code": "REPLAY_UNAVAILABLE", "messageKey": "error.replay_unavailable",
 		"requestId": "", "details": map[string]any{},
 	}})
+}
+
+func writeReplayError(w http.ResponseWriter, status int, code, messageKey string) {
+	writeJSON(w, status, map[string]any{"error": map[string]any{
+		"code": code, "messageKey": messageKey, "requestId": "", "details": map[string]any{},
+	}})
+}
+
+func writeCompressedJSON(w http.ResponseWriter, r *http.Request, value any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Vary", "Accept-Encoding")
+	if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+		writeJSON(w, http.StatusOK, value)
+		return
+	}
+	w.Header().Set("Content-Encoding", "gzip")
+	w.WriteHeader(http.StatusOK)
+	writer := gzip.NewWriter(w)
+	defer writer.Close()
+	_ = json.NewEncoder(writer).Encode(value)
 }
 
 func writeInternal(w http.ResponseWriter) {

@@ -18,6 +18,9 @@ type ReplayDocument struct {
 	// Participants corresponds to the JSON schema field "participants".
 	Participants []ReplayDocumentParticipantsElem `json:"participants"`
 
+	// Proof corresponds to the JSON schema field "proof".
+	Proof ReplayDocumentProof `json:"proof"`
+
 	// ReplayId corresponds to the JSON schema field "replayId".
 	ReplayId Uuidv7 `json:"replayId"`
 
@@ -32,20 +35,36 @@ type ReplayDocumentEventsElem struct {
 	// AggregateVersion corresponds to the JSON schema field "aggregateVersion".
 	AggregateVersion SafePositiveInteger `json:"aggregateVersion"`
 
+	// EventHash corresponds to the JSON schema field "eventHash".
+	EventHash string `json:"eventHash"`
+
 	// EventNumber corresponds to the JSON schema field "eventNumber".
 	EventNumber SafePositiveInteger `json:"eventNumber"`
 
-	// Payload corresponds to the JSON schema field "payload".
-	Payload ReplayDocumentEventsElemPayload `json:"payload"`
+	// OccurredAtMs corresponds to the JSON schema field "occurredAtMs".
+	OccurredAtMs SafePositiveInteger `json:"occurredAtMs"`
 
-	// ServerTimestamp corresponds to the JSON schema field "serverTimestamp".
-	ServerTimestamp SafePositiveInteger `json:"serverTimestamp"`
+	// PreviousEventHash corresponds to the JSON schema field "previousEventHash".
+	PreviousEventHash string `json:"previousEventHash"`
 
-	// Type corresponds to the JSON schema field "type".
-	Type string `json:"type"`
+	// PrivatePayloadDigest corresponds to the JSON schema field
+	// "privatePayloadDigest".
+	PrivatePayloadDigest interface{} `json:"privatePayloadDigest"`
+
+	// ProofVersion corresponds to the JSON schema field "proofVersion".
+	ProofVersion interface{} `json:"proofVersion"`
+
+	// PublicActorId corresponds to the JSON schema field "publicActorId".
+	PublicActorId string `json:"publicActorId"`
+
+	// PublicEventType corresponds to the JSON schema field "publicEventType".
+	PublicEventType string `json:"publicEventType"`
+
+	// PublicPayload corresponds to the JSON schema field "publicPayload".
+	PublicPayload ReplayDocumentEventsElemPublicPayload `json:"publicPayload"`
 }
 
-type ReplayDocumentEventsElemPayload map[string]interface{}
+type ReplayDocumentEventsElemPublicPayload map[string]interface{}
 
 type ReplayDocumentParticipantsElem struct {
 	// Id corresponds to the JSON schema field "id".
@@ -53,6 +72,29 @@ type ReplayDocumentParticipantsElem struct {
 
 	// Name corresponds to the JSON schema field "name".
 	Name string `json:"name"`
+}
+
+type ReplayDocumentProof struct {
+	// FinalEventHash corresponds to the JSON schema field "finalEventHash".
+	FinalEventHash string `json:"finalEventHash"`
+
+	// FinalEventNumber corresponds to the JSON schema field "finalEventNumber".
+	FinalEventNumber SafePositiveInteger `json:"finalEventNumber"`
+
+	// KeyId corresponds to the JSON schema field "keyId".
+	KeyId string `json:"keyId"`
+
+	// MatchId corresponds to the JSON schema field "matchId".
+	MatchId Uuidv7 `json:"matchId"`
+
+	// ProofVersion corresponds to the JSON schema field "proofVersion".
+	ProofVersion interface{} `json:"proofVersion"`
+
+	// Signature corresponds to the JSON schema field "signature".
+	Signature string `json:"signature"`
+
+	// TerminalAtMs corresponds to the JSON schema field "terminalAtMs".
+	TerminalAtMs SafePositiveInteger `json:"terminalAtMs"`
 }
 
 type ReplayDocumentRules struct {
@@ -90,17 +132,26 @@ const ReplayDocumentRulesErrorPresetChallenge ReplayDocumentRulesErrorPreset = "
 const ReplayDocumentRulesErrorPresetClean ReplayDocumentRulesErrorPreset = "Clean"
 
 type ReplayProof struct {
-	// FinalHash corresponds to the JSON schema field "finalHash".
-	FinalHash string `json:"finalHash"`
+	// FinalEventHash corresponds to the JSON schema field "finalEventHash".
+	FinalEventHash string `json:"finalEventHash"`
+
+	// FinalEventNumber corresponds to the JSON schema field "finalEventNumber".
+	FinalEventNumber uint64 `json:"finalEventNumber"`
 
 	// KeyId corresponds to the JSON schema field "keyId".
 	KeyId string `json:"keyId"`
 
-	// SchemaVersion corresponds to the JSON schema field "schemaVersion".
-	SchemaVersion interface{} `json:"schemaVersion"`
+	// MatchId corresponds to the JSON schema field "matchId".
+	MatchId string `json:"matchId"`
+
+	// ProofVersion corresponds to the JSON schema field "proofVersion".
+	ProofVersion interface{} `json:"proofVersion"`
 
 	// Signature corresponds to the JSON schema field "signature".
 	Signature string `json:"signature"`
+
+	// TerminalAtMs corresponds to the JSON schema field "terminalAtMs".
+	TerminalAtMs uint64 `json:"terminalAtMs"`
 }
 
 type SafePositiveInteger uint64

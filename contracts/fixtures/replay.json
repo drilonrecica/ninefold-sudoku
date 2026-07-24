@@ -20,11 +20,25 @@
   ],
   "events": [
     {
+      "proofVersion": 1,
       "eventNumber": 1,
       "aggregateVersion": 1,
-      "serverTimestamp": 1720000000000,
-      "type": "MatchStarted",
-      "payload": { "schemaVersion": 1 }
+      "publicEventType": "MatchStarted",
+      "publicActorId": "",
+      "occurredAtMs": 1720000000000,
+      "publicPayload": { "schemaVersion": 1 },
+      "privatePayloadDigest": "",
+      "previousEventHash": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+      "eventHash": "1111111111111111111111111111111111111111111111111111111111111111"
     }
-  ]
+  ],
+  "proof": {
+    "proofVersion": 1,
+    "matchId": "0190a7d3-8d9a-7f31-8d2a-1242f6f0d10c",
+    "finalEventNumber": 1,
+    "finalEventHash": "1111111111111111111111111111111111111111111111111111111111111111",
+    "terminalAtMs": 1720000000000,
+    "keyId": "fixture-1",
+    "signature": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+  }
 }

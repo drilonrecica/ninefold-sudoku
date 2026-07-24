@@ -4,11 +4,25 @@
   "title": "ReplayProof",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "keyId", "finalHash", "signature"],
+  "required": [
+    "proofVersion",
+    "matchId",
+    "finalEventNumber",
+    "finalEventHash",
+    "terminalAtMs",
+    "keyId",
+    "signature"
+  ],
   "properties": {
-    "schemaVersion": { "const": 1 },
+    "proofVersion": { "const": 1 },
+    "matchId": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "finalEventNumber": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+    "finalEventHash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "terminalAtMs": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
     "keyId": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$" },
-    "finalHash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
     "signature": { "type": "string", "minLength": 86, "maxLength": 88 }
   }
 }

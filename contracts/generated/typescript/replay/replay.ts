@@ -194,12 +194,26 @@ export interface ReplayDocument {
    * @maxItems 10000
    */
   events: {
+    proofVersion: 1;
     eventNumber: SafePositiveInteger;
     aggregateVersion: SafePositiveInteger;
-    serverTimestamp: SafePositiveInteger;
-    type: string;
-    payload: {
+    publicEventType: string;
+    publicActorId: string;
+    occurredAtMs: SafePositiveInteger;
+    publicPayload: {
       [k: string]: unknown;
     };
+    privatePayloadDigest: "" | string;
+    previousEventHash: string;
+    eventHash: string;
   }[];
+  proof: {
+    proofVersion: 1;
+    matchId: Uuidv7;
+    finalEventNumber: SafePositiveInteger;
+    finalEventHash: string;
+    terminalAtMs: SafePositiveInteger;
+    keyId: string;
+    signature: string;
+  };
 }

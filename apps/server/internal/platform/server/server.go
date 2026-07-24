@@ -16,6 +16,7 @@ import (
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/persistence/repository"
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/persistence/sqlite"
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/platform/config"
+	replayproof "github.com/drilonrecica/ninefold-sudoku/apps/server/internal/replay/proof"
 	replayhttp "github.com/drilonrecica/ninefold-sudoku/apps/server/internal/replay/transport/http"
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/room/actor"
 	roomhttp "github.com/drilonrecica/ninefold-sudoku/apps/server/internal/room/transport/http"
@@ -31,7 +32,9 @@ type Server struct {
 }
 
 func New(address, buildVersion string, cfg config.Config, db *sqlite.DB, repo *repository.Repository, logger *slog.Logger) *Server {
-	registry := actor.NewRegistry(repo, logger)
+	registry := actor.NewRegistry(repo, logger, replayproof.Signer{
+		KeyID: cfg.ReplaySigningKeyID, PrivateKey: cfg.ReplaySigningKey,
+	})
 	server := &Server{
 		logger:   logger,
 		db:       db,

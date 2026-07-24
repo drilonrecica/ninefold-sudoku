@@ -484,3 +484,62 @@ func TestReconstructFromEvents(t *testing.T) {
 		t.Fatalf("expected 1 contribution after reconstruction, got %d", reconstructed.Contributions[p])
 	}
 }
+
+func TestRecoveryPausesElapsedTimeAndRejectsStaleGeneration(t *testing.T) {
+	m, p, now := makeMatch(t, shared.ErrorPresetCasual, testClues(0))
+	if _, err := m.Activate(3, now); err != nil {
+		t.Fatal(err)
+	}
+
+	enterMeta := cmdMeta(t, m, p)
+	entered, err := m.Apply(EnterRecoveryCommand{
+		Meta: enterMeta, Generation: 7,
+	}, 4, now.Add(10*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.State != shared.MatchRecoveryPending || len(entered) != 1 {
+		t.Fatalf("expected recovery pending with one event, got %s and %d events", m.State, len(entered))
+	}
+
+	staleMeta := cmdMeta(t, m, p)
+	_, err = m.Apply(RecoverMatchCommand{
+		Meta: staleMeta, Generation: 6,
+	}, 5, now.Add(20*time.Second))
+	assertCode(t, err, shared.ErrTimerTokenStale)
+
+	recoverMeta := cmdMeta(t, m, p)
+	recovered, err := m.Apply(RecoverMatchCommand{
+		Meta: recoverMeta, Generation: 7,
+	}, 5, now.Add(30*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.State != shared.MatchActive || len(recovered) != 1 || m.PausedMilliseconds != 20_000 {
+		t.Fatalf("unexpected recovery result: state=%s paused=%d events=%d", m.State, m.PausedMilliseconds, len(recovered))
+	}
+
+	result := m.buildResult(now.Add(40 * time.Second))
+	if result.ElapsedMilliseconds != 20_000 {
+		t.Fatalf("expected exactly 20s active elapsed time, got %dms", result.ElapsedMilliseconds)
+	}
+}
+
+func TestCompletedMatchCannotEnterRecovery(t *testing.T) {
+	m, p, now := makeMatch(t, shared.ErrorPresetCasual, testClues(0))
+	m.State = shared.MatchCompleted
+	meta := cmdMeta(t, m, p)
+	_, err := m.Apply(EnterRecoveryCommand{Meta: meta, Generation: 1}, 4, now)
+	assertCode(t, err, shared.ErrMatchStateInvalid)
+}
+
+func assertCode(t *testing.T, err error, expected shared.ErrorCode) {
+	t.Helper()
+	if err == nil {
+		t.Fatalf("expected %s, got nil", expected)
+	}
+	domainErr, ok := err.(shared.DomainError)
+	if !ok || domainErr.Code != expected {
+		t.Fatalf("expected %s, got %v", expected, err)
+	}
+}

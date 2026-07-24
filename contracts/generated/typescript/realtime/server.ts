@@ -51,7 +51,7 @@ export interface ServerMessage {
     currentMatchEventNumber?: SafeInteger;
     details?: {};
     message?: string;
-    connectionState?: "connected" | "reconnecting" | "synchronizing" | "read_only" | "recovery_failed";
+    connectionState?: "connected" | "reconnecting" | "synchronizing" | "read_only" | "maintenance" | "recovery_failed";
     controllerGeneration?: SafeInteger;
     room?: {};
     match?: {};

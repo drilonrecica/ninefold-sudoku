@@ -53,8 +53,11 @@
       connecting: 'connection.connecting',
       connected: 'connection.connected',
       reconnecting: 'connection.reconnecting',
+      synchronizing: 'connection.connecting',
+      offline: 'connection.disconnected',
       read_only: 'connection.readOnly',
-      disconnected: 'connection.disconnected',
+      maintenance: 'connection.reconnecting',
+      recovery_failed: 'connection.disconnected',
     } as const;
     return t(keys[connection]);
   }

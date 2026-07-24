@@ -58,7 +58,14 @@
         "details": { "type": "object" },
         "message": { "type": "string" },
         "connectionState": {
-          "enum": ["connected", "reconnecting", "synchronizing", "read_only", "recovery_failed"]
+          "enum": [
+            "connected",
+            "reconnecting",
+            "synchronizing",
+            "read_only",
+            "maintenance",
+            "recovery_failed"
+          ]
         },
         "controllerGeneration": { "$ref": "#/$defs/safeInteger" },
         "room": { "type": "object" },

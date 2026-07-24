@@ -1,5 +1,6 @@
 export type Digit = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
-export type MatchState = 'Prepared' | 'Countdown' | 'Active' | 'Completed' | 'Cancelled';
+export type MatchState =
+  'Prepared' | 'Countdown' | 'Active' | 'RecoveryPending' | 'Completed' | 'Cancelled';
 export type ErrorPreset = 'Casual' | 'Challenge' | 'Blind' | 'Clean';
 
 export interface MatchRules {
@@ -27,6 +28,9 @@ export interface MatchSnapshot {
   startedAt?: number;
   completedAt?: number;
   penaltiesMs: number;
+  pausedMs?: number;
+  recoveryStartedAt?: number;
+  recoveryGeneration?: number;
   hintsUsed: number;
   assisted: boolean;
   rules: MatchRules;

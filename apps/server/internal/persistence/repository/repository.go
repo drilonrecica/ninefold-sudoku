@@ -307,6 +307,11 @@ func (r *Repository) GetMatchByID(ctx context.Context, id string) (gen.Match, er
 	return r.q.GetMatchByID(ctx, id)
 }
 
+// ListNonTerminalMatches returns startup recovery candidates.
+func (r *Repository) ListNonTerminalMatches(ctx context.Context) ([]gen.Match, error) {
+	return r.q.ListNonTerminalMatches(ctx)
+}
+
 // ListMatchParticipants returns the participants of a match.
 func (r *Repository) ListMatchParticipants(ctx context.Context, matchID string) ([]gen.MatchParticipant, error) {
 	return r.q.ListMatchParticipants(ctx, matchID)
@@ -320,6 +325,12 @@ func (r *Repository) GetMatchEvents(ctx context.Context, matchID string) ([]gen.
 // GetLatestMatchSnapshot returns the most recent snapshot for reconstruction.
 func (r *Repository) GetLatestMatchSnapshot(ctx context.Context, matchID string) (gen.MatchSnapshot, error) {
 	return r.q.GetLatestMatchSnapshot(ctx, matchID)
+}
+
+// CreateMatchSnapshot writes a recovery checkpoint using the repository's current
+// transaction binding.
+func (r *Repository) CreateMatchSnapshot(ctx context.Context, snapshot gen.MatchSnapshot) error {
+	return r.q.CreateMatchSnapshot(ctx, matchSnapshotToParams(snapshot))
 }
 
 // --- Command receipts ---

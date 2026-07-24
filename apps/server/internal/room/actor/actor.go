@@ -21,6 +21,8 @@ import (
 )
 
 const commandQueueCapacity = 256
+const eventBufferCapacity = 500
+const recoveryWindow = 5 * time.Minute
 
 // Envelope carries a command plus the idempotency and session context needed
 // to persist and authorize it.
@@ -51,29 +53,39 @@ func (c ControlCommand) Metadata() shared.CommandMetadata { return c.Meta }
 
 // Actor owns one room and serializes every authoritative mutation.
 type Actor struct {
-	roomID          shared.RoomID
-	room            *roomdomain.Room
-	match           *matchdomain.Match
-	repo            *repository.Repository
-	logger          *slog.Logger
-	cmdCh           chan actorMsg
-	stopCh          chan struct{}
-	stopOnce        chan struct{}
-	wg              sync.WaitGroup
-	timers          map[uint64]*time.Timer
-	timerMu         sync.Mutex
-	lastEventNumber uint64
-	lastEventHash   []byte
-	subscribers     map[shared.ConnectionID]subscriber
-	subMu           sync.RWMutex
-	controllers     map[shared.ParticipantID]controllerInfo
-	controllersMu   sync.RWMutex
+	roomID            shared.RoomID
+	room              *roomdomain.Room
+	match             *matchdomain.Match
+	repo              *repository.Repository
+	logger            *slog.Logger
+	cmdCh             chan actorMsg
+	stopCh            chan struct{}
+	stopOnce          sync.Once
+	wg                sync.WaitGroup
+	timers            map[uint64]*time.Timer
+	timerMu           sync.Mutex
+	lastEventNumber   uint64
+	lastEventHash     []byte
+	eventBuffer       []bufferedEvent
+	lastSnapshotEvent uint64
+	lastSnapshotAt    time.Time
+	subscribers       map[shared.ConnectionID]subscriber
+	subMu             sync.RWMutex
+	controllers       map[shared.ParticipantID]controllerInfo
+	controllersMu     sync.RWMutex
+	recoveryTimer     *time.Timer
+}
+
+type bufferedEvent struct {
+	number  uint64
+	message []byte
 }
 
 type subscriber struct {
 	participantID shared.ParticipantID
 	sendCh        chan []byte
 	disconnect    func()
+	subscribedAt  time.Time
 }
 
 type controllerInfo struct {
@@ -90,11 +102,13 @@ type actorMsg struct {
 }
 
 type controlReq struct {
-	kind          string
-	connID        shared.ConnectionID
-	participantID shared.ParticipantID
-	sendCh        chan []byte
-	disconnect    func()
+	kind            string
+	connID          shared.ConnectionID
+	participantID   shared.ParticipantID
+	sendCh          chan []byte
+	disconnect      func()
+	lastMatchID     shared.MatchID
+	lastEventNumber uint64
 }
 
 type actorResult struct {
@@ -104,6 +118,9 @@ type actorResult struct {
 
 // NewActor creates an actor for an already loaded room.
 func NewActor(room *roomdomain.Room, match *matchdomain.Match, repo *repository.Repository, logger *slog.Logger) *Actor {
+	if logger == nil {
+		logger = slog.Default()
+	}
 	a := &Actor{
 		roomID:      room.ID,
 		room:        room,
@@ -112,10 +129,10 @@ func NewActor(room *roomdomain.Room, match *matchdomain.Match, repo *repository.
 		logger:      logger,
 		cmdCh:       make(chan actorMsg, commandQueueCapacity),
 		stopCh:      make(chan struct{}),
-		stopOnce:    make(chan struct{}),
 		timers:      make(map[uint64]*time.Timer),
 		subscribers: make(map[shared.ConnectionID]subscriber),
 		controllers: make(map[shared.ParticipantID]controllerInfo),
+		eventBuffer: make([]bufferedEvent, 0, eventBufferCapacity),
 	}
 	a.wg.Add(1)
 	go a.run()
@@ -124,13 +141,34 @@ func NewActor(room *roomdomain.Room, match *matchdomain.Match, repo *repository.
 
 // Stop gracefully terminates the actor run loop.
 func (a *Actor) Stop() {
-	close(a.stopCh)
-	a.timerMu.Lock()
-	for _, t := range a.timers {
-		t.Stop()
-	}
-	a.timerMu.Unlock()
-	a.wg.Wait()
+	a.stopOnce.Do(func() {
+		close(a.stopCh)
+		a.timerMu.Lock()
+		for _, timer := range a.timers {
+			timer.Stop()
+		}
+		if a.recoveryTimer != nil {
+			a.recoveryTimer.Stop()
+		}
+		a.timerMu.Unlock()
+		a.wg.Wait()
+		if a.match != nil && a.lastEventNumber > a.lastSnapshotEvent {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			tx, txRepo, err := a.repo.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+			if err == nil {
+				err = a.createSnapshot(ctx, txRepo, a.match, a.lastEventNumber, time.Now())
+				if err == nil {
+					err = repository.TxCommit(tx)
+				} else {
+					_ = tx.Rollback()
+				}
+			}
+			if err != nil {
+				a.logger.Error("graceful snapshot failed", "matchID", a.match.ID, "error", err)
+			}
+		}
+	})
 }
 
 // Subscribe registers a WebSocket connection for broadcasts and returns the
@@ -160,10 +198,10 @@ func (a *Actor) Subscribe(ctx context.Context, connID shared.ConnectionID, parti
 
 // Sync sends the current controller state and authoritative snapshots directly to the
 // supplied channel. It is safe for reconnect and explicit resynchronization.
-func (a *Actor) Sync(ctx context.Context, connID shared.ConnectionID, participantID shared.ParticipantID, sendCh chan []byte) error {
+func (a *Actor) Sync(ctx context.Context, connID shared.ConnectionID, participantID shared.ParticipantID, sendCh chan []byte, lastMatchID shared.MatchID, lastEventNumber uint64) error {
 	resp := make(chan actorResult, 1)
 	select {
-	case a.cmdCh <- actorMsg{ctx: ctx, control: &controlReq{kind: "sync", connID: connID, participantID: participantID, sendCh: sendCh}, resp: resp}:
+	case a.cmdCh <- actorMsg{ctx: ctx, control: &controlReq{kind: "sync", connID: connID, participantID: participantID, sendCh: sendCh, lastMatchID: lastMatchID, lastEventNumber: lastEventNumber}, resp: resp}:
 	case <-a.stopCh:
 		return shared.DomainError{Code: shared.ErrServerBusy}
 	case <-ctx.Done():
@@ -221,6 +259,67 @@ func (a *Actor) Submit(ctx context.Context, env Envelope) (Result, error) {
 	}
 }
 
+// EnterRecovery durably pauses an active match before the server is declared
+// ready. It is called only by startup recovery.
+func (a *Actor) EnterRecovery(ctx context.Context, now time.Time) error {
+	if a.match == nil || a.match.State != shared.MatchActive {
+		return nil
+	}
+	generation := a.match.RecoveryGeneration + 1
+	requestID := shared.RequestID(generateRequestID())
+	_, err := a.Submit(ctx, Envelope{
+		RequestID:   requestID,
+		CommandType: "match.enter_recovery",
+		Command: matchdomain.EnterRecoveryCommand{
+			Meta: shared.CommandMetadata{
+				RequestID:       requestID,
+				Target:          shared.NewMatchTarget(a.match.ID),
+				ExpectedVersion: uint64(a.match.Version),
+			},
+			Generation: generation,
+		},
+	})
+	if err != nil {
+		return err
+	}
+	a.scheduleRecoveryDeadline(now, generation, now)
+	return nil
+}
+
+// ResumeRecoveryDeadline restores a previously committed recovery timer after
+// another process interruption.
+func (a *Actor) ResumeRecoveryDeadline(now time.Time) {
+	if a.match == nil || a.match.State != shared.MatchRecoveryPending || a.match.RecoveryStartedAt == nil {
+		return
+	}
+	a.scheduleRecoveryDeadline(a.match.RecoveryStartedAt.Time(), a.match.RecoveryGeneration, now)
+}
+
+func (a *Actor) scheduleRecoveryDeadline(startedAt time.Time, generation uint64, now time.Time) {
+	delay := startedAt.Add(recoveryWindow).Sub(now)
+	if delay < 0 {
+		delay = 0
+	}
+	a.recoveryTimer = time.AfterFunc(delay, func() {
+		requestID := shared.RequestID(generateRequestID())
+		_, submitErr := a.Submit(context.Background(), Envelope{
+			RequestID:   requestID,
+			CommandType: "match.cancel_recovery",
+			Command: matchdomain.CancelRecoveryCommand{
+				Meta: shared.CommandMetadata{
+					RequestID:       requestID,
+					Target:          shared.NewMatchTarget(a.match.ID),
+					ExpectedVersion: uint64(a.match.Version),
+				},
+				Generation: generation,
+			},
+		})
+		if submitErr != nil {
+			a.logger.Error("recovery timeout failed", "matchID", a.match.ID, "error", submitErr)
+		}
+	})
+}
+
 // HasActiveTimers reports whether the actor owns a pending authoritative timer.
 func (a *Actor) HasActiveTimers() bool {
 	a.timerMu.Lock()
@@ -232,6 +331,14 @@ func (a *Actor) HasActiveTimers() bool {
 // durable command queue.
 func (a *Actor) PublishEphemeral(message []byte) {
 	a.broadcast(message, "", false)
+}
+
+// NotifyMaintenance tells clients to reconnect without recording ephemeral
+// operational state in the event log.
+func (a *Actor) NotifyMaintenance() {
+	a.broadcast(a.serverMessage("connection.status", 0, 0, map[string]any{
+		"connectionState": "maintenance",
+	}), "", false)
 }
 
 func (a *Actor) run() {
@@ -331,6 +438,7 @@ func (a *Actor) process(ctx context.Context, env Envelope) (Result, error) {
 	expectedMatchVersion := int64(0)
 	nextEventHash := a.lastEventHash
 	nextEventNumber := a.lastEventNumber
+	roomChanged := false
 
 	// StartCountdown requires a fresh MatchID and an eligible puzzle when the
 	// transport command does not provide them.
@@ -396,6 +504,12 @@ func (a *Actor) process(ctx context.Context, env Envelope) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
+	if _, cancelled := env.Command.(matchdomain.CancelRecoveryCommand); cancelled {
+		working.State = shared.RoomCancelled
+		working.Version++
+		working.LastActivityAt = mustActorTimestamp(now)
+		roomChanged = true
+	}
 	if roomEvents == nil {
 		roomEvents = []roomdomain.Event{}
 	}
@@ -418,7 +532,7 @@ func (a *Actor) process(ctx context.Context, env Envelope) (Result, error) {
 	}
 
 	// Match-only commands do not rewrite an unchanged Room projection.
-	if !strings.HasPrefix(env.CommandType, "match.") || len(roomEvents) > 0 {
+	if !strings.HasPrefix(env.CommandType, "match.") || len(roomEvents) > 0 || roomChanged {
 		expectedVersion := int64(a.room.Version)
 		participants := make([]gen.RoomParticipant, 0, len(working.Participants))
 		for _, p := range working.Participants {
@@ -472,10 +586,10 @@ func (a *Actor) process(ctx context.Context, env Envelope) (Result, error) {
 			}
 			matchParticipants := matchParticipantsToGen(workingMatch)
 			var matchResult *gen.MatchResult
-			if workingMatch.State == shared.MatchCompleted && workingMatch.Result != nil {
+			if (workingMatch.State == shared.MatchCompleted || workingMatch.State == shared.MatchCancelled) && workingMatch.Result != nil {
 				matchResult = &gen.MatchResult{
 					MatchID:      workingMatch.ID.String(),
-					ResultReason: "completed",
+					ResultReason: workingMatch.Result.Reason,
 					ElapsedMs:    int64(workingMatch.Result.ElapsedMilliseconds),
 					Assisted:     boolToInt(workingMatch.Result.Assisted),
 					CreatedAtMs:  now.UnixMilli(),
@@ -491,6 +605,11 @@ func (a *Actor) process(ctx context.Context, env Envelope) (Result, error) {
 		}
 		if len(matchEvents) > 0 {
 			nextEventNumber = uint64(matchEvents[len(matchEvents)-1].Metadata().EventNumber)
+		}
+		if a.shouldSnapshot(nextEventNumber, string(workingMatch.State), now) {
+			if err := a.createSnapshot(ctx, txRepo, workingMatch, nextEventNumber, now); err != nil {
+				return Result{}, shared.DomainError{Code: shared.ErrPersistenceFailed}
+			}
 		}
 	}
 
@@ -525,7 +644,7 @@ func (a *Actor) process(ctx context.Context, env Envelope) (Result, error) {
 		a.controllersMu.Unlock()
 	}
 	a.afterCommit(env.Command, working, now)
-	originBroadcasts := a.broadcastSnapshotAndEvents(env.ConnectionID, roomEvents, matchEvents)
+	originBroadcasts := a.broadcastSnapshotAndEvents(env.ConnectionID, roomChanged || len(roomEvents) > 0, matchEvents)
 
 	return Result{Events: roomEvents, Response: response, OriginBroadcasts: originBroadcasts}, nil
 }
@@ -546,7 +665,7 @@ func (a *Actor) processControl(ctx context.Context, req controlReq) (Result, err
 		a.controllersMu.Unlock()
 
 		a.subMu.Lock()
-		a.subscribers[req.connID] = subscriber{participantID: req.participantID, sendCh: req.sendCh, disconnect: req.disconnect}
+		a.subscribers[req.connID] = subscriber{participantID: req.participantID, sendCh: req.sendCh, disconnect: req.disconnect, subscribedAt: time.Now()}
 		a.subMu.Unlock()
 
 		var role shared.ParticipationRole
@@ -575,7 +694,31 @@ func (a *Actor) processControl(ctx context.Context, req controlReq) (Result, err
 			}))
 		}
 
-		// Send authoritative snapshot(s) to the new subscriber.
+		if isController && a.match != nil && a.match.State == shared.MatchRecoveryPending {
+			meta := shared.CommandMetadata{
+				RequestID:                  shared.RequestID(generateRequestID()),
+				AuthenticatedParticipantID: req.participantID,
+				ClientSequence:             1,
+				Target:                     shared.NewMatchTarget(a.match.ID),
+				ExpectedVersion:            uint64(a.match.Version),
+			}
+			_, err := a.process(ctx, Envelope{
+				RequestID:   meta.RequestID,
+				CommandType: "match.recover",
+				Command: matchdomain.RecoverMatchCommand{
+					Meta:       meta,
+					Generation: a.match.RecoveryGeneration,
+				},
+				ConnectionID: req.connID,
+			})
+			if err != nil {
+				return Result{}, err
+			}
+			if a.recoveryTimer != nil {
+				a.recoveryTimer.Stop()
+				a.recoveryTimer = nil
+			}
+		}
 		a.sendToConnection(req.connID, a.serverMessage("room.snapshot", 0, uint64(a.room.Version), map[string]any{
 			"room": a.buildRoomView(a.room, a.match, req.participantID),
 		}))
@@ -620,22 +763,50 @@ func (a *Actor) processControl(ctx context.Context, req controlReq) (Result, err
 			"room": a.buildRoomView(a.room, a.match, req.participantID),
 		}))
 		if a.match != nil {
-			_ = a.sendToConnection(req.connID, a.serverMessage("match.snapshot", a.lastEventNumber, uint64(a.match.Version), map[string]any{
-				"match": buildMatchView(a.match),
-			}))
+			if req.lastMatchID == a.match.ID && a.sendBufferedEvents(req.connID, req.lastEventNumber) {
+				_ = a.sendToConnection(req.connID, a.serverMessage("connection.status", 0, 0, map[string]any{
+					"connectionState":         "connected",
+					"currentMatchEventNumber": a.lastEventNumber,
+				}))
+			} else {
+				_ = a.sendToConnection(req.connID, a.serverMessage("match.snapshot", a.lastEventNumber, uint64(a.match.Version), map[string]any{
+					"match": buildMatchView(a.match),
+				}))
+			}
 		}
 		return Result{}, nil
 	case "unsubscribe":
 		a.subMu.Lock()
 		delete(a.subscribers, req.connID)
 		a.subMu.Unlock()
-
 		a.controllersMu.Lock()
 		for pid, ctrl := range a.controllers {
-			if ctrl.connectionID == req.connID {
-				delete(a.controllers, pid)
-				break
+			if ctrl.connectionID != req.connID {
+				continue
 			}
+			var replacement shared.ConnectionID
+			var earliest time.Time
+			a.subMu.RLock()
+			for candidateID, candidate := range a.subscribers {
+				if candidate.participantID == pid &&
+					(replacement == "" || candidate.subscribedAt.Before(earliest) ||
+						(candidate.subscribedAt.Equal(earliest) && candidateID.String() < replacement.String())) {
+					replacement = candidateID
+					earliest = candidate.subscribedAt
+				}
+			}
+			a.subMu.RUnlock()
+			ctrl.generation++
+			ctrl.connectionID = replacement
+			ctrl.lastSequence = 0
+			a.controllers[pid] = ctrl
+			if replacement != "" {
+				a.sendToConnection(replacement, a.serverMessage("connection.status", 0, 0, map[string]any{
+					"isController":         true,
+					"controllerGeneration": ctrl.generation,
+				}))
+			}
+			break
 		}
 		a.controllersMu.Unlock()
 		return Result{}, nil
@@ -950,6 +1121,10 @@ func (a *Actor) requestControl(env Envelope) (Result, error) {
 			"controllerGeneration": generation,
 		}))
 	}
+	a.sendToConnection(env.ConnectionID, a.serverMessage("connection.status", 0, 0, map[string]any{
+		"isController":         true,
+		"controllerGeneration": generation,
+	}))
 
 	return Result{Response: a.controlResponse(participantID, generation, true)}, nil
 }
@@ -963,9 +1138,9 @@ func (a *Actor) controlResponse(participantID shared.ParticipantID, generation u
 	return b
 }
 
-func (a *Actor) broadcastSnapshotAndEvents(originConnID shared.ConnectionID, roomEvents []roomdomain.Event, matchEvents []matchdomain.Event) [][]byte {
+func (a *Actor) broadcastSnapshotAndEvents(originConnID shared.ConnectionID, roomChanged bool, matchEvents []matchdomain.Event) [][]byte {
 	originBroadcasts := make([][]byte, 0, 1+len(matchEvents))
-	if len(roomEvents) > 0 {
+	if roomChanged {
 		msg := a.serverMessage("room.snapshot", 0, uint64(a.room.Version), map[string]any{
 			"room": a.buildRoomView(a.room, a.match, ""),
 		})
@@ -983,8 +1158,57 @@ func (a *Actor) broadcastSnapshotAndEvents(originConnID shared.ConnectionID, roo
 		})
 		a.broadcast(msg, originConnID, true)
 		originBroadcasts = append(originBroadcasts, msg)
+		a.appendBufferedEvent(uint64(meta.EventNumber), msg)
 	}
 	return originBroadcasts
+}
+
+func (a *Actor) appendBufferedEvent(number uint64, message []byte) {
+	a.eventBuffer = append(a.eventBuffer, bufferedEvent{
+		number:  number,
+		message: append([]byte(nil), message...),
+	})
+	if len(a.eventBuffer) > eventBufferCapacity {
+		copy(a.eventBuffer, a.eventBuffer[len(a.eventBuffer)-eventBufferCapacity:])
+		a.eventBuffer = a.eventBuffer[:eventBufferCapacity]
+	}
+}
+
+func (a *Actor) appendBufferedDomainEvent(event matchdomain.Event) {
+	payload, err := matchEventPublicPayload(event)
+	if err != nil {
+		return
+	}
+	meta := event.Metadata()
+	message := a.serverMessage("match.event", uint64(meta.EventNumber), uint64(meta.AggregateVersion), map[string]any{
+		"event": map[string]any{
+			"type":    eventTypeName(event),
+			"payload": json.RawMessage(payload),
+		},
+	})
+	a.appendBufferedEvent(uint64(meta.EventNumber), message)
+}
+
+// sendBufferedEvents returns true when the in-memory buffer completely covers
+// the requested suffix, including the already-up-to-date case.
+func (a *Actor) sendBufferedEvents(connID shared.ConnectionID, after uint64) bool {
+	if after >= a.lastEventNumber {
+		return true
+	}
+	if len(a.eventBuffer) == 0 || a.eventBuffer[0].number > after+1 {
+		return false
+	}
+	expected := after + 1
+	for _, event := range a.eventBuffer {
+		if event.number <= after {
+			continue
+		}
+		if event.number != expected || !a.sendToConnection(connID, event.message) {
+			return false
+		}
+		expected++
+	}
+	return expected == a.lastEventNumber+1
 }
 
 func buildMatchView(m *matchdomain.Match) map[string]any {
@@ -999,7 +1223,7 @@ func buildMatchView(m *matchdomain.Match) map[string]any {
 			cellView["value"] = uint8(*c.Value)
 		}
 		if !c.IsClue {
-			cellView["notes"] = c.Notes.Digits()
+			cellView["notes"] = digitsToInts(c.Notes.Digits())
 			cellView["attribution"] = c.Attribution.String()
 			cellView["correct"] = c.Correct
 		}
@@ -1024,6 +1248,7 @@ func buildMatchView(m *matchdomain.Match) map[string]any {
 		"penaltiesMs":   m.PenaltiesMs,
 		"hintsUsed":     m.HintsUsed,
 		"assisted":      m.Assisted,
+		"pausedMs":      m.PausedMilliseconds,
 		"mistakes":      mistakes,
 		"contributions": contributions,
 		"rules": map[string]any{
@@ -1042,6 +1267,13 @@ func buildMatchView(m *matchdomain.Match) map[string]any {
 	}
 	if m.CompletedAt != nil {
 		view["completedAt"] = m.CompletedAt.Milliseconds()
+	}
+	if m.RecoveryStartedAt != nil {
+		view["recoveryStartedAt"] = m.RecoveryStartedAt.Milliseconds()
+		view["recoveryGeneration"] = m.RecoveryGeneration
+	}
+	if m.Result != nil {
+		view["result"] = m.Result
 	}
 	return view
 }
@@ -1104,4 +1336,12 @@ func generateRequestID() string {
 		panic(err)
 	}
 	return reqID.String()
+}
+
+func mustActorTimestamp(now time.Time) shared.Timestamp {
+	timestamp, err := shared.NewTimestamp(now)
+	if err != nil {
+		panic(err)
+	}
+	return timestamp
 }

@@ -21,6 +21,11 @@
     type RoomClientState,
     type ServerMessage,
   } from '$lib/realtime/room-reducer';
+  import {
+    loadCheckpointByMatchId,
+    saveCheckpoint,
+    type ConnectionCheckpoint,
+  } from '$lib/realtime/checkpoint';
   import { RoomSocket } from '$lib/realtime/socket';
 
   let { data } = $props();
@@ -38,6 +43,7 @@
   let connectionAnnouncement = $state('');
   let leaveRequestId = $state('');
   let pingedCell = $state<number | null>(null);
+  let persistedCheckpoint = $state<ConnectionCheckpoint | null>(null);
 
   const match = $derived(matchState.confirmed);
   const room = $derived(roomState.room as Room | null);
@@ -73,7 +79,9 @@
       matchState.recoveryRequired,
   );
   const elapsedMs = $derived(
-    match?.startedAt ? Math.max(0, now - match.startedAt) + match.penaltiesMs : 0,
+    match?.startedAt
+      ? Math.max(0, now - match.startedAt - (match.pausedMs ?? 0)) + match.penaltiesMs
+      : 0,
   );
   const selectedLocker = $derived(
     lockWarning ? participantViews.get(lockWarning.participantId) : undefined,
@@ -89,6 +97,18 @@
   function handleMessage(message: ServerMessage) {
     roomState = applyRoomMessage(roomState, message);
     matchState = applyMatchMessage(matchState, message);
+    if (roomState.room) {
+      persistedCheckpoint = {
+        roomCode: roomState.room.code,
+        roomVersion: roomState.room.version,
+        matchId: matchState.confirmed?.id ?? data.matchId,
+        matchVersion: matchState.confirmed?.version,
+        matchEventNumber: matchState.lastEventNumber,
+        pendingRequestIds: [...matchState.pending.keys()],
+        updatedAt: Date.now(),
+      };
+      void saveCheckpoint(persistedCheckpoint);
+    }
 
     if (message.type === 'ephemeral.focus') {
       const participantId = message.payload.participantId;
@@ -187,6 +207,7 @@
         match.version,
         { cell: selectedIndex, digits: [digit] },
       );
+      if (!requestId) return;
       queueCommand(
         { kind: removing ? 'remove_note' : 'add_note', cell: selectedIndex, digit },
         requestId,
@@ -197,6 +218,7 @@
       cell: selectedIndex,
       value: digit,
     });
+    if (!requestId) return;
     queueCommand({ kind: 'place', cell: selectedIndex, digit }, requestId);
     socket.publishFocus(selectedIndex, false);
   }
@@ -208,6 +230,7 @@
     const requestId = socket.matchCommand('match.erase_value', match.id, match.version, {
       cell: selectedIndex,
     });
+    if (!requestId) return;
     queueCommand({ kind: 'erase', cell: selectedIndex }, requestId);
   }
 
@@ -217,6 +240,7 @@
       level,
       targetCell: level === 'Nudge' && selectedIndex >= 0 ? selectedIndex : undefined,
     });
+    if (!requestId) return;
     queueCommand({ kind: 'hint', cell: selectedIndex >= 0 ? selectedIndex : undefined }, requestId);
   }
 
@@ -233,33 +257,56 @@
 
   function leaveMatch() {
     if (!room || !socket || leaveRequestId) return;
-    leaveRequestId = socket.roomCommand('room.leave', room.id, room.version, {
+    const requestId = socket.roomCommand('room.leave', room.id, room.version, {
       intent: 'leave_match',
     });
+    if (requestId) leaveRequestId = requestId;
   }
 
   onMount(() => {
     inputMode = loadGamePreferences(localStorage).inputMode;
     const clock = window.setInterval(() => (now = Date.now()), 1_000);
-    socket = new RoomSocket(
-      () => ({
-        roomCode: room?.code ?? '',
-        roomVersion: room?.version,
-        matchId: data.matchId,
-        matchEventNumber: matchState.lastEventNumber,
-      }),
-      handleMessage,
-      (connection) => {
-        roomState = { ...roomState, connection };
-        connectionAnnouncement =
-          connection === 'reconnecting' ? 'Connection lost. Reconnecting.' : 'Connecting.';
-      },
-      (requestId) => {
-        matchState = markPendingUncertain(matchState, requestId);
-      },
-    );
-    socket.connect();
+    let disposed = false;
+    void loadCheckpointByMatchId(data.matchId)
+      .catch(() => null)
+      .then((checkpoint) => {
+        if (disposed) return;
+        persistedCheckpoint = checkpoint;
+        socket = new RoomSocket(
+          () => ({
+            roomCode: room?.code ?? persistedCheckpoint?.roomCode ?? '',
+            roomVersion: room?.version ?? persistedCheckpoint?.roomVersion,
+            matchId: data.matchId,
+            matchEventNumber:
+              matchState.lastEventNumber || persistedCheckpoint?.matchEventNumber || 0,
+          }),
+          handleMessage,
+          (connection) => {
+            roomState = { ...roomState, connection };
+            connectionAnnouncement =
+              connection === 'reconnecting'
+                ? 'Connection lost. Reconnecting.'
+                : connection === 'offline'
+                  ? 'You are offline. Gameplay is paused.'
+                  : connection === 'synchronizing'
+                    ? 'Connected. Syncing the latest moves.'
+                    : connection === 'read_only'
+                      ? 'This Room is active in another tab.'
+                      : connection === 'maintenance'
+                        ? 'Ninefold is restarting. Reconnecting.'
+                        : connection === 'recovery_failed'
+                          ? 'This Match could not be restored.'
+                          : 'Connecting.';
+          },
+          (requestId) => {
+            matchState = markPendingUncertain(matchState, requestId);
+          },
+        );
+        socket.restoreUncertain(checkpoint?.pendingRequestIds ?? []);
+        socket.connect();
+      });
     return () => {
+      disposed = true;
       clearInterval(clock);
       if (selectedIndex >= 0) socket?.publishFocus(selectedIndex, false);
       socket?.close();
@@ -300,6 +347,32 @@
       <button class="button secondary" type="button" onclick={() => socket?.synchronize()}>
         Resynchronize board
       </button>
+    </section>
+  {/if}
+
+  {#if roomState.connection === 'reconnecting' || roomState.connection === 'offline'}
+    <section class="recovery-banner" role="status">
+      <p>Connection lost. Reconnecting… Confirmed moves remain visible; gameplay is paused.</p>
+    </section>
+  {:else if roomState.connection === 'synchronizing'}
+    <section class="recovery-banner" role="status">
+      <p>Connected. Syncing the latest moves…</p>
+    </section>
+  {:else if roomState.connection === 'maintenance' || match?.state === 'RecoveryPending'}
+    <section class="recovery-banner" role="status">
+      <p>Ninefold restarted and is restoring this Match.</p>
+    </section>
+  {:else if roomState.connection === 'read_only' || (match && !roomState.isController)}
+    <section class="recovery-banner" role="status">
+      <p>This Room is active in another tab.</p>
+      <button class="button secondary" type="button" onclick={() => socket?.requestControl()}>
+        Control from this tab
+      </button>
+    </section>
+  {:else if roomState.connection === 'recovery_failed' || match?.state === 'Cancelled'}
+    <section class="recovery-banner" role="alert">
+      <p>This Match could not be restored. Return home to create or join another Room.</p>
+      <a class="button secondary" href="/">Return home</a>
     </section>
   {/if}
 

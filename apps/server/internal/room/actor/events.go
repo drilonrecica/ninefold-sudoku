@@ -1,6 +1,7 @@
 package actor
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
@@ -106,12 +107,35 @@ type participantReconnectedPayload struct {
 }
 
 type matchCompletedPayload struct {
-	SchemaVersion     uint8             `json:"schemaVersion"`
-	ElapsedMs         uint64            `json:"elapsedMs"`
-	Assisted          bool              `json:"assisted"`
-	MistakesByPlayer  map[string]uint32 `json:"mistakesByPlayer"`
-	HintCount         uint32            `json:"hintCount"`
-	ContributionCount uint32            `json:"contributionCount"`
+	SchemaVersion         uint8             `json:"schemaVersion"`
+	Reason                string            `json:"reason"`
+	ElapsedMs             uint64            `json:"elapsedMs"`
+	PenaltyMs             uint64            `json:"penaltyMs"`
+	Assisted              bool              `json:"assisted"`
+	MistakesByPlayer      map[string]uint32 `json:"mistakesByPlayer"`
+	ContributionsByPlayer map[string]uint32 `json:"contributionsByPlayer"`
+	HintCount             uint32            `json:"hintCount"`
+	ContributionCount     uint32            `json:"contributionCount"`
+}
+
+type matchEnteredRecoveryPayload struct {
+	SchemaVersion uint8  `json:"schemaVersion"`
+	Generation    uint64 `json:"generation"`
+	PreviousState string `json:"previousState"`
+	StartedAtMs   int64  `json:"startedAtMs"`
+}
+
+type matchRecoveredPayload struct {
+	SchemaVersion    uint8  `json:"schemaVersion"`
+	Generation       uint64 `json:"generation"`
+	PausedIntervalMs uint64 `json:"pausedIntervalMs"`
+	RecoveredAtMs    int64  `json:"recoveredAtMs"`
+}
+
+type matchCancelledPayload struct {
+	SchemaVersion uint8  `json:"schemaVersion"`
+	Generation    uint64 `json:"generation"`
+	Reason        string `json:"reason"`
 }
 
 func matchEventsToGen(requestID shared.RequestID, m *matchdomain.Match, events []matchdomain.Event, previousHash []byte) ([]gen.MatchEvent, []byte, error) {
@@ -167,6 +191,41 @@ func matchEventsToGen(requestID shared.RequestID, m *matchdomain.Match, events [
 		previousHash = hash
 	}
 	return out, previousHash, nil
+}
+
+func validatePersistedEventChain(events []gen.MatchEvent) error {
+	previous := append([]byte(nil), genesisHash...)
+	var expectedNumber int64 = 1
+	for _, event := range events {
+		if event.EventNumber != expectedNumber {
+			return fmt.Errorf("event gap at %d", expectedNumber)
+		}
+		if !bytes.Equal(event.PreviousHash, previous) {
+			return fmt.Errorf("previous hash mismatch at event %d", event.EventNumber)
+		}
+		envelope := matchEventPublicEnvelope{
+			ProofVersion:         proofVersion,
+			MatchID:              event.MatchID,
+			EventNumber:          uint64(event.EventNumber),
+			AggregateVersion:     uint64(event.AggregateVersion),
+			PublicEventType:      event.PublicEventType,
+			PublicActorID:        event.PublicActorID.String,
+			OccurredAtMs:         event.OccurredAtMs,
+			PublicPayload:        json.RawMessage(event.PublicPayloadJson),
+			PrivatePayloadDigest: "",
+			PreviousEventHash:    event.PreviousHash,
+		}
+		calculated, err := hashEnvelope(envelope)
+		if err != nil {
+			return err
+		}
+		if !bytes.Equal(calculated, event.EventHash) {
+			return fmt.Errorf("event hash mismatch at event %d", event.EventNumber)
+		}
+		previous = event.EventHash
+		expectedNumber++
+	}
+	return nil
 }
 
 func matchEventPublicPayload(e matchdomain.Event) ([]byte, error) {
@@ -265,18 +324,45 @@ func matchEventPublicPayload(e matchdomain.Event) ([]byte, error) {
 			SchemaVersion: 1,
 			ParticipantID: ev.ParticipantID.String(),
 		}
+	case matchdomain.MatchEnteredRecoveryEvent:
+		payload = matchEnteredRecoveryPayload{
+			SchemaVersion: 1,
+			Generation:    ev.Generation,
+			PreviousState: string(ev.PreviousState),
+			StartedAtMs:   ev.StartedAt.Milliseconds(),
+		}
+	case matchdomain.MatchRecoveredEvent:
+		payload = matchRecoveredPayload{
+			SchemaVersion:    1,
+			Generation:       ev.Generation,
+			PausedIntervalMs: ev.PausedIntervalMs,
+			RecoveredAtMs:    ev.RecoveredAt.Milliseconds(),
+		}
+	case matchdomain.MatchCancelledEvent:
+		payload = matchCancelledPayload{
+			SchemaVersion: 1,
+			Generation:    ev.Generation,
+			Reason:        ev.Reason,
+		}
 	case matchdomain.MatchCompletedEvent:
 		mistakes := make(map[string]uint32)
 		for p, n := range ev.Result.MistakesByPlayer {
 			mistakes[p.String()] = n
 		}
+		contributions := make(map[string]uint32)
+		for p, n := range ev.Result.ContributionsByPlayer {
+			contributions[p.String()] = n
+		}
 		payload = matchCompletedPayload{
-			SchemaVersion:     1,
-			ElapsedMs:         ev.Result.ElapsedMilliseconds,
-			Assisted:          ev.Result.Assisted,
-			MistakesByPlayer:  mistakes,
-			HintCount:         ev.Result.HintCount,
-			ContributionCount: ev.Result.ContributionCount,
+			SchemaVersion:         1,
+			Reason:                ev.Result.Reason,
+			ElapsedMs:             ev.Result.ElapsedMilliseconds,
+			PenaltyMs:             ev.Result.PenaltyMilliseconds,
+			Assisted:              ev.Result.Assisted,
+			MistakesByPlayer:      mistakes,
+			ContributionsByPlayer: contributions,
+			HintCount:             ev.Result.HintCount,
+			ContributionCount:     ev.Result.ContributionCount,
 		}
 	default:
 		return nil, fmt.Errorf("unknown match event type %T", e)
@@ -312,6 +398,12 @@ func eventTypeName(e matchdomain.Event) string {
 		return "ParticipantDisconnected"
 	case matchdomain.ParticipantReconnectedEvent:
 		return "ParticipantReconnected"
+	case matchdomain.MatchEnteredRecoveryEvent:
+		return "MatchEnteredRecovery"
+	case matchdomain.MatchRecoveredEvent:
+		return "MatchRecovered"
+	case matchdomain.MatchCancelledEvent:
+		return "MatchCancelled"
 	case matchdomain.MatchCompletedEvent:
 		return "MatchCompleted"
 	default:
@@ -518,6 +610,46 @@ func matchEventFromGen(e gen.MatchEvent) (matchdomain.Event, error) {
 			Meta:          meta,
 			ParticipantID: shared.ParticipantID(p.ParticipantID),
 		}, nil
+	case "MatchEnteredRecovery":
+		var p matchEnteredRecoveryPayload
+		if err := json.Unmarshal([]byte(e.PublicPayloadJson), &p); err != nil {
+			return nil, err
+		}
+		startedAt, err := shared.TimestampFromMilliseconds(p.StartedAtMs)
+		if err != nil {
+			return nil, err
+		}
+		return matchdomain.MatchEnteredRecoveryEvent{
+			Meta:          meta,
+			Generation:    p.Generation,
+			PreviousState: shared.MatchState(p.PreviousState),
+			StartedAt:     startedAt,
+		}, nil
+	case "MatchRecovered":
+		var p matchRecoveredPayload
+		if err := json.Unmarshal([]byte(e.PublicPayloadJson), &p); err != nil {
+			return nil, err
+		}
+		recoveredAt, err := shared.TimestampFromMilliseconds(p.RecoveredAtMs)
+		if err != nil {
+			return nil, err
+		}
+		return matchdomain.MatchRecoveredEvent{
+			Meta:             meta,
+			Generation:       p.Generation,
+			PausedIntervalMs: p.PausedIntervalMs,
+			RecoveredAt:      recoveredAt,
+		}, nil
+	case "MatchCancelled":
+		var p matchCancelledPayload
+		if err := json.Unmarshal([]byte(e.PublicPayloadJson), &p); err != nil {
+			return nil, err
+		}
+		return matchdomain.MatchCancelledEvent{
+			Meta:       meta,
+			Generation: p.Generation,
+			Reason:     p.Reason,
+		}, nil
 	case "MatchCompleted":
 		var p matchCompletedPayload
 		if err := json.Unmarshal([]byte(e.PublicPayloadJson), &p); err != nil {
@@ -527,14 +659,22 @@ func matchEventFromGen(e gen.MatchEvent) (matchdomain.Event, error) {
 		for id, n := range p.MistakesByPlayer {
 			mistakes[shared.ParticipantID(id)] = n
 		}
+		contributions := make(map[shared.ParticipantID]uint32)
+		for id, n := range p.ContributionsByPlayer {
+			contributions[shared.ParticipantID(id)] = n
+		}
 		return matchdomain.MatchCompletedEvent{
 			Meta: meta,
 			Result: matchdomain.Result{
-				ElapsedMilliseconds: p.ElapsedMs,
-				Assisted:            p.Assisted,
-				MistakesByPlayer:    mistakes,
-				HintCount:           p.HintCount,
-				ContributionCount:   p.ContributionCount,
+				Reason:                p.Reason,
+				CompletedAt:           meta.OccurredAt,
+				ElapsedMilliseconds:   p.ElapsedMs,
+				PenaltyMilliseconds:   p.PenaltyMs,
+				Assisted:              p.Assisted,
+				MistakesByPlayer:      mistakes,
+				ContributionsByPlayer: contributions,
+				HintCount:             p.HintCount,
+				ContributionCount:     p.ContributionCount,
 			},
 		}, nil
 	default:

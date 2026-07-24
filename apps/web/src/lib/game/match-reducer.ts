@@ -20,6 +20,7 @@ export const initialMatchState: MatchClientState = {
 function cloneSnapshot(snapshot: MatchSnapshot): MatchSnapshot {
   return {
     ...snapshot,
+    pausedMs: snapshot.pausedMs ?? 0,
     cells: snapshot.cells.map((cell) => ({ ...cell, notes: [...(cell.notes ?? [])] })),
     mistakes: { ...snapshot.mistakes },
     contributions: { ...snapshot.contributions },
@@ -114,6 +115,24 @@ function applyMatchEvent(
     case 'Ping':
     case 'ParticipantDisconnected':
     case 'ParticipantReconnected':
+      return next;
+    case 'MatchEnteredRecovery':
+      next.state = 'RecoveryPending';
+      next.recoveryGeneration =
+        typeof payload.generation === 'number' ? payload.generation : undefined;
+      next.recoveryStartedAt =
+        typeof payload.startedAtMs === 'number' ? payload.startedAtMs : undefined;
+      return next;
+    case 'MatchRecovered':
+      next.state = 'Active';
+      next.pausedMs =
+        (next.pausedMs ?? 0) +
+        (typeof payload.pausedIntervalMs === 'number' ? payload.pausedIntervalMs : 0);
+      delete next.recoveryStartedAt;
+      return next;
+    case 'MatchCancelled':
+      next.state = 'Cancelled';
+      delete next.recoveryStartedAt;
       return next;
     case 'MatchCompleted':
       next.state = 'Completed';

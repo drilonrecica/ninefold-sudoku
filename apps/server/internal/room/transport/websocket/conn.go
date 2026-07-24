@@ -181,8 +181,15 @@ func (c *connection) handleMessage(ctx context.Context, msg realtime.ClientMessa
 
 	switch msg.Type {
 	case realtime.ClientMessageTypeConnectionInitialize:
-		// Explicit resync after reconnect or missed events.
-		return c.actor.Sync(ctx, c.connID, c.participantID, c.sendCh)
+		var lastMatchID shared.MatchID
+		if msg.Payload.LastMatchId != nil {
+			lastMatchID = shared.MatchID(string(*msg.Payload.LastMatchId))
+		}
+		var lastEventNumber uint64
+		if msg.Payload.LastMatchEventNumber != nil {
+			lastEventNumber = uint64(*msg.Payload.LastMatchEventNumber)
+		}
+		return c.actor.Sync(ctx, c.connID, c.participantID, c.sendCh, lastMatchID, lastEventNumber)
 	case realtime.ClientMessageTypeConnectionHeartbeat:
 		return nil
 	case realtime.ClientMessageTypeConnectionRequestControl:

@@ -4,7 +4,7 @@
 
 **Execution model:** sequential phases, exactly one commit per completed phase
 
-**Current status:** Phases 1–9 committed; Phase 10 (reconnect and recovery) is next.
+**Current status:** Phases 1–10 committed; Phase 11 (results, rematch, and replay) is next.
 
 ## 1. Authority and scope
 
@@ -548,29 +548,29 @@ Make authoritative Room and Co-op Match state recover correctly across network l
 
 ### Tasks
 
-- [ ] **P10-T01 — Persist client checkpoints.** Store only non-secret RoomVersion, MatchID, Match event number, pending RequestIDs, and UI-safe recovery metadata. Never persist the Room cookie, replay capability, Solo proof, or private server payload.
-- [ ] **P10-T02 — Implement reconnect state machine.** Use bounded exponential backoff with jitter, stop on explicit leave/terminal authorization errors, distinguish offline/reconnecting/synchronizing/connected/read-only, and avoid polling while WebSocket recovery is active.
-- [ ] **P10-T03 — Recover from the event buffer.** Resume from the last contiguous event when the server buffer covers the gap; otherwise request and apply a fresh snapshot followed by ordered events.
-- [ ] **P10-T04 — Resolve disconnected input.** Prevent new multiplayer mutations while disconnected. Preserve unsent UI intent only as non-authoritative draft state and never queue it for later automatic submission.
-- [ ] **P10-T05 — Resolve uncertain commands.** Query durable receipt status for every timed-out RequestID before allowing a replacement action. Reconcile committed success, rejection, pending, and unknown outcomes without double application.
-- [ ] **P10-T06 — Complete controller transfer.** Coordinate tabs with platform APIs, show secondary tabs as read-only, transfer control explicitly or after lease loss, and prevent simultaneous controllers after wake/sleep races.
-- [ ] **P10-T07 — Schedule snapshots.** Create snapshots at bounded event/time thresholds and before graceful shutdown without blocking ordinary commands longer than the command budget. Continue to treat events as authoritative.
-- [ ] **P10-T08 — Reconstruct on startup.** Verify configuration/migrations, scan nonterminal Matches, load snapshot plus subsequent events, validate invariants/hash continuity, and register recovered actors as `RecoveryPending` before accepting gameplay commands.
-- [ ] **P10-T09 — Resume current Co-op safely.** Resume when an eligible player reconnects, cancel when nobody reconnects within five minutes, exclude the full server-caused recovery interval from active elapsed time, and use generation-tagged recovery timers.
-- [ ] **P10-T10 — Handle unrecoverable state.** Keep readiness false, preserve the last valid committed state, emit a safe terminal cancellation/audit result where allowed, and never guess missing events or resurrect a completed Match.
-- [ ] **P10-T11 — Implement recovery UI.** Add accessible maintenance, reconnecting, synchronizing, recovered, read-only-tab, and unrecoverable-cancellation states with precise retry/consequence messaging.
-- [ ] **P10-T12 — Extend TLA+ models.** Cover recovery pending, reconnect eligibility, duplicate replay, stale recovery timers, completed-state protection, and eventual resume/cancel liveness.
-- [ ] **P10-T13 — Add recovery integration tests.** Exercise refresh, sleep/wake, network loss, missing buffer, snapshot fallback, uncertain receipt, controller race, host disconnect, server termination/restart, corrupted snapshot, corrupted event sequence, and recovery timeout.
+- [x] **P10-T01 — Persist client checkpoints.** Store only non-secret RoomVersion, MatchID, Match event number, pending RequestIDs, and UI-safe recovery metadata. Never persist the Room cookie, replay capability, Solo proof, or private server payload.
+- [x] **P10-T02 — Implement reconnect state machine.** Use bounded exponential backoff with jitter, stop on explicit leave/terminal authorization errors, distinguish offline/reconnecting/synchronizing/connected/read-only, and avoid polling while WebSocket recovery is active.
+- [x] **P10-T03 — Recover from the event buffer.** Resume from the last contiguous event when the server buffer covers the gap; otherwise request and apply a fresh snapshot followed by ordered events.
+- [x] **P10-T04 — Resolve disconnected input.** Prevent new multiplayer mutations while disconnected. Preserve unsent UI intent only as non-authoritative draft state and never queue it for later automatic submission.
+- [x] **P10-T05 — Resolve uncertain commands.** Query durable receipt status for every timed-out RequestID before allowing a replacement action. Reconcile committed success, rejection, pending, and unknown outcomes without double application.
+- [x] **P10-T06 — Complete controller transfer.** Coordinate tabs with platform APIs, show secondary tabs as read-only, transfer control explicitly or after lease loss, and prevent simultaneous controllers after wake/sleep races.
+- [x] **P10-T07 — Schedule snapshots.** Create snapshots at bounded event/time thresholds and before graceful shutdown without blocking ordinary commands longer than the command budget. Continue to treat events as authoritative.
+- [x] **P10-T08 — Reconstruct on startup.** Verify configuration/migrations, scan nonterminal Matches, load snapshot plus subsequent events, validate invariants/hash continuity, and register recovered actors as `RecoveryPending` before accepting gameplay commands.
+- [x] **P10-T09 — Resume current Co-op safely.** Resume when an eligible player reconnects, cancel when nobody reconnects within five minutes, exclude the full server-caused recovery interval from active elapsed time, and use generation-tagged recovery timers.
+- [x] **P10-T10 — Handle unrecoverable state.** Keep readiness false, preserve the last valid committed state, emit a safe terminal cancellation/audit result where allowed, and never guess missing events or resurrect a completed Match.
+- [x] **P10-T11 — Implement recovery UI.** Add accessible maintenance, reconnecting, synchronizing, recovered, read-only-tab, and unrecoverable-cancellation states with precise retry/consequence messaging.
+- [x] **P10-T12 — Extend TLA+ models.** Cover recovery pending, reconnect eligibility, duplicate replay, stale recovery timers, completed-state protection, and eventual resume/cancel liveness.
+- [x] **P10-T13 — Add recovery integration tests.** Exercise refresh, sleep/wake, network loss, missing buffer, snapshot fallback, uncertain receipt, controller race, host disconnect, server termination/restart, corrupted snapshot, corrupted event sequence, and recovery timeout.
 
 ### Phase gates
 
-- [ ] Refresh and reconnect restore the same participant and converge without duplicate effects.
-- [ ] A stale tab, stale timer, or stale recovery command cannot mutate current state.
-- [ ] Server restart tests use a real file-backed SQLite database and a new Go process.
-- [ ] Recovery never skips/reapplies a committed event, accepts a command before validation, or resurrects a completed Match.
-- [ ] Co-op elapsed time excludes exactly the server-caused recovery interval.
-- [ ] Controller tests cover simultaneous tabs, background throttling, browser sleep, explicit transfer, and lease expiry.
-- [ ] TLC and every cumulative test pass.
+- [x] Refresh and reconnect restore the same participant and converge without duplicate effects.
+- [x] A stale tab, stale timer, or stale recovery command cannot mutate current state.
+- [x] Server restart tests use a real file-backed SQLite database and a new Go process.
+- [x] Recovery never skips/reapplies a committed event, accepts a command before validation, or resurrects a completed Match.
+- [x] Co-op elapsed time excludes exactly the server-caused recovery interval.
+- [x] Controller tests cover simultaneous tabs, background throttling, browser sleep, explicit transfer, and lease expiry.
+- [x] TLC and every cumulative test pass.
 
 ### Commit
 

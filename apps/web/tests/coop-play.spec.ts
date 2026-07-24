@@ -76,6 +76,31 @@ test('two players complete the keyboard and touch Co-op flow and converge', asyn
   await expect(guest.locator(`#${noteCellId}`)).toHaveAttribute('aria-label', /shared notes 3/);
   await expect(host.locator(`#${noteCellId}`)).toHaveAttribute('aria-label', /shared notes 3/);
 
+  await host.reload();
+  await expect(host.getByRole('gridcell')).toHaveCount(81);
+  await expect(host.locator(`#${noteCellId}`)).toHaveAttribute('aria-label', /shared notes 3/);
+
+  await hostContext.setOffline(true);
+  await expect(host.getByText(/Connection lost\. Reconnecting/)).toBeVisible();
+  await expect(host.getByRole('region', { name: 'Number input' })).toBeVisible();
+  await hostContext.setOffline(false);
+  await expect(host.getByText('Connected and synchronized.')).toBeAttached({ timeout: 10_000 });
+
+  const observer = await hostContext.newPage();
+  await observer.goto(host.url());
+  await expect(
+    observer.getByRole('status').getByText('This Room is active in another tab.'),
+  ).toBeVisible();
+  await observer.getByRole('button', { name: 'Control from this tab' }).click();
+  await expect(
+    host.getByRole('status').getByText('This Room is active in another tab.'),
+  ).toBeVisible();
+  await host.getByRole('button', { name: 'Control from this tab' }).click();
+  await expect(
+    observer.getByRole('status').getByText('This Room is active in another tab.'),
+  ).toBeVisible();
+  await observer.close();
+
   await guest.getByRole('button', { name: 'Look here' }).click();
   await guest.getByRole('button', { name: 'Nice move' }).click();
   await expect(host.getByText('Board Guest: nice move')).toBeVisible();

@@ -184,7 +184,7 @@ func matchToGen(m *matchdomain.Match) gen.Match {
 		match.CompletedAtMs = sql.NullInt64{Int64: m.CompletedAt.Milliseconds(), Valid: true}
 	}
 	if m.Result != nil {
-		match.ResultReason = sql.NullString{String: "completed", Valid: true}
+		match.ResultReason = sql.NullString{String: m.Result.Reason, Valid: true}
 		match.ElapsedMs = sql.NullInt64{Int64: int64(m.Result.ElapsedMilliseconds), Valid: true}
 		match.Assisted = boolToInt(m.Result.Assisted)
 	}

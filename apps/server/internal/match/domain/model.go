@@ -18,12 +18,15 @@ type Rules struct {
 
 // Result contains the terminal outcome of a completed Match.
 type Result struct {
-	CompletedAt         shared.Timestamp
-	ElapsedMilliseconds uint64
-	Assisted            bool
-	MistakesByPlayer    map[shared.ParticipantID]uint32
-	HintCount           uint32
-	ContributionCount   uint32
+	Reason                string
+	CompletedAt           shared.Timestamp
+	ElapsedMilliseconds   uint64
+	PenaltyMilliseconds   uint64
+	Assisted              bool
+	MistakesByPlayer      map[shared.ParticipantID]uint32
+	ContributionsByPlayer map[shared.ParticipantID]uint32
+	HintCount             uint32
+	ContributionCount     uint32
 }
 
 // Cell represents the domain view of a single Sudoku cell.
@@ -47,19 +50,23 @@ type Match struct {
 	Puzzle       shared.AssignedPuzzle
 	Participants []shared.ParticipantID
 
-	Cells         [81]Cell
-	Values        map[shared.CellIndex]shared.Digit
-	Attribution   map[shared.CellIndex]shared.ParticipantID
-	Notes         [81]shared.CandidateSet
-	Mistakes      map[shared.ParticipantID]uint32
-	Contributions map[shared.ParticipantID]uint32
-	HintsUsed     uint32
-	PenaltiesMs   uint64
-	Assisted      bool
-	StartedAt     *shared.Timestamp
-	CompletedAt   *shared.Timestamp
-	Result        *Result
-	CreatedAt     shared.Timestamp
+	Cells                 [81]Cell
+	Values                map[shared.CellIndex]shared.Digit
+	Attribution           map[shared.CellIndex]shared.ParticipantID
+	Notes                 [81]shared.CandidateSet
+	Mistakes              map[shared.ParticipantID]uint32
+	Contributions         map[shared.ParticipantID]uint32
+	HintsUsed             uint32
+	PenaltiesMs           uint64
+	Assisted              bool
+	StartedAt             *shared.Timestamp
+	CompletedAt           *shared.Timestamp
+	PausedMilliseconds    uint64
+	RecoveryStartedAt     *shared.Timestamp
+	RecoveryGeneration    uint64
+	RecoveryPreviousState shared.MatchState
+	Result                *Result
+	CreatedAt             shared.Timestamp
 
 	processedRequestIDs map[shared.RequestID]struct{}
 }
@@ -83,6 +90,7 @@ func (m *Match) Clone() *Match {
 	if m.Result != nil {
 		result := *m.Result
 		result.MistakesByPlayer = cloneCountMap(m.Result.MistakesByPlayer)
+		result.ContributionsByPlayer = cloneCountMap(m.Result.ContributionsByPlayer)
 		clone.Result = &result
 	}
 	return &clone
@@ -184,6 +192,27 @@ type ParticipantReconnectedCommand struct {
 }
 
 func (c ParticipantReconnectedCommand) Metadata() shared.CommandMetadata { return c.Meta }
+
+type EnterRecoveryCommand struct {
+	Meta       shared.CommandMetadata
+	Generation uint64
+}
+
+func (c EnterRecoveryCommand) Metadata() shared.CommandMetadata { return c.Meta }
+
+type RecoverMatchCommand struct {
+	Meta       shared.CommandMetadata
+	Generation uint64
+}
+
+func (c RecoverMatchCommand) Metadata() shared.CommandMetadata { return c.Meta }
+
+type CancelRecoveryCommand struct {
+	Meta       shared.CommandMetadata
+	Generation uint64
+}
+
+func (c CancelRecoveryCommand) Metadata() shared.CommandMetadata { return c.Meta }
 
 // --- Events ---
 
@@ -297,6 +326,32 @@ type ParticipantReconnectedEvent struct {
 }
 
 func (e ParticipantReconnectedEvent) Metadata() shared.EventMetadata { return e.Meta }
+
+type MatchEnteredRecoveryEvent struct {
+	Meta          shared.EventMetadata
+	Generation    uint64
+	PreviousState shared.MatchState
+	StartedAt     shared.Timestamp
+}
+
+func (e MatchEnteredRecoveryEvent) Metadata() shared.EventMetadata { return e.Meta }
+
+type MatchRecoveredEvent struct {
+	Meta             shared.EventMetadata
+	Generation       uint64
+	PausedIntervalMs uint64
+	RecoveredAt      shared.Timestamp
+}
+
+func (e MatchRecoveredEvent) Metadata() shared.EventMetadata { return e.Meta }
+
+type MatchCancelledEvent struct {
+	Meta       shared.EventMetadata
+	Generation uint64
+	Reason     string
+}
+
+func (e MatchCancelledEvent) Metadata() shared.EventMetadata { return e.Meta }
 
 type MatchCompletedEvent struct {
 	Meta   shared.EventMetadata

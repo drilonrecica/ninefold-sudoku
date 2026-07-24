@@ -36,6 +36,12 @@ func (m *Match) Apply(cmd Command, nextEventNumber uint64, now time.Time) ([]Eve
 		return m.participantDisconnected(c, nextEventNumber, now)
 	case ParticipantReconnectedCommand:
 		return m.participantReconnected(c, nextEventNumber, now)
+	case EnterRecoveryCommand:
+		return m.enterRecovery(c, nextEventNumber, now)
+	case RecoverMatchCommand:
+		return m.recover(c, nextEventNumber, now)
+	case CancelRecoveryCommand:
+		return m.cancelRecovery(c, nextEventNumber, now)
 	default:
 		return nil, shared.DomainError{Code: shared.ErrMatchCommandInvalid}
 	}
@@ -475,6 +481,99 @@ func (m *Match) participantReconnected(c ParticipantReconnectedCommand, nextEven
 	return []Event{ParticipantReconnectedEvent{Meta: meta, ParticipantID: c.ParticipantID}}, nil
 }
 
+func (m *Match) enterRecovery(c EnterRecoveryCommand, nextEventNumber uint64, now time.Time) ([]Event, error) {
+	if m.State != shared.MatchActive {
+		return nil, shared.DomainError{Code: shared.ErrMatchStateInvalid}
+	}
+	if c.Generation == 0 || c.Generation <= m.RecoveryGeneration {
+		return nil, shared.DomainError{Code: shared.ErrTimerTokenStale}
+	}
+	startedAt := mustTimestamp(now)
+	previous := m.State
+	m.State = shared.MatchRecoveryPending
+	m.RecoveryPreviousState = previous
+	m.RecoveryStartedAt = &startedAt
+	m.RecoveryGeneration = c.Generation
+	m.bumpVersion()
+	meta, err := m.newEventMeta(nextEventNumber, now)
+	if err != nil {
+		return nil, err
+	}
+	return []Event{MatchEnteredRecoveryEvent{
+		Meta:          meta,
+		Generation:    c.Generation,
+		PreviousState: previous,
+		StartedAt:     startedAt,
+	}}, nil
+}
+
+func (m *Match) recover(c RecoverMatchCommand, nextEventNumber uint64, now time.Time) ([]Event, error) {
+	if m.State != shared.MatchRecoveryPending || m.RecoveryStartedAt == nil {
+		return nil, shared.DomainError{Code: shared.ErrMatchStateInvalid}
+	}
+	if c.Generation != m.RecoveryGeneration {
+		return nil, shared.DomainError{Code: shared.ErrTimerTokenStale}
+	}
+	paused := now.UnixMilli() - m.RecoveryStartedAt.Milliseconds()
+	if paused < 0 {
+		return nil, shared.DomainError{Code: shared.ErrRecoveryFailed}
+	}
+	m.PausedMilliseconds += uint64(paused)
+	if m.RecoveryPreviousState != shared.MatchActive {
+		return nil, shared.DomainError{Code: shared.ErrRecoveryFailed}
+	}
+	m.State = m.RecoveryPreviousState
+	m.RecoveryStartedAt = nil
+	m.RecoveryPreviousState = ""
+	m.bumpVersion()
+	recoveredAt := mustTimestamp(now)
+	meta, err := m.newEventMeta(nextEventNumber, now)
+	if err != nil {
+		return nil, err
+	}
+	return []Event{MatchRecoveredEvent{
+		Meta:             meta,
+		Generation:       c.Generation,
+		PausedIntervalMs: uint64(paused),
+		RecoveredAt:      recoveredAt,
+	}}, nil
+}
+
+func (m *Match) cancelRecovery(c CancelRecoveryCommand, nextEventNumber uint64, now time.Time) ([]Event, error) {
+	if m.State != shared.MatchRecoveryPending {
+		return nil, shared.DomainError{Code: shared.ErrMatchStateInvalid}
+	}
+	if c.Generation != m.RecoveryGeneration {
+		return nil, shared.DomainError{Code: shared.ErrTimerTokenStale}
+	}
+	if m.RecoveryStartedAt == nil {
+		return nil, shared.DomainError{Code: shared.ErrRecoveryFailed}
+	}
+	paused := now.UnixMilli() - m.RecoveryStartedAt.Milliseconds()
+	if paused < 0 {
+		return nil, shared.DomainError{Code: shared.ErrRecoveryFailed}
+	}
+	m.PausedMilliseconds += uint64(paused)
+	m.State = shared.MatchCancelled
+	completedAt := mustTimestamp(now)
+	m.CompletedAt = &completedAt
+	result := m.buildResult(now)
+	result.Reason = "RecoveryFailure"
+	m.Result = &result
+	m.RecoveryStartedAt = nil
+	m.RecoveryPreviousState = ""
+	m.bumpVersion()
+	meta, err := m.newEventMeta(nextEventNumber, now)
+	if err != nil {
+		return nil, err
+	}
+	return []Event{MatchCancelledEvent{
+		Meta:       meta,
+		Generation: c.Generation,
+		Reason:     "RecoveryFailure",
+	}}, nil
+}
+
 func (m *Match) requireGameplay(meta shared.CommandMetadata, now time.Time) error {
 	if m.State != shared.MatchActive {
 		return shared.DomainError{Code: shared.ErrMatchStateInvalid}
@@ -511,7 +610,10 @@ func (m *Match) checkCompleted(now time.Time) bool {
 func (m *Match) buildResult(now time.Time) Result {
 	var elapsed uint64
 	if m.StartedAt != nil {
-		elapsed = uint64(mustTimestamp(now).Milliseconds() - m.StartedAt.Milliseconds())
+		wall := mustTimestamp(now).Milliseconds() - m.StartedAt.Milliseconds()
+		if wall > int64(m.PausedMilliseconds) {
+			elapsed = uint64(wall) - m.PausedMilliseconds
+		}
 	}
 	mistakes := make(map[shared.ParticipantID]uint32)
 	for p, n := range m.Mistakes {
@@ -522,12 +624,15 @@ func (m *Match) buildResult(now time.Time) Result {
 		contributions += n
 	}
 	return Result{
-		CompletedAt:         mustTimestamp(now),
-		ElapsedMilliseconds: elapsed + m.PenaltiesMs,
-		Assisted:            m.Assisted,
-		MistakesByPlayer:    mistakes,
-		HintCount:           m.HintsUsed,
-		ContributionCount:   contributions,
+		Reason:                "PuzzleCompleted",
+		CompletedAt:           mustTimestamp(now),
+		ElapsedMilliseconds:   elapsed,
+		PenaltyMilliseconds:   m.PenaltiesMs,
+		Assisted:              m.Assisted,
+		MistakesByPlayer:      mistakes,
+		ContributionsByPlayer: cloneCountMap(m.Contributions),
+		HintCount:             m.HintsUsed,
+		ContributionCount:     contributions,
 	}
 }
 
@@ -541,6 +646,8 @@ func (m *Match) ApplyEvent(e Event) error {
 		m.State = shared.MatchCountdown
 	case MatchStartedEvent:
 		m.State = shared.MatchActive
+		startedAt := ev.Meta.OccurredAt
+		m.StartedAt = &startedAt
 	case ValuePlacedEvent:
 		m.Values[ev.Cell] = ev.Digit
 		m.Cells[ev.Cell].Value = &ev.Digit
@@ -585,6 +692,32 @@ func (m *Match) ApplyEvent(e Event) error {
 	case PingEvent:
 	case ParticipantDisconnectedEvent:
 	case ParticipantReconnectedEvent:
+	case MatchEnteredRecoveryEvent:
+		if m.State == shared.MatchCompleted {
+			return shared.DomainError{Code: shared.ErrMatchStateInvalid}
+		}
+		m.State = shared.MatchRecoveryPending
+		m.RecoveryGeneration = ev.Generation
+		m.RecoveryPreviousState = ev.PreviousState
+		startedAt := ev.StartedAt
+		m.RecoveryStartedAt = &startedAt
+	case MatchRecoveredEvent:
+		if m.State != shared.MatchRecoveryPending || ev.Generation != m.RecoveryGeneration {
+			return shared.DomainError{Code: shared.ErrRecoveryFailed}
+		}
+		m.PausedMilliseconds += ev.PausedIntervalMs
+		m.State = m.RecoveryPreviousState
+		m.RecoveryPreviousState = ""
+		m.RecoveryStartedAt = nil
+	case MatchCancelledEvent:
+		if m.State == shared.MatchCompleted {
+			return shared.DomainError{Code: shared.ErrMatchStateInvalid}
+		}
+		m.State = shared.MatchCancelled
+		completedAt := ev.Meta.OccurredAt
+		m.CompletedAt = &completedAt
+		m.RecoveryStartedAt = nil
+		m.RecoveryPreviousState = ""
 	case MatchCompletedEvent:
 		m.State = shared.MatchCompleted
 		m.Result = &ev.Result
@@ -617,6 +750,7 @@ func ReconstructMatch(puzzle shared.AssignedPuzzle, rules Rules, participants []
 		if err := m.ApplyEvent(e); err != nil {
 			return nil, err
 		}
+		m.Version = shared.MatchVersion(e.Metadata().AggregateVersion)
 	}
 	return m, nil
 }

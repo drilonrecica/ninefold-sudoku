@@ -251,6 +251,7 @@ const ServerMessagePayloadAggregateRoom ServerMessagePayloadAggregate = "room"
 type ServerMessagePayloadConnectionState string
 
 const ServerMessagePayloadConnectionStateConnected ServerMessagePayloadConnectionState = "connected"
+const ServerMessagePayloadConnectionStateMaintenance ServerMessagePayloadConnectionState = "maintenance"
 const ServerMessagePayloadConnectionStateReadOnly ServerMessagePayloadConnectionState = "read_only"
 const ServerMessagePayloadConnectionStateReconnecting ServerMessagePayloadConnectionState = "reconnecting"
 const ServerMessagePayloadConnectionStateRecoveryFailed ServerMessagePayloadConnectionState = "recovery_failed"

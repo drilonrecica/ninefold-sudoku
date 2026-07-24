@@ -98,26 +98,26 @@ Create a reproducible monorepo, pinned toolchains, validated configuration bound
 
 ### Tasks
 
-- [ ] **P01-T01 — Establish workspace metadata.** Add the Go workspace, pnpm workspace, root package metadata, exact lockfiles, editor-neutral formatting rules, `.gitignore`, `.env.example`, and license-preserving package metadata. Pin supported Go and Node/pnpm versions in committed toolchain configuration.
-- [ ] **P01-T02 — Scaffold only active applications.** Create `apps/server` and `apps/web` with the minimum files needed to compile and run. Do not create empty Race, Duel, Daily, reporting, PWA, or future-locale modules.
-- [ ] **P01-T03 — Bootstrap the Go service.** Add `apps/server/go.mod`, a minimal `cmd/api` entry point, internal platform configuration package, graceful context wiring, and a deterministic build-version value. The service may expose only a minimal development liveness response in this phase.
-- [ ] **P01-T04 — Bootstrap the SvelteKit application.** Configure SvelteKit, TypeScript strict mode, Vite, Tailwind CSS, shadcn-svelte prerequisites, adapter-node, ESLint, Prettier, Vitest, and Playwright. Render a minimal semantic page without third-party network assets.
-- [ ] **P01-T05 — Implement one configuration boundary.** Parse environment variables once into a validated Go struct. Reject missing mandatory values, malformed URLs/origins, invalid timeouts, and production placeholder secrets. Business packages must not read environment variables directly.
-- [ ] **P01-T06 — Add root commands.** Implement the root `Makefile` commands defined in Architecture §56. Commands for not-yet-existing subsystems must explain that the subsystem is not present and return a non-success status when invoked as a required gate; convert them to real checks in the owning phase.
-- [ ] **P01-T07 — Add baseline CI.** Create GitHub Actions jobs for Go formatting/vet/test, frontend formatting/lint/typecheck/unit test, and both builds. Pin action revisions, use lockfile-frozen installs, enable dependency caching without caching secrets, and cancel superseded branch runs.
-- [ ] **P01-T08 — Add dependency maintenance.** Configure Dependabot or the repository-approved equivalent for Go, pnpm, and GitHub Actions with bounded update frequency. Do not auto-merge dependency changes.
-- [ ] **P01-T09 — Add test foundations.** Establish Go table-test helpers, frontend test setup, deterministic timezone/locale defaults, and temporary-directory conventions. Tests must not rely on network access or developer-global state.
-- [ ] **P01-T10 — Document local startup.** Update README development instructions with prerequisites, environment setup, root commands, ports, and the fact that implementation is incomplete. Do not claim features that do not exist.
+- [x] **P01-T01 — Establish workspace metadata.** Add the Go workspace, pnpm workspace, root package metadata, exact lockfiles, editor-neutral formatting rules, `.gitignore`, `.env.example`, and license-preserving package metadata. Pin supported Go and Node/pnpm versions in committed toolchain configuration.
+- [x] **P01-T02 — Scaffold only active applications.** Create `apps/server` and `apps/web` with the minimum files needed to compile and run. Do not create empty Race, Duel, Daily, reporting, PWA, or future-locale modules.
+- [x] **P01-T03 — Bootstrap the Go service.** Add `apps/server/go.mod`, a minimal `cmd/api` entry point, internal platform configuration package, graceful context wiring, and a deterministic build-version value. The service may expose only a minimal development liveness response in this phase.
+- [x] **P01-T04 — Bootstrap the SvelteKit application.** Configure SvelteKit, TypeScript strict mode, Vite, Tailwind CSS, shadcn-svelte prerequisites, adapter-node, ESLint, Prettier, Vitest, and Playwright. Render a minimal semantic page without third-party network assets.
+- [x] **P01-T05 — Implement one configuration boundary.** Parse environment variables once into a validated Go struct. Reject missing mandatory values, malformed URLs/origins, invalid timeouts, and production placeholder secrets. Business packages must not read environment variables directly.
+- [x] **P01-T06 — Add root commands.** Implement the root `Makefile` commands defined in Architecture §56. Commands for not-yet-existing subsystems must explain that the subsystem is not present and return a non-success status when invoked as a required gate; convert them to real checks in the owning phase.
+- [x] **P01-T07 — Add baseline CI.** Create GitHub Actions jobs for Go formatting/vet/test, frontend formatting/lint/typecheck/unit test, and both builds. Pin action revisions, use lockfile-frozen installs, enable dependency caching without caching secrets, and cancel superseded branch runs.
+- [x] **P01-T08 — Add dependency maintenance.** Configure Dependabot or the repository-approved equivalent for Go, pnpm, and GitHub Actions with bounded update frequency. Do not auto-merge dependency changes.
+- [x] **P01-T09 — Add test foundations.** Establish Go table-test helpers, frontend test setup, deterministic timezone/locale defaults, and temporary-directory conventions. Tests must not rely on network access or developer-global state.
+- [x] **P01-T10 — Document local startup.** Update README development instructions with prerequisites, environment setup, root commands, ports, and the fact that implementation is incomplete. Do not claim features that do not exist.
 
 ### Phase gates
 
-- [ ] `go test ./...`, `go vet ./...`, and Go formatting checks pass from the server module.
-- [ ] Frozen pnpm install, frontend lint, formatting check, typecheck, unit tests, and production build pass.
-- [ ] Root `make test`, `make lint`, and `make build` execute the real available checks.
-- [ ] Server startup fails safely for invalid configuration and succeeds with development configuration.
-- [ ] Web and server artifacts contain no production secret, absolute developer path, or unexpected external request.
-- [ ] CI reproduces local checks from a clean checkout.
-- [ ] `git diff --check` passes and the staged diff contains no unrelated feature implementation.
+- [x] `go test ./...`, `go vet ./...`, and Go formatting checks pass from the server module.
+- [x] Frozen pnpm install, frontend lint, formatting check, typecheck, unit tests, and production build pass.
+- [x] Root `make test`, `make lint`, and `make build` execute the real available checks.
+- [x] Server startup fails safely for invalid configuration and succeeds with development configuration.
+- [x] Web and server artifacts contain no production secret, absolute developer path, or unexpected external request.
+- [x] CI reproduces local checks from a clean checkout.
+- [x] `git diff --check` passes and the staged diff contains no unrelated feature implementation.
 
 ### Commit
 

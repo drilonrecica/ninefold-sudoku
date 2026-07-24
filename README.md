@@ -4,7 +4,8 @@ Ninefold Sudoku is a privacy-first multiplayer Sudoku web application for privat
 
 ## Project status
 
-This repository currently contains the canonical product, domain, architecture, and design specifications plus the implementation task plan and version roadmap. Application implementation has not started.
+The repository contains the canonical specifications and the first implementation foundation. The
+MVP gameplay itself is not implemented yet.
 
 The current delivery target is the full `0.3.0` MVP:
 
@@ -29,6 +30,39 @@ Read the canonical documents in authority order:
 4. [Design specification](docs/DESIGN.md)
 
 See [AGENTS.md](AGENTS.md) for contributor rules and documentation authority.
+
+## Local development
+
+Prerequisites:
+
+- Go 1.26.5
+- Node.js 24.18.0
+- pnpm 11.12.0
+
+Copy `.env.example` to `.env`, review the development-only credentials, then export the variables
+before starting the applications:
+
+```sh
+set -a
+. ./.env
+set +a
+pnpm install --frozen-lockfile
+make dev
+```
+
+The web development server listens on `http://localhost:5173`; the Go API listens on
+`http://127.0.0.1:8080` and exposes `/health/live`.
+
+Available root checks:
+
+```sh
+make test
+make lint
+make build
+```
+
+`make generate`, `make migrate`, `make puzzles`, `make e2e`, and `make tla` fail with the phase
+that will implement them. This is intentional: incomplete subsystems are not reported as passing.
 
 ## Planning and delivery
 

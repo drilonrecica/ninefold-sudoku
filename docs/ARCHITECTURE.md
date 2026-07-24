@@ -3041,6 +3041,7 @@ Parse environment once into one validated struct.
 Canonical variables:
 
 ```text
+NINEFOLD_ENVIRONMENT
 NINEFOLD_PUBLIC_URL
 NINEFOLD_HTTP_ADDRESS
 NINEFOLD_DATABASE_PATH
@@ -3058,6 +3059,11 @@ NINEFOLD_SHUTDOWN_TIMEOUT
 
 Requirements:
 
+- `NINEFOLD_ENVIRONMENT` is exactly `development`, `test`, or `production`;
+- production public and allowed-origin URLs use HTTPS;
+- the cookie secret is base64-encoded and decodes to at least 32 bytes;
+- the replay signing key is a base64-encoded PKCS#8 Ed25519 private key;
+- the replay signing key ID and administrator proxy header use bounded safe syntax;
 - fail startup on missing mandatory values;
 - reject placeholder secrets in production;
 - reject retention values that exceed domain policy;

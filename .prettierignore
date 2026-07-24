@@ -1,0 +1,9 @@
+apps/web/.svelte-kit
+apps/web/build
+apps/server/bin
+contracts/generated
+docs
+AGENTS.md
+ROADMAP.md
+TASKS.md
+pnpm-lock.yaml

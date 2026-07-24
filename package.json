@@ -1,0 +1,24 @@
+{
+  "name": "ninefold-sudoku",
+  "version": "0.3.0",
+  "private": true,
+  "license": "MIT",
+  "packageManager": "pnpm@11.12.0",
+  "engines": {
+    "node": "24.18.0",
+    "pnpm": "11.12.0"
+  },
+  "scripts": {
+    "build": "pnpm --filter @ninefold/web build",
+    "check": "pnpm --filter @ninefold/web check",
+    "dev": "pnpm --filter @ninefold/web dev",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "pnpm --filter @ninefold/web lint",
+    "test": "pnpm --filter @ninefold/web test"
+  },
+  "devDependencies": {
+    "prettier": "3.9.6",
+    "prettier-plugin-svelte": "4.1.1"
+  }
+}

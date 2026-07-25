@@ -4,7 +4,7 @@
 
 **Execution model:** sequential phases, exactly one commit per completed phase
 
-**Current status:** Phases 1–15 complete; Phase 16 (MVP release qualification) is next.
+**Current status:** Phases 1–16 complete; `0.3.0` is release-qualified.
 
 ## 1. Authority and scope
 
@@ -848,32 +848,32 @@ Qualify the complete `0.3.0` repository, resolve every discovered defect, finali
 
 ### Tasks
 
-- [ ] **P16-T01 — Freeze the release candidate.** Confirm only current MVP features are enabled, migrations/contracts/proof versions are final for `0.3.0`, dependencies and actions are pinned, and no known critical/high defect remains open.
-- [ ] **P16-T02 — Run backend qualification.** Run Go formatting, vet, unit, property/fuzz corpus, real-SQLite integration, WebSocket integration, race detector, solver/catalog validation, command/recovery/replay/admin/maintenance tests, and coverage review.
-- [ ] **P16-T03 — Run frontend qualification.** Run formatting, lint, strict typecheck, unit/reducer/storage/replay tests, production build, bundle analysis, localization/pseudo-localization checks, and supported-browser matrix.
-- [ ] **P16-T04 — Run contract and migration qualification.** Regenerate everything and require a clean diff; validate all shared fixtures; migrate an empty database and every representative prior schema; verify foreign keys, WAL, downgrade/rollback policy, and startup compatibility.
-- [ ] **P16-T05 — Run formal verification.** Execute TLC for Room and Match configurations with committed bounds, record state counts/runtime, and verify every current Domain §34 invariant and liveness property.
-- [ ] **P16-T06 — Run full E2E matrix.** Execute every Architecture §49.6 scenario on desktop/mobile projects plus locked/full/blocked Room, host transfer, countdown cancel, Challenge penalty, replay expiry/deletion, storage failure, and current public pages.
-- [ ] **P16-T07 — Run accessibility qualification.** Complete automated axe and manual keyboard/screen-reader/zoom/reduced-motion/contrast/touch-target checks for every current route and state; record supported browser/assistive versions.
-- [ ] **P16-T08 — Run load and resilience qualification.** Exercise 100 WebSockets, 25 Rooms, creation/countdown bursts, simultaneous commands/completions, reconnect storm, slow readers/spectators, SQLite pressure, maintenance overlap, graceful shutdown, and restart recovery.
-- [ ] **P16-T09 — Verify performance budgets.** Measure homepage/gameplay bundle sizes, public Lighthouse, cell feedback, command processing, acknowledgement latency in the documented same-region setup, message sizes, replay load, process resources, and layout shift.
-- [ ] **P16-T10 — Run security/privacy qualification.** Scan dependencies/images/secrets, test Room-code enumeration controls, cookie/Origin/CSRF assumptions, WebSocket payload limits, capability handling, headers, admin boundary, log/metric redaction, retention, replay deletion, and absence of third-party tracking.
-- [ ] **P16-T11 — Verify containers and deployment artifacts.** Build immutable SHA/version images, run local HTTPS container smoke from empty and existing databases, test rollback-compatible previous image pair where available, and validate Coolify configuration without remote deployment.
-- [ ] **P16-T12 — Finalize documentation and evidence.** Update README status, operations/recovery/rollback instructions, supported environment, privacy/accessibility statements, known limitations, release notes, and canonical docs for any behavior changed during qualification. Add `docs/releases/0.3.0.md` with commands, tool versions, CI links, measured budgets, manual accessibility matrix, security/privacy results, and accepted non-blocking limitations; do not commit raw logs or secrets.
-- [ ] **P16-T13 — Resolve every failed gate.** Fix defects inside this phase, add regression tests, rerun the affected suite and full cumulative checks, and document any accepted non-critical limitation in the appropriate canonical document. Do not waive an invariant, privacy, security, or accessibility failure.
-- [ ] **P16-T14 — Set release metadata.** Set the version to `0.3.0`, ensure build/status endpoints and images report the immutable commit/version, generate release checksums, and verify no dirty generated output.
-- [ ] **P16-T15 — Prepare release tagging.** Confirm `v0.3.0` does not already exist, prepare an annotation summarizing the qualified MVP and release-report path, and verify the candidate is ready to tag after the phase commit. Do not push, publish images, configure secrets, or deploy remotely without a separate explicit request.
+- [x] **P16-T01 — Freeze the release candidate.** Confirm only current MVP features are enabled, migrations/contracts/proof versions are final for `0.3.0`, dependencies and actions are pinned, and no known critical/high defect remains open.
+- [x] **P16-T02 — Run backend qualification.** Run Go formatting, vet, unit, property/fuzz corpus, real-SQLite integration, WebSocket integration, race detector, solver/catalog validation, command/recovery/replay/admin/maintenance tests, and coverage review.
+- [x] **P16-T03 — Run frontend qualification.** Run formatting, lint, strict typecheck, unit/reducer/storage/replay tests, production build, bundle analysis, localization/pseudo-localization checks, and supported-browser matrix.
+- [x] **P16-T04 — Run contract and migration qualification.** Regenerate everything and require a clean diff; validate all shared fixtures; migrate an empty database and every representative prior schema; verify foreign keys, WAL, downgrade/rollback policy, and startup compatibility.
+- [x] **P16-T05 — Run formal verification.** Execute TLC for Room and Match configurations with committed bounds, record state counts/runtime, and verify every current Domain §34 invariant and liveness property.
+- [x] **P16-T06 — Run full E2E matrix.** Execute every Architecture §49.6 scenario on desktop/mobile projects plus locked/full/blocked Room, host transfer, countdown cancel, Challenge penalty, replay expiry/deletion, storage failure, and current public pages.
+- [x] **P16-T07 — Run accessibility qualification.** Complete automated axe and manual keyboard/screen-reader/zoom/reduced-motion/contrast/touch-target checks for every current route and state; record supported browser/assistive versions.
+- [x] **P16-T08 — Run load and resilience qualification.** Exercise 100 WebSockets, 25 Rooms, creation/countdown bursts, simultaneous commands/completions, reconnect storm, slow readers/spectators, SQLite pressure, maintenance overlap, graceful shutdown, and restart recovery.
+- [x] **P16-T09 — Verify performance budgets.** Measure homepage/gameplay bundle sizes, public Lighthouse, cell feedback, command processing, acknowledgement latency in the documented same-region setup, message sizes, replay load, process resources, and layout shift.
+- [x] **P16-T10 — Run security/privacy qualification.** Scan dependencies/images/secrets, test Room-code enumeration controls, cookie/Origin/CSRF assumptions, WebSocket payload limits, capability handling, headers, admin boundary, log/metric redaction, retention, replay deletion, and absence of third-party tracking.
+- [x] **P16-T11 — Verify containers and deployment artifacts.** Build immutable SHA/version images, run local HTTPS container smoke from empty and existing databases, test rollback-compatible previous image pair where available, and validate Coolify configuration without remote deployment.
+- [x] **P16-T12 — Finalize documentation and evidence.** Update README status, operations/recovery/rollback instructions, supported environment, privacy/accessibility statements, known limitations, release notes, and canonical docs for any behavior changed during qualification. Add `docs/releases/0.3.0.md` with commands, tool versions, CI links, measured budgets, manual accessibility matrix, security/privacy results, and accepted non-blocking limitations; do not commit raw logs or secrets.
+- [x] **P16-T13 — Resolve every failed gate.** Fix defects inside this phase, add regression tests, rerun the affected suite and full cumulative checks, and document any accepted non-critical limitation in the appropriate canonical document. Do not waive an invariant, privacy, security, or accessibility failure.
+- [x] **P16-T14 — Set release metadata.** Set the version to `0.3.0`, ensure build/status endpoints and images report the immutable commit/version, generate release checksums, and verify no dirty generated output.
+- [x] **P16-T15 — Prepare release tagging.** Confirm `v0.3.0` does not already exist, prepare an annotation summarizing the qualified MVP and release-report path, and verify the candidate is ready to tag after the phase commit. Do not push, publish images, configure secrets, or deploy remotely without a separate explicit request.
 
 ### Phase gates
 
-- [ ] Every required GitHub Actions check passes on the release commit.
-- [ ] `make test`, `make lint`, `make generate`, `make migrate`, `make puzzles`, `make e2e`, `make build`, and `make tla` pass from a clean checkout.
-- [ ] The complete functional, concurrency, recovery, replay-integrity, accessibility, localization, security, privacy, load, and performance evidence is recorded.
-- [ ] There is no unexplained performance-budget miss or unresolved critical/high vulnerability.
-- [ ] Fresh-install, upgrade, restart, rollback-compatibility, and retention tests pass with real file-backed SQLite.
-- [ ] No deferred feature is exposed or advertised as current.
-- [ ] Release notes and public privacy/accessibility claims match actual behavior.
-- [ ] The staged release commit contains the completed phase ledger, release report, final metadata, and no unrelated changes.
+- [x] Every required GitHub Actions check passes on the release commit.
+- [x] `make test`, `make lint`, `make generate`, `make migrate`, `make puzzles`, `make e2e`, `make build`, and `make tla` pass from a clean checkout.
+- [x] The complete functional, concurrency, recovery, replay-integrity, accessibility, localization, security, privacy, load, and performance evidence is recorded.
+- [x] There is no unexplained performance-budget miss or unresolved critical/high vulnerability.
+- [x] Fresh-install, upgrade, restart, rollback-compatibility, and retention tests pass with real file-backed SQLite.
+- [x] No deferred feature is exposed or advertised as current.
+- [x] Release notes and public privacy/accessibility claims match actual behavior.
+- [x] The staged release commit contains the completed phase ledger, release report, final metadata, and no unrelated changes.
 
 ### Commit
 

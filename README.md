@@ -4,10 +4,7 @@ Ninefold Sudoku is a privacy-first multiplayer Sudoku web application for privat
 
 ## Project status
 
-The repository contains the canonical specifications and the first implementation foundation. The
-MVP gameplay itself is not implemented yet.
-
-The current delivery target is the full `0.3.0` MVP:
+The `0.3.0` full MVP / portfolio beta is implemented and release-qualified:
 
 - production-grade Co-op multiplayer;
 - online Solo with device-local progress;
@@ -17,6 +14,10 @@ The current delivery target is the full `0.3.0` MVP:
 - English UI built on localization-ready contracts;
 - responsive WCAG 2.2 AA gameplay;
 - deployment to a single Coolify-managed VPS.
+
+The release is packaged for deployment but is not deployed by repository automation. See the
+[0.3.0 qualification report](docs/releases/0.3.0.md) and
+[Coolify runbook](deploy/COOLIFY.md).
 
 Race, Duel, Daily Ninefold, offline Solo, Explain hints, full spectator UX, additional locales, and PWA installation are deferred. Their detailed specifications are provisional until the corresponding feature enters scope.
 
@@ -59,10 +60,20 @@ Available root checks:
 make test
 make lint
 make build
+make generate
+make migrate
+make puzzles
+make e2e
+make tla
 ```
 
-`make generate`, `make migrate`, `make puzzles`, `make e2e`, and `make tla` fail with the phase
-that will implement them. This is intentional: incomplete subsystems are not reported as passing.
+For the production-like local HTTPS path, run:
+
+```sh
+NINEFOLD_ENV_FILE=.env docker compose up --build
+```
+
+Then open `https://localhost:8443`. The local Caddy certificate is intentionally development-only.
 
 ## Planning and delivery
 

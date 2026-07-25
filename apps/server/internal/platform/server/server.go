@@ -143,7 +143,7 @@ func New(address, buildVersion string, cfg config.Config, db *sqlite.DB, repo *r
 	wsHandler := roomws.NewHandler(repo, registry, cfg, logger, metrics)
 	wsHandler.RegisterRoutes(router)
 
-	replayHandler := replayhttp.NewHandler(repo, logger)
+	replayHandler := replayhttp.NewHandler(repo, logger, metrics)
 	replayHandler.RegisterRoutes(router)
 
 	soloHandler := solohttp.NewHandler(repo, cfg.CookieSecret)

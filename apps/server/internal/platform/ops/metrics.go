@@ -16,19 +16,20 @@ import (
 )
 
 type Metrics struct {
-	mu                       sync.Mutex
-	httpTotals               map[string]uint64
-	runtime                  func(context.Context) RuntimeMetrics
-	commandCount             uint64
-	commandLatencySeconds    float64
-	commandRejections        map[string]uint64
-	recoverySuccess          uint64
-	recoveryFailure          uint64
-	sqliteTransactionCount   uint64
-	sqliteTransactionSeconds float64
-	sqliteBusyEvents         uint64
-	puzzleAssignmentFailures uint64
-	reconnects               uint64
+	mu                         sync.Mutex
+	httpTotals                 map[string]uint64
+	runtime                    func(context.Context) RuntimeMetrics
+	commandCount               uint64
+	commandLatencySeconds      float64
+	commandRejections          map[string]uint64
+	recoverySuccess            uint64
+	recoveryFailure            uint64
+	sqliteTransactionCount     uint64
+	sqliteTransactionSeconds   float64
+	sqliteBusyEvents           uint64
+	puzzleAssignmentFailures   uint64
+	reconnects                 uint64
+	replayVerificationFailures uint64
 }
 
 func NewMetrics() *Metrics {
@@ -103,6 +104,12 @@ func (m *Metrics) ObserveReconnect() {
 	m.mu.Unlock()
 }
 
+func (m *Metrics) ObserveReplayVerificationFailure() {
+	m.mu.Lock()
+	m.replayVerificationFailures++
+	m.mu.Unlock()
+}
+
 func (m *Metrics) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		recorder := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
@@ -141,6 +148,7 @@ func (m *Metrics) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	sqliteCount, sqliteSeconds := m.sqliteTransactionCount, m.sqliteTransactionSeconds
 	sqliteBusy, puzzleFailures := m.sqliteBusyEvents, m.puzzleAssignmentFailures
 	reconnects := m.reconnects
+	replayFailures := m.replayVerificationFailures
 	m.mu.Unlock()
 	if provider != nil {
 		current := provider(r.Context())
@@ -169,6 +177,8 @@ func (m *Metrics) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "ninefold_puzzle_assignment_failures_total %d\n", puzzleFailures)
 	fmt.Fprintln(w, "# TYPE ninefold_reconnects_total counter")
 	fmt.Fprintf(w, "ninefold_reconnects_total %d\n", reconnects)
+	fmt.Fprintln(w, "# TYPE ninefold_replay_verification_failures_total counter")
+	fmt.Fprintf(w, "ninefold_replay_verification_failures_total %d\n", replayFailures)
 	fmt.Fprintln(w, "# TYPE ninefold_http_requests_total counter")
 	for key, count := range totals {
 		parts := strings.Split(key, "|")

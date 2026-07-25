@@ -1,6 +1,7 @@
 package http
 
 import (
+	"bytes"
 	"compress/gzip"
 	"database/sql"
 	"encoding/base64"
@@ -18,6 +19,7 @@ import (
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/persistence/repository"
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/platform/idgen"
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/replay/capability"
+	replayproof "github.com/drilonrecica/ninefold-sudoku/apps/server/internal/replay/proof"
 	roomsession "github.com/drilonrecica/ninefold-sudoku/apps/server/internal/room/session"
 )
 
@@ -27,12 +29,21 @@ const (
 )
 
 type Handler struct {
-	repo   *repository.Repository
-	logger *slog.Logger
+	repo     *repository.Repository
+	logger   *slog.Logger
+	observer Observer
 }
 
-func NewHandler(repo *repository.Repository, logger *slog.Logger) *Handler {
-	return &Handler{repo: repo, logger: logger}
+type Observer interface {
+	ObserveReplayVerificationFailure()
+}
+
+func NewHandler(repo *repository.Repository, logger *slog.Logger, observers ...Observer) *Handler {
+	handler := &Handler{repo: repo, logger: logger}
+	if len(observers) > 0 {
+		handler.observer = observers[0]
+	}
+	return handler
 }
 
 func (h *Handler) RegisterRoutes(router chi.Router) {
@@ -177,6 +188,9 @@ func (h *Handler) GetReplay(w http.ResponseWriter, r *http.Request) {
 	}
 	document, err := h.projectReplay(r, stored)
 	if err != nil {
+		if h.observer != nil {
+			h.observer.ObserveReplayVerificationFailure()
+		}
 		h.logger.Warn("replay projection failed", "replayID", stored.ReplayID, "error", err)
 		writeUnavailable(w)
 		return
@@ -258,12 +272,16 @@ func (h *Handler) projectReplay(r *http.Request, stored gen.ReplayCapability) (r
 	}
 	events := make([]replayEvent, 0, len(rows))
 	var expected int64 = 1
+	previousHash := replayproof.GenesisHash
 	for _, row := range rows {
-		if row.EventNumber != expected {
+		if row.EventNumber != expected || !bytes.Equal(row.PreviousHash, previousHash) {
 			return replayDocument{}, errors.New("event sequence gap")
 		}
 		var payload map[string]any
 		if err := json.Unmarshal([]byte(row.PublicPayloadJson), &payload); err != nil {
+			return replayDocument{}, err
+		}
+		if err := verifyReplayEvent(stored.MatchID, row); err != nil {
 			return replayDocument{}, err
 		}
 		events = append(events, replayEvent{
@@ -274,6 +292,7 @@ func (h *Handler) projectReplay(r *http.Request, stored gen.ReplayCapability) (r
 			PreviousEventHash:    base64.StdEncoding.EncodeToString(row.PreviousHash),
 			EventHash:            hex.EncodeToString(row.EventHash),
 		})
+		previousHash = row.EventHash
 		expected++
 	}
 	resultPlayers, err := h.repo.GetMatchResultPlayers(ctx, stored.MatchID)
@@ -287,6 +306,9 @@ func (h *Handler) projectReplay(r *http.Request, stored gen.ReplayCapability) (r
 	seal, err := h.repo.GetReplaySeal(ctx, stored.MatchID)
 	if err != nil {
 		return replayDocument{}, errors.New("replay seal unavailable")
+	}
+	if seal.FinalEventNumber != int64(len(rows)) || !bytes.Equal(seal.FinalEventHash, previousHash) {
+		return replayDocument{}, errors.New("replay seal boundary mismatch")
 	}
 	return replayDocument{
 		SchemaVersion: 1, ReplayID: stored.ReplayID, MatchID: stored.MatchID,
@@ -303,6 +325,21 @@ func (h *Handler) projectReplay(r *http.Request, stored gen.ReplayCapability) (r
 			KeyID: seal.SigningKeyID, Signature: base64.StdEncoding.EncodeToString(seal.Signature),
 		},
 	}, nil
+}
+
+func verifyReplayEvent(matchID string, row gen.MatchEvent) error {
+	computedHash, err := replayproof.HashEnvelope(replayproof.Envelope{
+		ProofVersion: replayproof.Version, MatchID: matchID,
+		EventNumber: uint64(row.EventNumber), AggregateVersion: uint64(row.AggregateVersion),
+		PublicEventType: row.PublicEventType, PublicActorID: row.PublicActorID.String,
+		OccurredAtMs: row.OccurredAtMs, PublicPayload: json.RawMessage(row.PublicPayloadJson),
+		PrivatePayloadDigest: hex.EncodeToString(row.PrivatePayloadDigest),
+		PreviousEventHash:    row.PreviousHash,
+	})
+	if err != nil || !bytes.Equal(computedHash, row.EventHash) {
+		return errors.New("replay event hash mismatch")
+	}
+	return nil
 }
 
 func containsParticipant(participants []gen.MatchParticipant, participantID string) bool {

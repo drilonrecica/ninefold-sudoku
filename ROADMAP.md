@@ -34,7 +34,7 @@ Roadmap rules:
 |---|---|---|
 | `0.1.0` | Internal capability gate | Local two-browser Co-op play |
 | `0.2.0` | Internal capability gate | Persistent and recoverable Co-op vertical slice |
-| `0.3.0` | Current target | Full MVP / portfolio beta |
+| `0.3.0` | Release-qualified | Full MVP / portfolio beta |
 | `0.4.0` | Planned; provisional rules | Race mode |
 | `0.5.0` | Planned; provisional rules | Duel mode |
 | `0.6.0` | Planned; provisional rules | Daily Ninefold |

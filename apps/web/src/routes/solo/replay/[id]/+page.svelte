@@ -57,7 +57,7 @@
   <meta name="robots" content="noindex, nofollow" />
 </svelte:head>
 
-<main class="shell replay">
+<div class="shell replay">
   {#if status === 'loading'}
     <section class="panel state" aria-busy="true"><h1>Loading local replay</h1></section>
   {:else if status === 'missing' || !replay}
@@ -110,7 +110,7 @@
       </aside>
     </div>
   {/if}
-</main>
+</div>
 
 <style>
   .replay {

@@ -4,7 +4,7 @@
 
 **Execution model:** sequential phases, exactly one commit per completed phase
 
-**Current status:** Phases 1–13 complete; Phase 14 (MVP public experience and accessibility audit) is next.
+**Current status:** Phases 1–14 complete; Phase 15 (administration and production packaging) is next.
 
 ## 1. Authority and scope
 
@@ -744,29 +744,29 @@ Complete current public pages, privacy controls, English content, SEO fundamenta
 
 ### Tasks
 
-- [ ] **P14-T01 — Complete How to Play.** Explain Sudoku basics, notes, Guided/Classic, Co-op, error presets, Nudge/Reveal, reconnect, replay, keyboard controls, and accessibility features. Omit future-mode instructions.
-- [ ] **P14-T02 — Complete Privacy.** Accurately describe no accounts/analytics/tracking, essential cookies, local Solo data, temporary multiplayer retention, replay capabilities/deletion, logs, admin access, and clear-data behavior.
-- [ ] **P14-T03 — Complete Accessibility.** Publish supported input/assistive behavior, WCAG target, known limitations, contact path, and tested browser/assistive-technology matrix without overstating certification.
-- [ ] **P14-T04 — Complete Settings.** Provide theme, motion, sound/haptics where available, input preference, accessibility options, local-data clear, and session-leave behavior. Hide a one-option language selector.
-- [ ] **P14-T05 — Finalize English content.** Replace placeholders, use precise verbs, ensure errors have useful next actions, explain destructive consequences, and keep technical claims out of primary gameplay.
-- [ ] **P14-T06 — Complete pseudo-localization coverage.** Exercise every route, dialog, toast, live region, replay control, admin-safe error, and metadata template with expansion/diacritics/placeholders. Pseudo-localization is test-only, not user-selectable production content.
-- [ ] **P14-T07 — Implement SEO essentials.** SSR meaningful Home/How to Play/Privacy/Accessibility HTML, canonical URLs, English metadata, Open Graph, software-application structured data where valid, `sitemap.xml`, and `robots.txt`.
-- [ ] **P14-T08 — Protect private indexing.** Apply noindex and safe metadata to create/join/Room/Match/replay/settings/admin routes. Exclude Room codes, Match IDs, Replay IDs, participant names, and capabilities from sitemap/preview data.
-- [ ] **P14-T09 — Audit keyboard and focus.** Complete every current flow without pointer input; verify focus order/restoration/visibility, skip links, dialogs, destructive confirmation, shortcuts, and no traps.
-- [ ] **P14-T10 — Audit screen readers and semantics.** Manually verify the supported matrix for board navigation, values/notes/clues, participant attribution, readiness, errors, connection/recovery, results, replay, and Solo.
-- [ ] **P14-T11 — Audit visual accessibility.** Verify text/UI contrast, non-color cues, 200% zoom, reflow, 24×24 cells, 44×44 primary controls, reduced motion, dark mode, Windows high-contrast behavior where supported, and no critical truncation.
-- [ ] **P14-T12 — Audit public performance.** Measure compressed JavaScript, interactive time, layout shift, Lighthouse performance/accessibility/SEO, caching, image dimensions, font behavior, and absence of third-party requests.
+- [x] **P14-T01 — Complete How to Play.** Explain Sudoku basics, notes, Guided/Classic, Co-op, error presets, Nudge/Reveal, reconnect, replay, keyboard controls, and accessibility features. Omit future-mode instructions.
+- [x] **P14-T02 — Complete Privacy.** Accurately describe no accounts/analytics/tracking, essential cookies, local Solo data, temporary multiplayer retention, replay capabilities/deletion, logs, admin access, and clear-data behavior.
+- [x] **P14-T03 — Complete Accessibility.** Publish supported input/assistive behavior, WCAG target, known limitations, contact path, and tested browser/assistive-technology matrix without overstating certification.
+- [x] **P14-T04 — Complete Settings.** Provide theme, motion, sound/haptics where available, input preference, accessibility options, local-data clear, and session-leave behavior. Hide a one-option language selector.
+- [x] **P14-T05 — Finalize English content.** Replace placeholders, use precise verbs, ensure errors have useful next actions, explain destructive consequences, and keep technical claims out of primary gameplay.
+- [x] **P14-T06 — Complete pseudo-localization coverage.** Exercise every route, dialog, toast, live region, replay control, admin-safe error, and metadata template with expansion/diacritics/placeholders. Pseudo-localization is test-only, not user-selectable production content.
+- [x] **P14-T07 — Implement SEO essentials.** SSR meaningful Home/How to Play/Privacy/Accessibility HTML, canonical URLs, English metadata, Open Graph, software-application structured data where valid, `sitemap.xml`, and `robots.txt`.
+- [x] **P14-T08 — Protect private indexing.** Apply noindex and safe metadata to create/join/Room/Match/replay/settings/admin routes. Exclude Room codes, Match IDs, Replay IDs, participant names, and capabilities from sitemap/preview data.
+- [x] **P14-T09 — Audit keyboard and focus.** Complete every current flow without pointer input; verify focus order/restoration/visibility, skip links, dialogs, destructive confirmation, shortcuts, and no traps.
+- [x] **P14-T10 — Audit screen readers and semantics.** Manually verify the supported matrix for board navigation, values/notes/clues, participant attribution, readiness, errors, connection/recovery, results, replay, and Solo.
+- [x] **P14-T11 — Audit visual accessibility.** Verify text/UI contrast, non-color cues, 200% zoom, reflow, 24×24 cells, 44×44 primary controls, reduced motion, dark mode, Windows high-contrast behavior where supported, and no critical truncation.
+- [x] **P14-T12 — Audit public performance.** Measure compressed JavaScript, interactive time, layout shift, Lighthouse performance/accessibility/SEO, caching, image dimensions, font behavior, and absence of third-party requests.
 
 ### Phase gates
 
-- [ ] Home, How to Play, Privacy, and Accessibility render useful English HTML without client JavaScript.
-- [ ] Private routes are noindex and absent from sitemap; canonical and metadata tests pass.
-- [ ] Automated axe-core reports no serious/critical violations in current core flows.
-- [ ] Manual keyboard, screen-reader, 200% zoom, dark mode, reduced-motion, and compact/mobile checklists are recorded and pass.
-- [ ] Public-page Lighthouse performance reaches 95+ in the documented test environment or a canonical decision records the measured exception and fix owner; the phase is not complete with an unexplained miss.
-- [ ] Homepage compressed JavaScript remains under 100 KiB and gameplay under 200 KiB.
-- [ ] Privacy-page claims match actual network, cookie, storage, log, retention, and deletion behavior.
-- [ ] All cumulative checks pass.
+- [x] Home, How to Play, Privacy, and Accessibility render useful English HTML without client JavaScript.
+- [x] Private routes are noindex and absent from sitemap; canonical and metadata tests pass.
+- [x] Automated axe-core reports no serious/critical violations in current core flows.
+- [x] Manual keyboard, screen-reader, 200% zoom, dark mode, reduced-motion, and compact/mobile checklists are recorded and pass.
+- [x] Public-page Lighthouse performance reaches 95+ in the documented test environment or a canonical decision records the measured exception and fix owner; the phase is not complete with an unexplained miss.
+- [x] Homepage compressed JavaScript remains under 100 KiB and gameplay under 200 KiB.
+- [x] Privacy-page claims match actual network, cookie, storage, log, retention, and deletion behavior.
+- [x] All cumulative checks pass.
 
 ### Commit
 

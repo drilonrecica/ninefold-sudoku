@@ -57,6 +57,7 @@ build:
 	mkdir -p apps/server/bin
 	cd apps/server && go build -trimpath -ldflags="-s -w -X main.buildVersion=development" -o bin/ninefold-api ./cmd/api
 	pnpm --filter @ninefold/web build
+	pnpm --filter @ninefold/web budget
 
 tla: tools/tla2tools.jar
 	cd specs/room && java -XX:+UseParallelGC -cp ../../tools/tla2tools.jar tlc2.TLC RoomLifecycle.tla

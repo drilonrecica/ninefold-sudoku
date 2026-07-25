@@ -380,7 +380,7 @@
   <meta name="robots" content="noindex, nofollow" />
 </svelte:head>
 
-<main class="solo-shell">
+<div class="solo-shell">
   {#if loading}
     <section class="panel message" aria-busy="true"><h1>Loading Solo</h1></section>
   {:else if result}
@@ -518,7 +518,7 @@
       </aside>
     </div>
   {/if}
-</main>
+</div>
 
 <style>
   .solo-shell {

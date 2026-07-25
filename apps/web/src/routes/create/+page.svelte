@@ -55,7 +55,7 @@
 
 <svelte:head>
   <title>Create Room — Ninefold Sudoku</title>
-  <meta name="robots" content="noindex" />
+  <meta name="robots" content="noindex, nofollow" />
 </svelte:head>
 
 <div class="shell create-page">

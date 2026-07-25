@@ -104,7 +104,7 @@
   <meta name="referrer" content="no-referrer" />
 </svelte:head>
 
-<main class="replay-shell">
+<div class="replay-shell">
   {#if status === 'loading'}
     <section class="panel message" aria-busy="true">
       <h1>Loading replay</h1>
@@ -241,7 +241,7 @@
       Replay at event {projection.eventIndex}. {projection.completed ? 'Puzzle completed.' : ''}
     </div>
   {/if}
-</main>
+</div>
 
 <style>
   .replay-shell {

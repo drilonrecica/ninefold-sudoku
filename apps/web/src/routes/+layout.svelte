@@ -1,17 +1,40 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
+
   import ThemeSelector from '$lib/components/ThemeSelector.svelte';
-  import { t } from '$lib/i18n';
+  import { pseudoLocalize, t } from '$lib/i18n';
 
   import '../app.css';
 
   let { children } = $props();
+
+  onMount(() => {
+    document.documentElement.dataset.reduceMotion =
+      localStorage.getItem('ninefold.reducedMotion') === 'on' ? 'true' : 'false';
+    document.documentElement.dataset.highContrast =
+      localStorage.getItem('ninefold.highContrast') === 'on' ? 'true' : 'false';
+    document.documentElement.dataset.largerLabels =
+      localStorage.getItem('ninefold.largerLabels') === 'on' ? 'true' : 'false';
+    if (!import.meta.env.DEV || new URLSearchParams(location.search).get('locale') !== 'pseudo') {
+      return;
+    }
+    document.documentElement.dataset.locale = 'pseudo';
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    const nodes: Text[] = [];
+    while (walker.nextNode()) {
+      const node = walker.currentNode as Text;
+      if (node.textContent?.trim() && !node.parentElement?.closest('script, style'))
+        nodes.push(node);
+    }
+    for (const node of nodes) node.textContent = pseudoLocalize(node.textContent ?? '');
+  });
 </script>
 
 <svelte:head>
   <title>Ninefold Sudoku — Multiplayer Sudoku</title>
   <meta
     name="description"
-    content="Create a private room and solve Sudoku together without accounts, ads, or tracking."
+    content="Play Sudoku together in private co-op rooms or solve a personal puzzle without creating an account."
   />
   <meta name="theme-color" content="#5145cd" />
 </svelte:head>
@@ -33,6 +56,7 @@
       <a href="/how-to-play">{t('nav.howToPlay')}</a>
       <a href="/privacy">{t('nav.privacy')}</a>
       <a href="/accessibility">{t('nav.accessibility')}</a>
+      <a href="/settings">{t('nav.settings')}</a>
     </nav>
     <ThemeSelector />
   </div>

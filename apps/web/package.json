@@ -9,6 +9,7 @@
     "pnpm": "11.12.0"
   },
   "scripts": {
+    "budget": "node scripts/check-bundle-budgets.mjs",
     "build": "vite build",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "dev": "vite dev",

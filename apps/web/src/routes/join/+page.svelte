@@ -2,6 +2,11 @@
   let { data } = $props();
 </script>
 
+<svelte:head>
+  <title>Join Room — Ninefold Sudoku</title>
+  <meta name="robots" content="noindex, nofollow" />
+</svelte:head>
+
 <div class="shell narrow">
   <h1>Join a room</h1>
   {#if data.invalidCode}

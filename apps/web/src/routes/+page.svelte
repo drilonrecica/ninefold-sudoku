@@ -7,7 +7,27 @@
 <svelte:head>
   <link rel="canonical" href="https://ninefold.recica.dev/" />
   <meta property="og:title" content="Ninefold Sudoku — Multiplayer Sudoku" />
-  <meta property="og:description" content="Create a private room and solve Sudoku together." />
+  <meta
+    property="og:description"
+    content="Play Sudoku together in private co-op rooms or solve a personal puzzle without creating an account."
+  />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://ninefold.recica.dev/" />
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Ninefold Sudoku",
+      "applicationCategory": "GameApplication",
+      "operatingSystem": "Web",
+      "url": "https://ninefold.recica.dev/",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "EUR"
+      }
+    }
+  </script>
 </svelte:head>
 
 <div class="shell home">
@@ -50,20 +70,6 @@
     <div>
       <h2 id="coop-title">{t('home.coopTitle')}</h2>
       <p>{t('home.coopBody')}</p>
-    </div>
-  </section>
-
-  <section aria-labelledby="future-title">
-    <h2 id="future-title">{t('home.futureTitle')}</h2>
-    <div class="future-grid">
-      <article class="panel">
-        <h3>{t('home.race')}</h3>
-        <p class="muted">{t('home.futureStatus')}</p>
-      </article>
-      <article class="panel">
-        <h3>{t('home.duel')}</h3>
-        <p class="muted">{t('home.futureStatus')}</p>
-      </article>
     </div>
   </section>
 
@@ -154,9 +160,7 @@
     padding: var(--space-8);
   }
   .coop h2,
-  .coop p,
-  article h3,
-  article p {
+  .coop p {
     margin-block: 0 var(--space-2);
   }
   .board-motif {
@@ -173,18 +177,6 @@
   .board-motif .accent {
     border-color: var(--brand-primary);
     background: var(--brand-subtle);
-  }
-  section > h2 {
-    margin-top: 0;
-    font-size: clamp(1.75rem, 4vw, 2.4rem);
-  }
-  .future-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--space-4);
-  }
-  article {
-    padding: var(--space-5);
   }
   .commitments {
     display: grid;
@@ -208,7 +200,6 @@
       align-items: start;
       grid-template-columns: 1fr;
     }
-    .future-grid,
     .commitments {
       grid-template-columns: 1fr;
     }

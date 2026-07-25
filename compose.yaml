@@ -9,8 +9,6 @@ services:
       NINEFOLD_PROXY_SECRET: ${NINEFOLD_PROXY_SECRET:?NINEFOLD_PROXY_SECRET is required}
       XDG_CONFIG_HOME: /tmp/caddy-config
       XDG_DATA_HOME: /tmp/caddy-data
-    volumes:
-      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro,Z
     read_only: true
     tmpfs:
       - /tmp:size=32m,mode=1777

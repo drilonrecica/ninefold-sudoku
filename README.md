@@ -4,7 +4,7 @@ Ninefold Sudoku is a privacy-first multiplayer Sudoku web application for privat
 
 ## Project status
 
-The `0.3.1` release packages the `0.3.0` full MVP / portfolio beta as one portable, isolated
+The `0.3.2` release packages the `0.3.0` full MVP / portfolio beta as one portable, isolated
 three-service Compose stack:
 
 - production-grade Co-op multiplayer;
@@ -17,7 +17,7 @@ three-service Compose stack:
 - deployment to Coolify or a standalone Docker VPS through one Caddy gateway.
 
 The release is packaged for deployment but is not deployed by repository automation. See the
-[0.3.1 release report](docs/releases/0.3.1.md), the original
+[0.3.2 release report](docs/releases/0.3.2.md), the original
 [0.3.0 MVP qualification](docs/releases/0.3.0.md), and the
 [Coolify runbook](deploy/COOLIFY.md).
 
@@ -74,7 +74,7 @@ Generate a production environment without printing secrets:
 ```sh
 go run ./apps/server/cmd/deployment-config \
   -public-url https://ninefold.recica.dev \
-  -version 0.3.1 \
+  -version 0.3.2 \
   -output .env.production
 ```
 

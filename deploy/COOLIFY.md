@@ -10,7 +10,7 @@ From the repository root:
 ```sh
 go run ./apps/server/cmd/deployment-config \
   -public-url https://ninefold.recica.dev \
-  -version 0.3.1 \
+  -version 0.3.2 \
   -output .env.production
 ```
 
@@ -28,7 +28,7 @@ Create one resource from this repository with exactly these fields:
 | Build pack     | `Docker Compose`       |
 | Base directory | `/`                    |
 | Compose file   | `/compose.yaml`        |
-| Git reference  | immutable tag `v0.3.1` |
+| Git reference  | immutable tag `v0.3.2` |
 
 Paste every value from `.env.production` into the resource environment. Mark and lock these
 sensitive values:
@@ -47,7 +47,8 @@ After Coolify parses the Compose file:
 
 The outer Coolify Caddy terminates TLS. The bundled gateway uses HTTP only on its private port 8080,
 routes same-origin browser traffic, strips forged admin/proxy headers, and blocks `/admin`,
-`/internal/*`, and `/health/status`.
+`/internal/*`, and `/health/status`. Both gateway configurations are embedded in the image; do not
+add a Coolify file or bind mount for `/etc/caddy/Caddyfile`.
 
 Do not remove the existing manually created backend resource until the Compose resource passes the
 root, API, WebSocket, replay, reconnect, and persistent-database smoke checks. Remove that old

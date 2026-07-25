@@ -4,8 +4,8 @@ services:
       NINEFOLD_DOMAIN: ${NINEFOLD_DOMAIN:?NINEFOLD_DOMAIN is required}
       XDG_CONFIG_HOME: /config
       XDG_DATA_HOME: /data
+    command: ['run', '--config', '/etc/caddy/Caddyfile.standalone', '--adapter', 'caddyfile']
     volumes:
-      - ./deploy/Caddyfile.standalone:/etc/caddy/Caddyfile:ro,Z
       - caddy-data:/data
       - caddy-config:/config
     ports:

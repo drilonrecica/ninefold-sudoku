@@ -2,7 +2,7 @@
 
 **Document:** `docs/ARCHITECTURE.md`  
 **Status:** Canonical implementation architecture  
-**Current implementation scope:** Full MVP plus the `0.3.1` portable Compose deployment; deferred-feature architecture is provisional
+**Current implementation scope:** Full MVP plus the `0.3.2` portable Compose deployment; deferred-feature architecture is provisional
 **Product:** Ninefold Sudoku  
 **Public URL:** `https://ninefold.recica.dev`  
 **Repository:** `ninefold-sudoku`  
@@ -2696,7 +2696,8 @@ Only `gateway` is assigned a public domain. `web` and `server` have no host port
 Coolify domains. The gateway listens on internal port `8080`; Coolify terminates public TLS and
 forwards to that port. The Go service has exactly one replica. The gateway image builds the pinned
 Caddy `v2.11.4` source with explicitly pinned security-updated Go networking dependencies, then
-runs the static binary in a minimal Alpine image as a non-root user.
+runs the static binary in a minimal Alpine image as a non-root user. The image embeds both Caddy
+configurations so deployment does not depend on repository-relative host bind mounts.
 
 ### 45.2 Persistent volume
 

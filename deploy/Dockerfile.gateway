@@ -21,6 +21,8 @@ RUN apk upgrade --no-cache \
  && chown -R ninefold:ninefold /data /config
 
 COPY --from=build /out/caddy /usr/bin/caddy
+COPY --chown=ninefold:ninefold deploy/Caddyfile /etc/caddy/Caddyfile
+COPY --chown=ninefold:ninefold deploy/Caddyfile.standalone /etc/caddy/Caddyfile.standalone
 
 USER 10001:10001
 EXPOSE 80 443 443/udp 8080

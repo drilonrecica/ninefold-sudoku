@@ -110,7 +110,7 @@ jobs:
         working-directory: apps/server
       - run: pnpm audit --audit-level high
       - name: Generate ephemeral production build inputs
-        run: go run ./apps/server/cmd/deployment-config -public-url https://ninefold.recica.dev -version 0.3.1 -output /tmp/ninefold-ci.env
+        run: go run ./apps/server/cmd/deployment-config -public-url https://ninefold.recica.dev -version 0.3.2 -output /tmp/ninefold-ci.env
       - name: Validate base and standalone Compose stacks
         run: |
           docker compose --env-file /tmp/ninefold-ci.env -f compose.yaml config --quiet
@@ -119,8 +119,8 @@ jobs:
         run: docker compose -p ninefold-ci --env-file /tmp/ninefold-ci.env -f compose.yaml build
       - name: Validate gateway configuration
         run: |
-          docker run --rm -e NINEFOLD_PROXY_SECRET=ci-placeholder -v "$PWD/deploy/Caddyfile:/etc/caddy/Caddyfile:ro" ninefold-ci-gateway validate --config /etc/caddy/Caddyfile
-          docker run --rm -e NINEFOLD_PROXY_SECRET=ci-placeholder -e NINEFOLD_DOMAIN=ninefold.recica.dev -v "$PWD/deploy/Caddyfile.standalone:/etc/caddy/Caddyfile:ro" ninefold-ci-gateway validate --config /etc/caddy/Caddyfile
+          docker run --rm -e NINEFOLD_PROXY_SECRET=ci-placeholder ninefold-ci-gateway validate --config /etc/caddy/Caddyfile
+          docker run --rm -e NINEFOLD_PROXY_SECRET=ci-placeholder -e NINEFOLD_DOMAIN=ninefold.recica.dev ninefold-ci-gateway validate --config /etc/caddy/Caddyfile.standalone
       - run: docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.69.3 image --exit-code 1 --severity HIGH,CRITICAL ninefold-ci-gateway
       - run: docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.69.3 image --exit-code 1 --severity HIGH,CRITICAL ninefold-ci-server
       - run: docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.69.3 image --exit-code 1 --severity HIGH,CRITICAL ninefold-ci-web

@@ -7,7 +7,9 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -140,6 +142,27 @@ func TestPreviewRoom(t *testing.T) {
 	json.Unmarshal(rec2.Body.Bytes(), &preview)
 	if preview["mode"] != "Coop" {
 		t.Fatalf("expected mode Coop in preview")
+	}
+}
+
+func TestFailedRoomLookupUsesProgressivePrivateRateKey(t *testing.T) {
+	handler, _, cleanup := newTestHandler(t)
+	defer cleanup()
+	const remoteAddress = "203.0.113.9:1234"
+	now := time.Date(2026, time.July, 25, 12, 0, 0, 0, time.UTC)
+
+	for attempt, wantDelay := range []int{1, 2, 4, 8, 16} {
+		if delay := handler.recordFailedLookup(remoteAddress, now); delay != wantDelay {
+			t.Fatalf("attempt %d delay=%d, want %d", attempt+1, delay, wantDelay)
+		}
+	}
+	if retry := handler.lookupRetryAfter(remoteAddress, now); retry < 15 {
+		t.Fatalf("retry=%d, want progressive temporary block", retry)
+	}
+	for key := range handler.lookups {
+		if strings.Contains(key, "203.0.113.9") {
+			t.Fatal("rate limiter retained raw IP address")
+		}
 	}
 }
 

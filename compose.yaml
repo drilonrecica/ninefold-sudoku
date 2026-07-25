@@ -1,0 +1,64 @@
+services:
+  proxy:
+    image: caddy:2.10.2-alpine
+    ports:
+      - '8443:8443'
+    volumes:
+      - ./deploy/Caddyfile.local:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    read_only: true
+    tmpfs: [/config]
+    depends_on:
+      web:
+        condition: service_healthy
+      server:
+        condition: service_healthy
+    mem_limit: 128m
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VERSION: local
+    environment:
+      HOST: 0.0.0.0
+      PORT: '3000'
+      ORIGIN: https://localhost:8443
+    read_only: true
+    tmpfs: [/tmp]
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:3000/']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    mem_limit: 512m
+
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+      args:
+        VERSION: local
+    env_file: ${NINEFOLD_ENV_FILE:-.env}
+    environment:
+      NINEFOLD_HTTP_ADDRESS: 0.0.0.0:8080
+      NINEFOLD_DATABASE_PATH: /app/data/ninefold.db
+      NINEFOLD_PUBLIC_URL: https://localhost:8443
+      NINEFOLD_ALLOWED_ORIGINS: https://localhost:8443
+      NINEFOLD_ADMIN_TRUSTED_PROXIES: 172.16.0.0/12
+    volumes:
+      - ninefold-data:/app/data
+    read_only: true
+    tmpfs: [/tmp]
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:8080/health/ready']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    stop_grace_period: 60s
+    mem_limit: 1g
+
+volumes:
+  ninefold-data:
+  caddy-data:

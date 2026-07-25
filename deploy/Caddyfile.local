@@ -1,0 +1,36 @@
+https://localhost:8443 {
+	tls internal
+	encode zstd gzip
+
+	route {
+		@immutable path /_app/immutable/*
+		header @immutable Cache-Control "public, max-age=31536000, immutable"
+
+		@internal path /internal/* /health/status
+		handle @internal {
+			@private remote_ip private_ranges
+			handle @private {
+				reverse_proxy server:8080 {
+					header_up X-Ninefold-Admin local-operator
+				}
+			}
+			respond 404
+		}
+
+		@admin path /admin*
+		handle @admin {
+			@private remote_ip private_ranges
+			handle @private {
+				reverse_proxy web:3000
+			}
+			respond 404
+		}
+
+		@server path /api/* /ws /health/*
+		handle @server {
+			reverse_proxy server:8080
+		}
+
+		reverse_proxy web:3000
+	}
+}

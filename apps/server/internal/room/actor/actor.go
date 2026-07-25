@@ -35,6 +35,7 @@ type Envelope struct {
 	Command        any
 	NewSessionHash []byte
 	ConnectionID   shared.ConnectionID
+	AdminAudit     *gen.AdminAuditLog
 }
 
 // Result is the outcome of a command processed by the actor.
@@ -76,6 +77,14 @@ type Actor struct {
 	controllersMu     sync.RWMutex
 	recoveryTimer     *time.Timer
 	replaySigner      replayproof.Signer
+	observer          Observer
+}
+
+// Observer receives bounded operational measurements. Implementations must not
+// retain command payloads or aggregate identifiers.
+type Observer interface {
+	ObserveCommand(time.Duration, error)
+	ObserveRecovery(bool)
 }
 
 type bufferedEvent struct {
@@ -88,6 +97,17 @@ type subscriber struct {
 	sendCh        chan []byte
 	disconnect    func()
 	subscribedAt  time.Time
+}
+
+func (a *Actor) operationalStats() (connections, commandQueueDepth, outboundQueueDepth int) {
+	commandQueueDepth = len(a.cmdCh)
+	a.subMu.RLock()
+	defer a.subMu.RUnlock()
+	connections = len(a.subscribers)
+	for _, subscriber := range a.subscribers {
+		outboundQueueDepth += len(subscriber.sendCh)
+	}
+	return connections, commandQueueDepth, outboundQueueDepth
 }
 
 type controllerInfo struct {
@@ -285,7 +305,13 @@ func (a *Actor) EnterRecovery(ctx context.Context, now time.Time) error {
 		},
 	})
 	if err != nil {
+		if a.observer != nil {
+			a.observer.ObserveRecovery(false)
+		}
 		return err
+	}
+	if a.observer != nil {
+		a.observer.ObserveRecovery(true)
 	}
 	a.scheduleRecoveryDeadline(now, generation, now)
 	return nil
@@ -365,7 +391,11 @@ func (a *Actor) handle(msg actorMsg) {
 	if msg.control != nil {
 		result, err = a.processControl(ctx, *msg.control)
 	} else {
+		started := time.Now()
 		result, err = a.process(ctx, *msg.env)
+		if a.observer != nil {
+			a.observer.ObserveCommand(time.Since(started), err)
+		}
 	}
 	select {
 	case resp <- actorResult{result: result, err: err}:
@@ -664,6 +694,11 @@ func (a *Actor) process(ctx context.Context, env Envelope) (Result, error) {
 	response := a.buildResponse(working, workingMatch, participantID)
 	if err := a.saveReceipt(ctx, txRepo, tx, env, "ok", response, now); err != nil {
 		return Result{}, shared.DomainError{Code: shared.ErrPersistenceFailed}
+	}
+	if env.AdminAudit != nil {
+		if err := txRepo.CreateAdminAuditLog(ctx, tx, *env.AdminAudit); err != nil {
+			return Result{}, shared.DomainError{Code: shared.ErrPersistenceFailed}
+		}
 	}
 
 	if err := repository.TxCommit(tx); err != nil {

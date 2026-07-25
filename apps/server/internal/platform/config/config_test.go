@@ -141,6 +141,7 @@ func validEnvironment(t *testing.T) map[string]string {
 		"NINEFOLD_REPLAY_SIGNING_KEY":        base64.StdEncoding.EncodeToString(der),
 		"NINEFOLD_REPLAY_SIGNING_KEY_ID":     "test-1",
 		"NINEFOLD_ADMIN_PROXY_HEADER":        "X-Ninefold-Admin",
+		"NINEFOLD_ADMIN_TRUSTED_PROXIES":     "127.0.0.0/8,::1/128",
 		"NINEFOLD_LOG_LEVEL":                 "debug",
 		"NINEFOLD_REPLAY_RETENTION":          "168h",
 		"NINEFOLD_MATCH_TOMBSTONE_RETENTION": "720h",

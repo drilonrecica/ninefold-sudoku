@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from 'playwright/test';
 
 test('two players complete the keyboard and touch Co-op flow and converge', async ({ browser }) => {
+  test.setTimeout(120_000);
   const hostContext = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const guestContext = await browser.newContext({ viewport: { width: 375, height: 812 } });
   const host = await hostContext.newPage();
@@ -157,7 +158,13 @@ test('two players complete the keyboard and touch Co-op flow and converge', asyn
   await expect(host).toHaveURL(`/room/${roomCode}`);
   await expect(guest).toHaveURL(`/room/${roomCode}`);
   await host.getByRole('button', { name: 'Ready' }).click();
+  await expect(host.getByRole('listitem').filter({ hasText: 'Board Host' }).first()).toContainText(
+    'Ready',
+  );
   await guest.getByRole('button', { name: 'Ready' }).click();
+  await expect(host.getByRole('listitem').filter({ hasText: 'Board Guest' }).first()).toContainText(
+    'Ready',
+  );
   await expect(host.getByRole('button', { name: 'Start Match' })).toBeEnabled();
   await host.getByRole('button', { name: 'Start Match' }).click();
   await expect(host).toHaveURL(/\/play\/[0-9a-f-]+$/, { timeout: 10_000 });

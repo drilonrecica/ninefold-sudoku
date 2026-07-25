@@ -19,12 +19,17 @@ import (
 var buildVersion = "unknown"
 
 func main() {
-	logger := slog.New(slog.NewJSONHandler(os.Stderr, nil))
 	cfg, err := config.Load()
 	if err != nil {
+		logger := slog.New(slog.NewJSONHandler(os.Stderr, nil))
 		logger.Error("invalid configuration", "error", err)
 		os.Exit(1)
 	}
+	var level slog.Level
+	if err := level.UnmarshalText([]byte(cfg.LogLevel)); err != nil {
+		level = slog.LevelInfo
+	}
+	logger := slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: level}))
 
 	db, err := sqlite.New(cfg.DatabasePath)
 	if err != nil {

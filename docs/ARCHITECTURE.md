@@ -3056,6 +3056,7 @@ NINEFOLD_COOKIE_SECRET
 NINEFOLD_REPLAY_SIGNING_KEY
 NINEFOLD_REPLAY_SIGNING_KEY_ID
 NINEFOLD_ADMIN_PROXY_HEADER
+NINEFOLD_ADMIN_TRUSTED_PROXIES
 NINEFOLD_LOG_LEVEL
 NINEFOLD_REPLAY_RETENTION
 NINEFOLD_MATCH_TOMBSTONE_RETENTION
@@ -3070,6 +3071,7 @@ Requirements:
 - the cookie secret is base64-encoded and decodes to at least 32 bytes;
 - the replay signing key is a base64-encoded PKCS#8 Ed25519 private key;
 - the replay signing key ID and administrator proxy header use bounded safe syntax;
+- trusted administrator proxies are explicit IP CIDRs; forwarded headers never expand this trust;
 - fail startup on missing mandatory values;
 - reject placeholder secrets in production;
 - reject retention values that exceed domain policy;

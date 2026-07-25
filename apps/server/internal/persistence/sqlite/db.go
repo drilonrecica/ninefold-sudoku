@@ -174,6 +174,29 @@ func (d *DB) Health(ctx context.Context) error {
 	return nil
 }
 
+func (d *DB) Checkpoint(ctx context.Context) error {
+	_, err := d.writer.ExecContext(ctx, "PRAGMA wal_checkpoint(TRUNCATE);")
+	return err
+}
+
+func (d *DB) Optimize(ctx context.Context) error {
+	_, err := d.writer.ExecContext(ctx, "PRAGMA optimize;")
+	return err
+}
+
+// IntegrityCheck is intentionally not part of routine hourly maintenance. It
+// is reserved for recovery failures and explicit operational diagnosis.
+func (d *DB) IntegrityCheck(ctx context.Context) error {
+	var result string
+	if err := d.writer.QueryRowContext(ctx, "PRAGMA integrity_check;").Scan(&result); err != nil {
+		return err
+	}
+	if result != "ok" {
+		return fmt.Errorf("sqlite integrity_check: %s", result)
+	}
+	return nil
+}
+
 // Close closes both pools.
 func (d *DB) Close() error {
 	d.closeOnce.Do(func() {

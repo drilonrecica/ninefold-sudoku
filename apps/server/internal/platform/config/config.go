@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -44,6 +45,7 @@ type Config struct {
 	ReplaySigningKey        ed25519.PrivateKey
 	ReplaySigningKeyID      string
 	AdminProxyHeader        string
+	AdminTrustedProxies     []netip.Prefix
 	LogLevel                string
 	ReplayRetention         time.Duration
 	MatchTombstoneRetention time.Duration
@@ -154,6 +156,17 @@ func Parse(lookup LookupFunc) (Config, error) {
 	if http.CanonicalHeaderKey(cfg.AdminProxyHeader) == "" {
 		return cfg, errors.New("NINEFOLD_ADMIN_PROXY_HEADER must be a valid HTTP header name")
 	}
+	trustedProxies, err := required("NINEFOLD_ADMIN_TRUSTED_PROXIES")
+	if err != nil {
+		return cfg, err
+	}
+	for _, raw := range strings.Split(trustedProxies, ",") {
+		prefix, parseErr := netip.ParsePrefix(strings.TrimSpace(raw))
+		if parseErr != nil {
+			return cfg, fmt.Errorf("NINEFOLD_ADMIN_TRUSTED_PROXIES: %w", parseErr)
+		}
+		cfg.AdminTrustedProxies = append(cfg.AdminTrustedProxies, prefix.Masked())
+	}
 
 	cfg.LogLevel, err = required("NINEFOLD_LOG_LEVEL")
 	if err != nil {
@@ -231,6 +244,7 @@ func (c Config) Sanitized() map[string]string {
 		"allowed_origins":           strings.Join(c.AllowedOrigins, ","),
 		"replay_signing_key_id":     c.ReplaySigningKeyID,
 		"admin_proxy_header":        c.AdminProxyHeader,
+		"admin_trusted_proxies":     prefixes(c.AdminTrustedProxies),
 		"log_level":                 c.LogLevel,
 		"replay_retention":          c.ReplayRetention.String(),
 		"tombstone_retention":       c.MatchTombstoneRetention.String(),
@@ -238,4 +252,12 @@ func (c Config) Sanitized() map[string]string {
 		"shutdown_timeout":          c.ShutdownTimeout.String(),
 		"configured":                strconv.FormatBool(len(c.CookieSecret) >= 32 && len(c.ReplaySigningKey) > 0),
 	}
+}
+
+func prefixes(values []netip.Prefix) string {
+	parts := make([]string, len(values))
+	for index, value := range values {
+		parts[index] = value.String()
+	}
+	return strings.Join(parts, ",")
 }

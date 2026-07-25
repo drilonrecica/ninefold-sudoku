@@ -185,6 +185,10 @@ type ExpireRoomCommand struct{ Meta shared.CommandMetadata }
 
 func (c ExpireRoomCommand) Metadata() shared.CommandMetadata { return c.Meta }
 
+type TerminateRoomCommand struct{ Meta shared.CommandMetadata }
+
+func (c TerminateRoomCommand) Metadata() shared.CommandMetadata { return c.Meta }
+
 type PrepareRematchCommand struct{ Meta shared.CommandMetadata }
 
 func (c PrepareRematchCommand) Metadata() shared.CommandMetadata { return c.Meta }
@@ -315,6 +319,10 @@ func (e RematchPreparedEvent) Metadata() shared.EventMetadata { return e.Meta }
 type RoomExpiredEvent struct{ Meta shared.EventMetadata }
 
 func (e RoomExpiredEvent) Metadata() shared.EventMetadata { return e.Meta }
+
+type RoomTerminatedByAdminEvent struct{ Meta shared.EventMetadata }
+
+func (e RoomTerminatedByAdminEvent) Metadata() shared.EventMetadata { return e.Meta }
 
 // roomState checks whether the room is in one of the supplied states.
 func (r *Room) isState(states ...shared.RoomState) bool {

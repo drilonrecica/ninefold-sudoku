@@ -2,14 +2,17 @@ package http
 
 import (
 	"context"
+	"crypto/hmac"
 	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -36,6 +39,8 @@ type Handler struct {
 	logger   *slog.Logger
 	createMu sync.Mutex
 	creates  map[string]creationWindow
+	lookupMu sync.Mutex
+	lookups  map[string]lookupFailure
 }
 
 type creationWindow struct {
@@ -43,9 +48,18 @@ type creationWindow struct {
 	count int
 }
 
+type lookupFailure struct {
+	count        int
+	windowStart  time.Time
+	blockedUntil time.Time
+}
+
 // NewHandler creates the room HTTP handler.
 func NewHandler(repo *repository.Repository, registry *actor.Registry, cfg config.Config, logger *slog.Logger) *Handler {
-	return &Handler{repo: repo, registry: registry, config: cfg, logger: logger, creates: make(map[string]creationWindow)}
+	return &Handler{
+		repo: repo, registry: registry, config: cfg, logger: logger,
+		creates: make(map[string]creationWindow), lookups: make(map[string]lookupFailure),
+	}
 }
 
 // RegisterRoutes wires room endpoints into the supplied router.
@@ -215,30 +229,40 @@ func (h *Handler) allowRoomCreation(remoteAddress string, now time.Time) bool {
 	}
 	h.createMu.Lock()
 	defer h.createMu.Unlock()
-	window := h.creates[host]
+	mac := hmac.New(sha256.New, h.config.CookieSecret)
+	_, _ = mac.Write([]byte(now.UTC().Format("2006-01-02") + "|" + host))
+	key := hex.EncodeToString(mac.Sum(nil))
+	window := h.creates[key]
 	if window.start.IsZero() || now.Sub(window.start) >= time.Hour {
-		h.creates[host] = creationWindow{start: now, count: 1}
+		h.creates[key] = creationWindow{start: now, count: 1}
 		return true
 	}
 	if window.count >= 10 {
 		return false
 	}
 	window.count++
-	h.creates[host] = window
+	h.creates[key] = window
 	return true
 }
 
 func (h *Handler) PreviewRoom(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	if retry := h.lookupRetryAfter(r.RemoteAddr, time.Now()); retry > 0 {
+		w.Header().Set("Retry-After", strconv.Itoa(retry))
+		writeError(w, http.StatusTooManyRequests, shared.ErrRateLimited, "room lookup temporarily blocked")
+		return
+	}
 	codeParam := chi.URLParam(r, "code")
 	code, err := shared.ParseRoomCode(codeParam)
 	if err != nil {
+		w.Header().Set("Retry-After", strconv.Itoa(h.recordFailedLookup(r.RemoteAddr, time.Now())))
 		writeError(w, http.StatusBadRequest, shared.ErrRoomNotFound, "invalid room code")
 		return
 	}
 	gr, err := h.repo.GetRoomByCode(ctx, code.String())
 	if err != nil {
 		if repository.IsNoRows(err) {
+			w.Header().Set("Retry-After", strconv.Itoa(h.recordFailedLookup(r.RemoteAddr, time.Now())))
 			writeError(w, http.StatusNotFound, shared.ErrRoomNotFound, "room not found")
 			return
 		}
@@ -246,9 +270,11 @@ func (h *Handler) PreviewRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if isTerminal(gr.State) {
+		w.Header().Set("Retry-After", strconv.Itoa(h.recordFailedLookup(r.RemoteAddr, time.Now())))
 		writeError(w, http.StatusNotFound, shared.ErrRoomNotFound, "room not found")
 		return
 	}
+	h.clearLookupFailures(r.RemoteAddr, time.Now())
 	participants, err := h.repo.ListActiveRoomParticipants(ctx, gr.ID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, shared.ErrPersistenceFailed, "database error")
@@ -274,6 +300,52 @@ func (h *Handler) PreviewRoom(w http.ResponseWriter, r *http.Request) {
 	}
 	previewBody, _ := json.Marshal(preview)
 	writeJSON(w, http.StatusOK, previewBody)
+}
+
+func (h *Handler) lookupKey(remoteAddress string, now time.Time) string {
+	host, _, err := net.SplitHostPort(remoteAddress)
+	if err != nil {
+		host = remoteAddress
+	}
+	mac := hmac.New(sha256.New, h.config.CookieSecret)
+	_, _ = mac.Write([]byte(now.UTC().Format("2006-01-02") + "|" + host))
+	return hex.EncodeToString(mac.Sum(nil))
+}
+
+func (h *Handler) lookupRetryAfter(remoteAddress string, now time.Time) int {
+	h.lookupMu.Lock()
+	defer h.lookupMu.Unlock()
+	failure := h.lookups[h.lookupKey(remoteAddress, now)]
+	if !failure.blockedUntil.After(now) {
+		return 0
+	}
+	return max(1, int(failure.blockedUntil.Sub(now).Seconds()))
+}
+
+func (h *Handler) recordFailedLookup(remoteAddress string, now time.Time) int {
+	h.lookupMu.Lock()
+	defer h.lookupMu.Unlock()
+	key := h.lookupKey(remoteAddress, now)
+	if len(h.lookups) >= 10_000 {
+		h.lookups = make(map[string]lookupFailure)
+	}
+	failure := h.lookups[key]
+	if failure.windowStart.IsZero() || now.Sub(failure.windowStart) >= 10*time.Minute {
+		failure = lookupFailure{windowStart: now}
+	}
+	failure.count++
+	delay := min(30, 1<<min(failure.count-1, 5))
+	if failure.count >= 5 {
+		failure.blockedUntil = now.Add(time.Duration(delay) * time.Second)
+	}
+	h.lookups[key] = failure
+	return delay
+}
+
+func (h *Handler) clearLookupFailures(remoteAddress string, now time.Time) {
+	h.lookupMu.Lock()
+	delete(h.lookups, h.lookupKey(remoteAddress, now))
+	h.lookupMu.Unlock()
 }
 
 func (h *Handler) JoinRoom(w http.ResponseWriter, r *http.Request) {

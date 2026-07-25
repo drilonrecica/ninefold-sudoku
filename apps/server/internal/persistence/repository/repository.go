@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand/v2"
+	"strings"
 	"time"
 
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/persistence/gen"
@@ -17,8 +18,14 @@ import (
 // never starts its own transaction, so application code can bundle room, match, events,
 // snapshots, results, and command receipts in one atomic SQLite commit.
 type Repository struct {
-	db *sqlite.DB
-	q  *gen.Queries
+	db       *sqlite.DB
+	q        *gen.Queries
+	observer Observer
+}
+
+type Observer interface {
+	ObserveSQLiteTransaction(time.Duration, bool)
+	ObservePuzzleAssignment(bool)
 }
 
 // New builds a repository that uses the writer pool for explicit transactions and the
@@ -29,12 +36,19 @@ func New(db *sqlite.DB) *Repository {
 
 // WithTx returns a repository bound to the supplied transaction. Use this for writes.
 func (r *Repository) WithTx(tx *sql.Tx) *Repository {
-	return &Repository{db: r.db, q: r.q.WithTx(tx)}
+	return &Repository{db: r.db, q: r.q.WithTx(tx), observer: r.observer}
 }
+
+func (r *Repository) SetObserver(observer Observer) { r.observer = observer }
 
 // BeginTx starts a new transaction on the single writer pool.
 func (r *Repository) BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, *Repository, error) {
+	started := time.Now()
 	tx, err := r.db.Writer().BeginTx(ctx, opts)
+	if r.observer != nil {
+		busy := err != nil && (strings.Contains(err.Error(), "SQLITE_BUSY") || strings.Contains(err.Error(), "database is locked"))
+		r.observer.ObserveSQLiteTransaction(time.Since(started), busy)
+	}
 	if err != nil {
 		return nil, nil, err
 	}
@@ -79,6 +93,12 @@ type candidatePuzzle struct {
 // SelectPuzzleForAssignment picks a random active puzzle matching the difficulty and
 // optional multiplayer approval, excluding the provided puzzle IDs.
 func (r *Repository) SelectPuzzleForAssignment(ctx context.Context, difficulty string, excludeIDs []string, multiplayer bool) (gen.Puzzle, error) {
+	success := false
+	defer func() {
+		if r.observer != nil {
+			r.observer.ObservePuzzleAssignment(success)
+		}
+	}()
 	exclude := make(map[string]struct{}, len(excludeIDs))
 	for _, id := range excludeIDs {
 		exclude[id] = struct{}{}
@@ -113,7 +133,9 @@ func (r *Repository) SelectPuzzleForAssignment(ctx context.Context, difficulty s
 		return gen.Puzzle{}, errors.New("no puzzle available")
 	}
 	selected := candidates[rand.IntN(len(candidates))]
-	return r.q.GetPuzzleByID(ctx, gen.GetPuzzleByIDParams{ID: selected.id, Revision: selected.revision})
+	puzzle, err := r.q.GetPuzzleByID(ctx, gen.GetPuzzleByIDParams{ID: selected.id, Revision: selected.revision})
+	success = err == nil
+	return puzzle, err
 }
 
 // --- Rooms ---
@@ -316,6 +338,16 @@ func (r *Repository) ListNonTerminalMatches(ctx context.Context) ([]gen.Match, e
 	return r.q.ListNonTerminalMatches(ctx)
 }
 
+// CountActiveMatches returns an aggregate operational gauge. It deliberately
+// carries no match, room, or participant labels.
+func (r *Repository) CountActiveMatches(ctx context.Context) (int, error) {
+	var count int
+	err := r.db.Readers().QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM matches WHERE state IN ('Active', 'RecoveryPending')`,
+	).Scan(&count)
+	return count, err
+}
+
 // ListMatchParticipants returns the participants of a match.
 func (r *Repository) ListMatchParticipants(ctx context.Context, matchID string) ([]gen.MatchParticipant, error) {
 	return r.q.ListMatchParticipants(ctx, matchID)
@@ -467,6 +499,77 @@ func (r *Repository) CreateAdminAuditLog(ctx context.Context, tx *sql.Tx, log ge
 	})
 }
 
+func (r *Repository) ListAdminAuditLog(ctx context.Context, limit int64) ([]gen.AdminAuditLog, error) {
+	return r.q.ListAdminAuditLog(ctx, limit)
+}
+
+func (r *Repository) DeleteExpiredAdminAuditLog(ctx context.Context, beforeMs int64) error {
+	return r.q.DeleteExpiredAdminAuditLog(ctx, beforeMs)
+}
+
+func (r *Repository) RetirePuzzleAndAudit(ctx context.Context, puzzleID string, revision int64, audit gen.AdminAuditLog) error {
+	tx, _, err := r.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return err
+	}
+	defer TxRollback(tx)
+	result, err := tx.ExecContext(ctx,
+		"UPDATE puzzles SET state = 'Retired', multiplayer_approved = 0 WHERE id = ? AND revision = ? AND state != 'Retired'",
+		puzzleID, revision)
+	if err != nil {
+		return err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		var state string
+		if err := tx.QueryRowContext(ctx,
+			"SELECT state FROM puzzles WHERE id = ? AND revision = ?", puzzleID, revision,
+		).Scan(&state); err != nil {
+			return ErrConflict
+		}
+		if state == "Retired" {
+			return TxCommit(tx)
+		}
+		return ErrConflict
+	}
+	if err := r.CreateAdminAuditLog(ctx, tx, audit); err != nil {
+		return err
+	}
+	return TxCommit(tx)
+}
+
+func (r *Repository) DeleteReplayAndAudit(ctx context.Context, replayID string, atMs int64, audit gen.AdminAuditLog) error {
+	capability, err := r.GetReplayCapabilityByReplayID(ctx, replayID)
+	if err != nil {
+		return err
+	}
+	tx, _, err := r.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return err
+	}
+	defer TxRollback(tx)
+	result, err := tx.ExecContext(ctx,
+		"UPDATE replay_capabilities SET revoked_at_ms = ? WHERE match_id = ? AND revoked_at_ms IS NULL",
+		atMs, capability.MatchID)
+	if err != nil {
+		return err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return TxCommit(tx)
+	}
+	if err := r.CreateAdminAuditLog(ctx, tx, audit); err != nil {
+		return err
+	}
+	return TxCommit(tx)
+}
+
 // --- Retention helpers ---
 
 // DeleteExpiredSessions removes sessions whose expiration has passed.
@@ -482,6 +585,10 @@ func (r *Repository) DeleteExpiredCommandReceipts(ctx context.Context, beforeMs 
 // DeleteExpiredReplayCapabilities removes expired replay capabilities.
 func (r *Repository) DeleteExpiredReplayCapabilities(ctx context.Context, beforeMs int64) error {
 	return r.q.DeleteExpiredReplayCapabilities(ctx, beforeMs)
+}
+
+func (r *Repository) ListExpiredRooms(ctx context.Context, beforeMs int64) ([]gen.Room, error) {
+	return r.q.ListExpiredRooms(ctx, beforeMs)
 }
 
 // ScrubTerminalMatches replaces participant-linked match data with the bounded

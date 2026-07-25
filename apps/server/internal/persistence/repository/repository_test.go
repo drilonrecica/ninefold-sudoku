@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"testing"
+	"time"
 
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/persistence/gen"
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/persistence/migrate"
@@ -141,6 +142,34 @@ func TestPuzzleCreateAndGet(t *testing.T) {
 	}
 	if got.ID != puzzle.ID || got.CanonicalFingerprint != puzzle.CanonicalFingerprint {
 		t.Fatalf("puzzle mismatch: got %+v", got)
+	}
+}
+
+func TestRetirePuzzleWritesAuditAtomically(t *testing.T) {
+	t.Parallel()
+	repo := newTestRepo(t)
+	puzzle := createPuzzle(t, repo, "Medium")
+	audit := gen.AdminAuditLog{
+		Action: "puzzle.retire", Actor: "operator", Target: puzzle.ID + ":1",
+		Details: sql.NullString{String: "duplicate", Valid: true}, CreatedAtMs: NowMs(),
+	}
+	if err := repo.RetirePuzzleAndAudit(context.Background(), puzzle.ID, puzzle.Revision, audit); err != nil {
+		t.Fatal(err)
+	}
+	stored, err := repo.GetPuzzle(context.Background(), puzzle.ID, puzzle.Revision)
+	if err != nil || stored.State != "Retired" || stored.MultiplayerApproved != 0 {
+		t.Fatalf("puzzle=%+v err=%v", stored, err)
+	}
+	logs, err := repo.ListAdminAuditLog(context.Background(), 10)
+	if err != nil || len(logs) != 1 || logs[0].Actor != "operator" {
+		t.Fatalf("audit=%+v err=%v", logs, err)
+	}
+	if err := repo.RetirePuzzleAndAudit(context.Background(), puzzle.ID, puzzle.Revision, audit); err != nil {
+		t.Fatalf("repeat retire must be idempotent: %v", err)
+	}
+	logs, _ = repo.ListAdminAuditLog(context.Background(), 10)
+	if len(logs) != 1 {
+		t.Fatalf("failed repeat wrote audit: %d", len(logs))
 	}
 }
 
@@ -761,7 +790,8 @@ func TestScrubTerminalMatchesKeepsOnlyTombstone(t *testing.T) {
 	ctx := context.Background()
 	puzzle := createPuzzle(t, repo, "Medium")
 	room, participant := createRoomAndParticipant(t, repo, "SCRUB1")
-	endedAt := NowMs() - int64(8*24*60*60*1000)
+	scrubbedAt := NowMs()
+	endedAt := scrubbedAt - int64(7*24*time.Hour/time.Millisecond)
 	match := gen.Match{
 		ID: matchID(t), RoomID: room.ID, State: "Completed", Version: 2,
 		Mode: "Coop", Difficulty: "Medium", ErrorPreset: "Casual",
@@ -797,8 +827,11 @@ func TestScrubTerminalMatchesKeepsOnlyTombstone(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	scrubbedAt := NowMs()
-	count, err := repo.ScrubTerminalMatches(ctx, scrubbedAt-int64(7*24*60*60*1000), scrubbedAt, 10)
+	count, err := repo.ScrubTerminalMatches(ctx, endedAt-1, scrubbedAt, 10)
+	if err != nil || count != 0 {
+		t.Fatalf("pre-boundary scrub count=%d err=%v", count, err)
+	}
+	count, err = repo.ScrubTerminalMatches(ctx, scrubbedAt-int64(7*24*60*60*1000), scrubbedAt, 10)
 	if err != nil || count != 1 {
 		t.Fatalf("scrub count=%d err=%v", count, err)
 	}
@@ -815,6 +848,19 @@ func TestScrubTerminalMatchesKeepsOnlyTombstone(t *testing.T) {
 	count, err = repo.ScrubTerminalMatches(ctx, scrubbedAt, scrubbedAt, 10)
 	if err != nil || count != 0 {
 		t.Fatalf("idempotent scrub count=%d err=%v", count, err)
+	}
+	retentionNow := endedAt + int64(30*24*time.Hour/time.Millisecond)
+	if err := repo.DeleteExpiredMatchTombstones(ctx, retentionNow-int64(30*24*time.Hour/time.Millisecond)-1); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repo.q.GetMatchTombstone(ctx, match.ID); err != nil {
+		t.Fatalf("tombstone deleted before exact 30-day boundary: %v", err)
+	}
+	if err := repo.DeleteExpiredMatchTombstones(ctx, retentionNow-int64(30*24*time.Hour/time.Millisecond)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repo.q.GetMatchTombstone(ctx, match.ID); err != sql.ErrNoRows {
+		t.Fatalf("tombstone retained at exact 30-day boundary: %v", err)
 	}
 }
 

@@ -30,6 +30,7 @@ type connection struct {
 	sendCh        chan []byte
 	logger        *slog.Logger
 	rateWindows   map[string]rateWindow
+	observer      Observer
 }
 
 type rateWindow struct {
@@ -44,7 +45,7 @@ const (
 	heartbeatTimeout  = 10 * time.Second
 )
 
-func newConnection(ws *websocket.Conn, roomActor *actor.Actor, registry *actor.Registry, roomID shared.RoomID, participantID shared.ParticipantID, connID shared.ConnectionID, sessionHash []byte, logger *slog.Logger) *connection {
+func newConnection(ws *websocket.Conn, roomActor *actor.Actor, registry *actor.Registry, roomID shared.RoomID, participantID shared.ParticipantID, connID shared.ConnectionID, sessionHash []byte, logger *slog.Logger, observer Observer) *connection {
 	return &connection{
 		ws:            ws,
 		actor:         roomActor,
@@ -56,6 +57,7 @@ func newConnection(ws *websocket.Conn, roomActor *actor.Actor, registry *actor.R
 		sendCh:        make(chan []byte, outboundQueueCapacity),
 		logger:        logger,
 		rateWindows:   make(map[string]rateWindow),
+		observer:      observer,
 	}
 }
 
@@ -188,6 +190,9 @@ func (c *connection) handleMessage(ctx context.Context, msg realtime.ClientMessa
 		var lastEventNumber uint64
 		if msg.Payload.LastMatchEventNumber != nil {
 			lastEventNumber = uint64(*msg.Payload.LastMatchEventNumber)
+		}
+		if (lastMatchID != "" || lastEventNumber > 0) && c.observer != nil {
+			c.observer.ObserveReconnect()
 		}
 		return c.actor.Sync(ctx, c.connID, c.participantID, c.sendCh, lastMatchID, lastEventNumber)
 	case realtime.ClientMessageTypeConnectionHeartbeat:

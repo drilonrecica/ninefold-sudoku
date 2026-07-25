@@ -20,11 +20,12 @@ const idleTimeout = 30 * time.Second
 
 // Registry guarantees at most one active actor per Room.
 type Registry struct {
-	repo   *repository.Repository
-	logger *slog.Logger
-	mu     sync.Mutex
-	actors map[shared.RoomID]*actorEntry
-	signer replayproof.Signer
+	repo     *repository.Repository
+	logger   *slog.Logger
+	mu       sync.Mutex
+	actors   map[shared.RoomID]*actorEntry
+	signer   replayproof.Signer
+	observer Observer
 }
 
 // RecoverNonTerminal reconstructs every active match before readiness. Recovered
@@ -139,8 +140,20 @@ func (reg *Registry) Activate(room *roomdomain.Room) *Actor {
 	reg.mu.Lock()
 	defer reg.mu.Unlock()
 	actor := NewActor(room, nil, reg.repo, reg.logger, reg.signer)
+	actor.observer = reg.observer
 	reg.actors[room.ID] = &actorEntry{actor: actor, refs: 1}
 	return actor
+}
+
+func (reg *Registry) SetObserver(observer Observer) {
+	reg.mu.Lock()
+	defer reg.mu.Unlock()
+	reg.observer = observer
+	for _, entry := range reg.actors {
+		if entry.actor != nil {
+			entry.actor.observer = observer
+		}
+	}
 }
 
 // ShutdownAll stops every actor in the registry.
@@ -174,6 +187,33 @@ func (reg *Registry) NotifyMaintenance() {
 	for _, actor := range actors {
 		actor.NotifyMaintenance()
 	}
+}
+
+func (reg *Registry) Count() int {
+	reg.mu.Lock()
+	defer reg.mu.Unlock()
+	return len(reg.actors)
+}
+
+// OperationalStats returns bounded aggregate gauges without exposing room or
+// participant identifiers.
+func (reg *Registry) OperationalStats() (actors, connections, commandQueueDepth, outboundQueueDepth int) {
+	reg.mu.Lock()
+	active := make([]*Actor, 0, len(reg.actors))
+	for _, entry := range reg.actors {
+		if entry.actor != nil {
+			active = append(active, entry.actor)
+		}
+	}
+	reg.mu.Unlock()
+	actors = len(active)
+	for _, roomActor := range active {
+		currentConnections, currentCommands, currentOutbound := roomActor.operationalStats()
+		connections += currentConnections
+		commandQueueDepth += currentCommands
+		outboundQueueDepth += currentOutbound
+	}
+	return actors, connections, commandQueueDepth, outboundQueueDepth
 }
 
 func (reg *Registry) evict(roomID shared.RoomID) {
@@ -302,6 +342,7 @@ func (reg *Registry) loadActor(ctx context.Context, roomID shared.RoomID) (*Acto
 		match.Version = shared.MatchVersion(gm.Version)
 	}
 	actor := NewActor(room, match, reg.repo, reg.logger, reg.signer)
+	actor.observer = reg.observer
 	actor.lastEventNumber = lastEventNumber
 	actor.lastEventHash = lastEventHash
 	if validSnapshot != nil {

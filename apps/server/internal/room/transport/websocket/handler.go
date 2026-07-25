@@ -28,16 +28,25 @@ type Handler struct {
 	registry *actor.Registry
 	cfg      config.Config
 	logger   *slog.Logger
+	observer Observer
+}
+
+type Observer interface {
+	ObserveReconnect()
 }
 
 // NewHandler creates a WebSocket handler.
-func NewHandler(repo *repository.Repository, registry *actor.Registry, cfg config.Config, logger *slog.Logger) *Handler {
-	return &Handler{
+func NewHandler(repo *repository.Repository, registry *actor.Registry, cfg config.Config, logger *slog.Logger, observers ...Observer) *Handler {
+	handler := &Handler{
 		repo:     repo,
 		registry: registry,
 		cfg:      cfg,
 		logger:   logger,
 	}
+	if len(observers) > 0 {
+		handler.observer = observers[0]
+	}
+	return handler
 }
 
 // RegisterRoutes registers the WebSocket endpoint.
@@ -109,7 +118,7 @@ func (h *Handler) ServeWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c := newConnection(conn, roomActor, h.registry, roomID, participantID, connID, hash, h.logger)
+	c := newConnection(conn, roomActor, h.registry, roomID, participantID, connID, hash, h.logger, h.observer)
 	// Use a detached lifetime context; the HTTP request context is canceled
 	// when the upgrade handler returns.
 	go c.run(context.Background())

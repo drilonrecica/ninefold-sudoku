@@ -67,6 +67,8 @@ func (r *Room) Apply(cmd Command, now time.Time) ([]Event, error) {
 		return r.applyActivateMatch(c, now)
 	case ExpireRoomCommand:
 		return r.applyExpireRoom(c, now)
+	case TerminateRoomCommand:
+		return r.applyTerminateRoom(c, now)
 	case PrepareRematchCommand:
 		return r.applyPrepareRematch(c, now)
 	default:
@@ -612,6 +614,21 @@ func (r *Room) applyExpireRoom(cmd ExpireRoomCommand, now time.Time) ([]Event, e
 		return nil, err
 	}
 	return []Event{RoomExpiredEvent{Meta: meta}}, nil
+}
+
+func (r *Room) applyTerminateRoom(cmd TerminateRoomCommand, now time.Time) ([]Event, error) {
+	if r.isState(shared.RoomExpired, shared.RoomCancelled, shared.RoomTerminatedByAdmin) {
+		return nil, nil
+	}
+	r.State = shared.RoomTerminatedByAdmin
+	r.Countdown = nil
+	r.bumpVersion()
+	r.touch(now)
+	meta, err := r.nextEventMeta(now)
+	if err != nil {
+		return nil, err
+	}
+	return []Event{RoomTerminatedByAdminEvent{Meta: meta}}, nil
 }
 
 // --- helpers ---

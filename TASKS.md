@@ -4,7 +4,7 @@
 
 **Execution model:** sequential phases, exactly one commit per completed phase
 
-**Current status:** Phases 1–14 complete; Phase 15 (administration and production packaging) is next.
+**Current status:** Phases 1–15 complete; Phase 16 (MVP release qualification) is next.
 
 ## 1. Authority and scope
 
@@ -794,32 +794,32 @@ Add private operational controls, safe observability, maintenance, hardened runt
 
 ### Tasks
 
-- [ ] **P15-T01 — Implement private administration boundary.** Restrict `/admin` and protected operational endpoints to the configured trusted private network/proxy identity. Do not build an admin account/password system or expose admin navigation publicly.
-- [ ] **P15-T02 — Implement MVP admin actions.** Provide Room lookup with minimized fields, terminate broken Room, delete replay, retire puzzle, and display health. Require confirmation, authorization, structured errors, idempotency where applicable, and an append-only audit record.
-- [ ] **P15-T03 — Implement health endpoints.** Keep liveness cheap; make readiness require valid config/current migrations/healthy writer/not shutting down; keep detailed status private and free of active Room details.
-- [ ] **P15-T04 — Implement safe metrics.** Expose the private Prometheus-compatible metrics in Architecture §38 with bounded labels. Exclude names, participant IDs, Room codes, puzzle values, replay capabilities, and other high-cardinality identifiers.
-- [ ] **P15-T05 — Implement structured logging.** Use `log/slog`, correlation IDs, route templates/redaction, safe event/rejection/recovery fields, configured levels, and documented retention. Never log cookies, tokens, proofs, solutions, private notes, or full WebSocket/request payloads.
-- [ ] **P15-T06 — Implement maintenance scheduling.** Run bounded, cancellable, observable, idempotent jobs for Room/session/receipt/replay expiry, seven-day participant scrubbing, 30-day tombstone expiry, snapshots, WAL checkpoint, `PRAGMA optimize`, and conditional integrity checks.
-- [ ] **P15-T07 — Implement graceful shutdown.** Mark readiness false, reject new joins, notify clients, drain requests, stop commands, snapshot active state, close WebSockets with reconnectable maintenance reason, checkpoint WAL, and exit within the validated 60-second deadline.
-- [ ] **P15-T08 — Harden HTTP responses.** Add CSP, HSTS in production, no-referrer private/replay policy, nosniff, Permissions-Policy, anti-framing, restrictive base/form directives, compression, immutable hashed assets, and safe cache headers.
-- [ ] **P15-T09 — Harden abuse controls.** Verify CSPRNG Room/replay material, progressive failed-code delay, temporary blocking, trusted proxy parsing, rotating keyed IP digests, request/body limits, WebSocket size limits, and absence of raw IP product storage.
-- [ ] **P15-T10 — Build the web image.** Use frozen dependency install, SvelteKit adapter-node build, minimal non-root runtime, read-only filesystem where practical, explicit health behavior, and immutable version metadata.
-- [ ] **P15-T11 — Build the server image.** Use a multi-stage Go build, minimal non-root runtime, `/app/data` as the only required writable path, embedded/copied migrations, no compiler/toolchain in runtime, and correct signal handling.
-- [ ] **P15-T12 — Add local orchestration.** Provide local compose/reverse-proxy configuration with only the server mounting SQLite, correct `/api`, `/ws`, `/health`, and private `/internal` routing, resource limits, and a local HTTPS production-cookie/Origin test path.
-- [ ] **P15-T13 — Add Coolify manifests/runbook.** Define separate web/server applications, persistent volume mount, routing, health checks, environment contract, immutable image tags, migration/startup order, rollback compatibility checks, and owner-supplied secret placeholders.
-- [ ] **P15-T14 — Complete CI security/packaging.** Add container builds, dependency vulnerability scanning, generated-file drift, migration testing, contract fixtures, TLA+, Playwright smoke, accessibility smoke, and race-detector jobs with least required permissions.
-- [ ] **P15-T15 — Add operational tests.** Cover unauthorized/spoofed admin access, audit records, health transitions, metric-label privacy, log redaction, maintenance reruns/interruption, graceful termination, security headers, rate limits, container read-only behavior, and rollback-compatible startup.
+- [x] **P15-T01 — Implement private administration boundary.** Restrict `/admin` and protected operational endpoints to the configured trusted private network/proxy identity. Do not build an admin account/password system or expose admin navigation publicly.
+- [x] **P15-T02 — Implement MVP admin actions.** Provide Room lookup with minimized fields, terminate broken Room, delete replay, retire puzzle, and display health. Require confirmation, authorization, structured errors, idempotency where applicable, and an append-only audit record.
+- [x] **P15-T03 — Implement health endpoints.** Keep liveness cheap; make readiness require valid config/current migrations/healthy writer/not shutting down; keep detailed status private and free of active Room details.
+- [x] **P15-T04 — Implement safe metrics.** Expose the private Prometheus-compatible metrics in Architecture §38 with bounded labels. Exclude names, participant IDs, Room codes, puzzle values, replay capabilities, and other high-cardinality identifiers.
+- [x] **P15-T05 — Implement structured logging.** Use `log/slog`, correlation IDs, route templates/redaction, safe event/rejection/recovery fields, configured levels, and documented retention. Never log cookies, tokens, proofs, solutions, private notes, or full WebSocket/request payloads.
+- [x] **P15-T06 — Implement maintenance scheduling.** Run bounded, cancellable, observable, idempotent jobs for Room/session/receipt/replay expiry, seven-day participant scrubbing, 30-day tombstone expiry, snapshots, WAL checkpoint, `PRAGMA optimize`, and conditional integrity checks.
+- [x] **P15-T07 — Implement graceful shutdown.** Mark readiness false, reject new joins, notify clients, drain requests, stop commands, snapshot active state, close WebSockets with reconnectable maintenance reason, checkpoint WAL, and exit within the validated 60-second deadline.
+- [x] **P15-T08 — Harden HTTP responses.** Add CSP, HSTS in production, no-referrer private/replay policy, nosniff, Permissions-Policy, anti-framing, restrictive base/form directives, compression, immutable hashed assets, and safe cache headers.
+- [x] **P15-T09 — Harden abuse controls.** Verify CSPRNG Room/replay material, progressive failed-code delay, temporary blocking, trusted proxy parsing, rotating keyed IP digests, request/body limits, WebSocket size limits, and absence of raw IP product storage.
+- [x] **P15-T10 — Build the web image.** Use frozen dependency install, SvelteKit adapter-node build, minimal non-root runtime, read-only filesystem where practical, explicit health behavior, and immutable version metadata.
+- [x] **P15-T11 — Build the server image.** Use a multi-stage Go build, minimal non-root runtime, `/app/data` as the only required writable path, embedded/copied migrations, no compiler/toolchain in runtime, and correct signal handling.
+- [x] **P15-T12 — Add local orchestration.** Provide local compose/reverse-proxy configuration with only the server mounting SQLite, correct `/api`, `/ws`, `/health`, and private `/internal` routing, resource limits, and a local HTTPS production-cookie/Origin test path.
+- [x] **P15-T13 — Add Coolify manifests/runbook.** Define separate web/server applications, persistent volume mount, routing, health checks, environment contract, immutable image tags, migration/startup order, rollback compatibility checks, and owner-supplied secret placeholders.
+- [x] **P15-T14 — Complete CI security/packaging.** Add container builds, dependency vulnerability scanning, generated-file drift, migration testing, contract fixtures, TLA+, Playwright smoke, accessibility smoke, and race-detector jobs with least required permissions.
+- [x] **P15-T15 — Add operational tests.** Cover unauthorized/spoofed admin access, audit records, health transitions, metric-label privacy, log redaction, maintenance reruns/interruption, graceful termination, security headers, rate limits, container read-only behavior, and rollback-compatible startup.
 
 ### Phase gates
 
-- [ ] Private admin cannot be reached by an untrusted request or spoofed trusted-proxy header.
-- [ ] Every destructive admin action is confirmed, audited, idempotent where required, and privacy-safe.
-- [ ] Maintenance tests prove exact seven-day scrub and 30-day tombstone behavior.
-- [ ] Logs/metrics/header tests contain no prohibited data or high-cardinality labels.
-- [ ] Web and server images run as non-root, pass vulnerability policy, and expose only required writable paths.
-- [ ] Local container smoke verifies routing, HTTPS cookies/Origin, WebSocket upgrade, migrations, persistence across restart, readiness, and graceful shutdown.
-- [ ] Coolify artifacts are complete, but no DNS, secret, remote deployment, or production mutation is performed.
-- [ ] All cumulative checks pass.
+- [x] Private admin cannot be reached by an untrusted request or spoofed trusted-proxy header.
+- [x] Every destructive admin action is confirmed, audited, idempotent where required, and privacy-safe.
+- [x] Maintenance tests prove exact seven-day scrub and 30-day tombstone behavior.
+- [x] Logs/metrics/header tests contain no prohibited data or high-cardinality labels.
+- [x] Web and server images run as non-root, pass vulnerability policy, and expose only required writable paths.
+- [x] Local container smoke verifies routing, HTTPS cookies/Origin, WebSocket upgrade, migrations, persistence across restart, readiness, and graceful shutdown.
+- [x] Coolify artifacts are complete, but no DNS, secret, remote deployment, or production mutation is performed.
+- [x] All cumulative checks pass.
 
 ### Commit
 

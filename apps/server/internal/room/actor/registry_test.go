@@ -99,7 +99,14 @@ func TestFileBackedRestartEntersRecoveryAndResumesOnReconnect(t *testing.T) {
 	}
 
 	deadline := time.Now().Add(5 * time.Second)
-	for activeActor.match == nil || activeActor.match.State != shared.MatchActive {
+	for {
+		matches, err := repo.ListNonTerminalMatches(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(matches) == 1 && matches[0].State == string(shared.MatchActive) {
+			break
+		}
 		if time.Now().After(deadline) {
 			t.Fatal("match did not activate")
 		}

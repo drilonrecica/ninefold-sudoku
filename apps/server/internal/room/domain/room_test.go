@@ -102,6 +102,19 @@ func TestNewRoomStartsInLobbyWithHost(t *testing.T) {
 	}
 }
 
+func TestAdminTerminationIsTerminalAndIdempotent(t *testing.T) {
+	room := newRoom(t, "Mila")
+	host := room.Participants[0].ID
+	events, err := room.Apply(TerminateRoomCommand{Meta: meta(t, host, room.ID, uint64(room.Version))}, time.Now())
+	if err != nil || len(events) != 1 || room.State != shared.RoomTerminatedByAdmin {
+		t.Fatalf("terminate state=%s events=%d err=%v", room.State, len(events), err)
+	}
+	events, err = room.Apply(TerminateRoomCommand{Meta: meta(t, host, room.ID, uint64(room.Version))}, time.Now())
+	if err != nil || len(events) != 0 {
+		t.Fatalf("repeat events=%d err=%v", len(events), err)
+	}
+}
+
 func TestSettingsChangeResetsReadiness(t *testing.T) {
 	room := newRoom(t, "Mila")
 	mila := room.Participants[0].ID

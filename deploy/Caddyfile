@@ -1,0 +1,46 @@
+{
+	admin off
+	persist_config off
+	servers {
+		trusted_proxies static private_ranges
+		client_ip_headers X-Forwarded-For X-Real-IP
+		trusted_proxies_strict
+	}
+}
+
+:8080 {
+	encode zstd gzip
+
+	route {
+		@private path /admin /admin/* /internal/* /health/status
+		respond @private 404
+
+		@immutable path /_app/immutable/*
+		header @immutable Cache-Control "public, max-age=31536000, immutable"
+
+		@server path /api/* /ws /health/live /health/ready
+		reverse_proxy @server server:8080 {
+			header_up -X-Ninefold-Admin
+			header_up -X-Ninefold-Proxy-Secret
+			header_up -X-Ninefold-Client-IP
+			header_up -Forwarded
+			header_up -X-Forwarded-For
+			header_up -X-Forwarded-Host
+			header_up -X-Forwarded-Proto
+			header_up -X-Real-IP
+			header_up X-Ninefold-Proxy-Secret "{$NINEFOLD_PROXY_SECRET}"
+			header_up X-Ninefold-Client-IP {client_ip}
+		}
+
+		reverse_proxy web:3000 {
+			header_up -X-Ninefold-Admin
+			header_up -X-Ninefold-Proxy-Secret
+			header_up -X-Ninefold-Client-IP
+			header_up -Forwarded
+			header_up -X-Forwarded-For
+			header_up -X-Forwarded-Host
+			header_up -X-Forwarded-Proto
+			header_up -X-Real-IP
+		}
+	}
+}

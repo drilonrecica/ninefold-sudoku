@@ -44,6 +44,7 @@ type Config struct {
 	CookieSecret            []byte
 	ReplaySigningKey        ed25519.PrivateKey
 	ReplaySigningKeyID      string
+	ProxySecret             []byte
 	AdminProxyHeader        string
 	AdminTrustedProxies     []netip.Prefix
 	LogLevel                string
@@ -149,6 +150,14 @@ func Parse(lookup LookupFunc) (Config, error) {
 	if err != nil || !safeToken.MatchString(cfg.ReplaySigningKeyID) {
 		return cfg, errors.New("NINEFOLD_REPLAY_SIGNING_KEY_ID must be a safe token of 1-64 characters")
 	}
+	proxySecret, err := required("NINEFOLD_PROXY_SECRET")
+	if err != nil {
+		return cfg, err
+	}
+	cfg.ProxySecret, err = base64.StdEncoding.DecodeString(proxySecret)
+	if err != nil || len(cfg.ProxySecret) < 32 {
+		return cfg, errors.New("NINEFOLD_PROXY_SECRET must be base64 encoding at least 32 bytes")
+	}
 	cfg.AdminProxyHeader, err = required("NINEFOLD_ADMIN_PROXY_HEADER")
 	if err != nil || !safeToken.MatchString(cfg.AdminProxyHeader) {
 		return cfg, errors.New("NINEFOLD_ADMIN_PROXY_HEADER must be a safe HTTP header name of 1-64 characters")
@@ -198,6 +207,7 @@ func Parse(lookup LookupFunc) (Config, error) {
 			"NINEFOLD_COOKIE_SECRET":         cookieSecret,
 			"NINEFOLD_REPLAY_SIGNING_KEY":    signingKey,
 			"NINEFOLD_REPLAY_SIGNING_KEY_ID": cfg.ReplaySigningKeyID,
+			"NINEFOLD_PROXY_SECRET":          proxySecret,
 			"NINEFOLD_ADMIN_PROXY_HEADER":    cfg.AdminProxyHeader,
 		} {
 			lower := strings.ToLower(value)
@@ -250,7 +260,7 @@ func (c Config) Sanitized() map[string]string {
 		"tombstone_retention":       c.MatchTombstoneRetention.String(),
 		"command_receipt_retention": c.CommandReceiptRetention.String(),
 		"shutdown_timeout":          c.ShutdownTimeout.String(),
-		"configured":                strconv.FormatBool(len(c.CookieSecret) >= 32 && len(c.ReplaySigningKey) > 0),
+		"configured":                strconv.FormatBool(len(c.CookieSecret) >= 32 && len(c.ReplaySigningKey) > 0 && len(c.ProxySecret) >= 32),
 	}
 }
 

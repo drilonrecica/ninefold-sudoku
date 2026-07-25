@@ -40,6 +40,7 @@ func newTestServer(t *testing.T) (*Server, *sqlite.DB, net.Listener) {
 	}
 	cfg := config.Config{
 		Environment: config.Test, PublicURL: publicURL, AllowedOrigins: []string{origin},
+		ProxySecret:      []byte(strings.Repeat("p", 32)),
 		AdminProxyHeader: "X-Ninefold-Admin", AdminTrustedProxies: []netip.Prefix{netip.MustParsePrefix("127.0.0.0/8")},
 		MatchTombstoneRetention: 30 * 24 * time.Hour,
 	}

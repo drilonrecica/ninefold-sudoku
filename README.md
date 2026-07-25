@@ -4,7 +4,8 @@ Ninefold Sudoku is a privacy-first multiplayer Sudoku web application for privat
 
 ## Project status
 
-The `0.3.0` full MVP / portfolio beta is implemented and release-qualified:
+The `0.3.1` release packages the `0.3.0` full MVP / portfolio beta as one portable, isolated
+three-service Compose stack:
 
 - production-grade Co-op multiplayer;
 - online Solo with device-local progress;
@@ -13,10 +14,11 @@ The `0.3.0` full MVP / portfolio beta is implemented and release-qualified:
 - cryptographically verifiable multiplayer replay;
 - English UI built on localization-ready contracts;
 - responsive WCAG 2.2 AA gameplay;
-- deployment to a single Coolify-managed VPS.
+- deployment to Coolify or a standalone Docker VPS through one Caddy gateway.
 
 The release is packaged for deployment but is not deployed by repository automation. See the
-[0.3.0 qualification report](docs/releases/0.3.0.md) and
+[0.3.1 release report](docs/releases/0.3.1.md), the original
+[0.3.0 MVP qualification](docs/releases/0.3.0.md), and the
 [Coolify runbook](deploy/COOLIFY.md).
 
 Race, Duel, Daily Ninefold, offline Solo, Explain hints, full spectator UX, additional locales, and PWA installation are deferred. Their detailed specifications are provisional until the corresponding feature enters scope.
@@ -67,13 +69,17 @@ make e2e
 make tla
 ```
 
-For the production-like local HTTPS path, run:
+Generate a production environment without printing secrets:
 
 ```sh
-NINEFOLD_ENV_FILE=.env docker compose up --build
+go run ./apps/server/cmd/deployment-config \
+  -public-url https://ninefold.recica.dev \
+  -version 0.3.1 \
+  -output .env.production
 ```
 
-Then open `https://localhost:8443`. The local Caddy certificate is intentionally development-only.
+Use the base `compose.yaml` in Coolify. Standalone Docker hosts combine it with
+`compose.standalone.yaml`; see the deployment runbook for the exact command and rollback procedure.
 
 ## Planning and delivery
 

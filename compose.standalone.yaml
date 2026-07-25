@@ -1,0 +1,19 @@
+services:
+  gateway:
+    environment:
+      NINEFOLD_DOMAIN: ${NINEFOLD_DOMAIN:?NINEFOLD_DOMAIN is required}
+      XDG_CONFIG_HOME: /config
+      XDG_DATA_HOME: /data
+    volumes:
+      - ./deploy/Caddyfile.standalone:/etc/caddy/Caddyfile:ro,Z
+      - caddy-data:/data
+      - caddy-config:/config
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    cap_add: [NET_BIND_SERVICE]
+
+volumes:
+  caddy-data:
+  caddy-config:

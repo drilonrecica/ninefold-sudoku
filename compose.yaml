@@ -1,64 +1,123 @@
 services:
-  proxy:
-    image: caddy:2.10.2-alpine
-    ports:
-      - '8443:8443'
+  gateway:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.gateway
+      args:
+        VERSION: ${NINEFOLD_VERSION:?NINEFOLD_VERSION is required}
+    environment:
+      NINEFOLD_PROXY_SECRET: ${NINEFOLD_PROXY_SECRET:?NINEFOLD_PROXY_SECRET is required}
+      XDG_CONFIG_HOME: /tmp/caddy-config
+      XDG_DATA_HOME: /tmp/caddy-data
     volumes:
-      - ./deploy/Caddyfile.local:/etc/caddy/Caddyfile:ro
-      - caddy-data:/data
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro,Z
     read_only: true
-    tmpfs: [/config]
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
     depends_on:
       web:
         condition: service_healthy
       server:
         condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:8080/health/live']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    expose: ['8080']
+    cpus: 0.50
     mem_limit: 128m
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 128m
 
   web:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
       args:
-        VERSION: local
+        VERSION: ${NINEFOLD_VERSION:?NINEFOLD_VERSION is required}
+        NINEFOLD_REPLAY_SIGNING_KEY_ID: ${NINEFOLD_REPLAY_SIGNING_KEY_ID:?NINEFOLD_REPLAY_SIGNING_KEY_ID is required}
+        NINEFOLD_REPLAY_PUBLIC_KEY: ${NINEFOLD_REPLAY_PUBLIC_KEY:?NINEFOLD_REPLAY_PUBLIC_KEY is required}
     environment:
       HOST: 0.0.0.0
       PORT: '3000'
-      ORIGIN: https://localhost:8443
+      ORIGIN: ${NINEFOLD_PUBLIC_URL:?NINEFOLD_PUBLIC_URL is required}
+      NINEFOLD_API_BASE_URL: http://server:8080
     read_only: true
-    tmpfs: [/tmp]
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
     healthcheck:
       test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:3000/']
       interval: 10s
       timeout: 3s
       retries: 5
+      start_period: 10s
+    expose: ['3000']
+    cpus: 0.75
     mem_limit: 512m
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.75'
+          memory: 512m
 
   server:
     build:
       context: .
       dockerfile: apps/server/Dockerfile
       args:
-        VERSION: local
-    env_file: ${NINEFOLD_ENV_FILE:-.env}
+        VERSION: ${NINEFOLD_VERSION:?NINEFOLD_VERSION is required}
     environment:
+      NINEFOLD_ENVIRONMENT: production
+      NINEFOLD_PUBLIC_URL: ${NINEFOLD_PUBLIC_URL:?NINEFOLD_PUBLIC_URL is required}
       NINEFOLD_HTTP_ADDRESS: 0.0.0.0:8080
       NINEFOLD_DATABASE_PATH: /app/data/ninefold.db
-      NINEFOLD_PUBLIC_URL: https://localhost:8443
-      NINEFOLD_ALLOWED_ORIGINS: https://localhost:8443
-      NINEFOLD_ADMIN_TRUSTED_PROXIES: 172.16.0.0/12
+      NINEFOLD_ALLOWED_ORIGINS: ${NINEFOLD_ALLOWED_ORIGINS:?NINEFOLD_ALLOWED_ORIGINS is required}
+      NINEFOLD_COOKIE_SECRET: ${NINEFOLD_COOKIE_SECRET:?NINEFOLD_COOKIE_SECRET is required}
+      NINEFOLD_REPLAY_SIGNING_KEY: ${NINEFOLD_REPLAY_SIGNING_KEY:?NINEFOLD_REPLAY_SIGNING_KEY is required}
+      NINEFOLD_REPLAY_SIGNING_KEY_ID: ${NINEFOLD_REPLAY_SIGNING_KEY_ID:?NINEFOLD_REPLAY_SIGNING_KEY_ID is required}
+      NINEFOLD_PROXY_SECRET: ${NINEFOLD_PROXY_SECRET:?NINEFOLD_PROXY_SECRET is required}
+      NINEFOLD_ADMIN_PROXY_HEADER: ${NINEFOLD_ADMIN_PROXY_HEADER:-X-Ninefold-Admin}
+      NINEFOLD_ADMIN_TRUSTED_PROXIES: ${NINEFOLD_ADMIN_TRUSTED_PROXIES:-127.0.0.0/8,::1/128}
+      NINEFOLD_LOG_LEVEL: ${NINEFOLD_LOG_LEVEL:-info}
+      NINEFOLD_REPLAY_RETENTION: ${NINEFOLD_REPLAY_RETENTION:-168h}
+      NINEFOLD_MATCH_TOMBSTONE_RETENTION: ${NINEFOLD_MATCH_TOMBSTONE_RETENTION:-720h}
+      NINEFOLD_COMMAND_RECEIPT_RETENTION: ${NINEFOLD_COMMAND_RECEIPT_RETENTION:-24h}
+      NINEFOLD_SHUTDOWN_TIMEOUT: ${NINEFOLD_SHUTDOWN_TIMEOUT:-60s}
     volumes:
       - ninefold-data:/app/data
     read_only: true
-    tmpfs: [/tmp]
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
     healthcheck:
       test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:8080/health/ready']
       interval: 10s
       timeout: 3s
       retries: 5
+      start_period: 15s
+    expose: ['8080']
     stop_grace_period: 60s
+    cpus: 1.50
     mem_limit: 1g
+    restart: unless-stopped
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: '1.50'
+          memory: 1g
 
 volumes:
   ninefold-data:
-  caddy-data:

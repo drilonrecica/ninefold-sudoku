@@ -3,6 +3,7 @@ package ops
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"io"
 	"log/slog"
 	"net/http"
@@ -13,6 +14,42 @@ import (
 
 	"github.com/go-chi/chi/v5"
 )
+
+func TestResolveClientAddressAuthenticatesNormalizedAddress(t *testing.T) {
+	t.Parallel()
+	secret := []byte(strings.Repeat("p", 32))
+	handler := ResolveClientAddress(secret, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(ClientAddress(r)))
+	}))
+
+	tests := []struct {
+		name    string
+		remote  string
+		address string
+		secret  string
+		want    string
+	}{
+		{name: "missing headers", remote: "10.0.0.2:1234", want: "10.0.0.2"},
+		{name: "wrong secret", remote: "10.0.0.2:1234", address: "203.0.113.9", secret: base64.StdEncoding.EncodeToString([]byte(strings.Repeat("x", 32))), want: "10.0.0.2"},
+		{name: "malformed secret", remote: "10.0.0.2:1234", address: "203.0.113.9", secret: "not-base64", want: "10.0.0.2"},
+		{name: "malformed address", remote: "10.0.0.2:1234", address: "203.0.113.9:80", secret: base64.StdEncoding.EncodeToString(secret), want: "10.0.0.2"},
+		{name: "authenticated IPv4", remote: "10.0.0.2:1234", address: "203.0.113.9", secret: base64.StdEncoding.EncodeToString(secret), want: "203.0.113.9"},
+		{name: "authenticated IPv6", remote: "[fd00::2]:1234", address: "2001:db8::9", secret: base64.StdEncoding.EncodeToString(secret), want: "2001:db8::9"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodGet, "/", nil)
+			request.RemoteAddr = test.remote
+			request.Header.Set(ClientAddressHeader, test.address)
+			request.Header.Set(ProxySecretHeader, test.secret)
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+			if response.Body.String() != test.want {
+				t.Fatalf("address=%q want=%q", response.Body.String(), test.want)
+			}
+		})
+	}
+}
 
 func TestAdminOnlyRejectsSpoofedUntrustedRequest(t *testing.T) {
 	t.Parallel()

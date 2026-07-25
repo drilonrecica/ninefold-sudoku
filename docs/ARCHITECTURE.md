@@ -2,7 +2,7 @@
 
 **Document:** `docs/ARCHITECTURE.md`  
 **Status:** Canonical implementation architecture  
-**Current implementation scope:** Full MVP (`0.3.0`); deferred-feature architecture is provisional
+**Current implementation scope:** Full MVP plus the `0.3.1` portable Compose deployment; deferred-feature architecture is provisional
 **Product:** Ninefold Sudoku  
 **Public URL:** `https://ninefold.recica.dev`  
 **Repository:** `ninefold-sudoku`  
@@ -179,12 +179,14 @@ Browser
   │
   │ HTTPS / WSS
   ▼
-Coolify reverse proxy
-  ├── /, public pages, game shell ───────► SvelteKit web
-  ├── /api/v1/* ─────────────────────────► Go server
-  ├── /ws ───────────────────────────────► Go server
-  ├── /health/live ──────────────────────► Go server
-  └── protected internal/admin routes ──► Go server / SvelteKit admin UI
+Coolify reverse proxy / external TLS proxy
+  │
+  ▼
+Caddy gateway :8080
+  ├── /, public pages, game shell ───────► SvelteKit web :3000
+  ├── /api/v1/*, /ws ────────────────────► Go server :8080
+  ├── /health/live, /health/ready ───────► Go server :8080
+  └── /admin, /internal/*, /health/status → 404
                                                 │
                                                 ▼
                                       local SQLite volume
@@ -2322,10 +2324,11 @@ Trusted proxy identity may be passed in a configured header only when request or
 
 ### 35.7 Secrets
 
-Coolify environment secrets:
+Deployment environment secrets:
 
 - cookie-signing secret;
 - replay-signing private key;
+- internal gateway identity secret;
 - trusted admin proxy configuration;
 - future backup credentials;
 - registry credentials where needed.
@@ -2677,49 +2680,63 @@ Do not blindly copy only the SQLite main file while WAL is active.
 
 ---
 
-## 45. Coolify deployment
+## 45. Compose and Coolify deployment
 
-### 45.1 Applications
+### 45.1 Resource and services
 
-Two Coolify applications:
+Production is one provider-neutral Docker Compose resource with three independently isolated
+services:
 
 ```text
-ninefold-web
-ninefold-server
+gateway → web
+        → server → ninefold-data
 ```
 
-Both build from the same repository.
+Only `gateway` is assigned a public domain. `web` and `server` have no host port mappings or
+Coolify domains. The gateway listens on internal port `8080`; Coolify terminates public TLS and
+forwards to that port. The Go service has exactly one replica. The gateway image builds the pinned
+Caddy `v2.11.4` source with explicitly pinned security-updated Go networking dependencies, then
+runs the static binary in a minimal Alpine image as a non-root user.
 
 ### 45.2 Persistent volume
 
-```text
-ninefold-data:/app/data
-```
-
-Mounted only into `ninefold-server`.
+`ninefold-data:/app/data` is mounted only into `server`. Caddy certificate/config volumes exist
+only in the standalone HTTPS override.
 
 ### 45.3 Routing
 
 ```text
-/             → web
-/api/*        → server
-/ws           → server
-/health/*     → server
-/internal/*   → private
+/                                  → web
+/api/*, /ws                        → server
+/health/live, /health/ready        → server
+/admin, /internal/*, /health/status → 404
 ```
 
-### 45.4 Initial resource limits
+The gateway disables raw-path access logging, enables gzip and zstd, applies immutable caching to
+hashed assets, and strips public admin/internal proxy headers. It normalizes the client address
+using Caddy's trusted-proxy handling and authenticates that value to Go with
+`NINEFOLD_PROXY_SECRET`. Go ignores the normalized value unless that secret matches in constant
+time, and otherwise uses the socket peer.
+
+### 45.4 Standalone HTTPS
+
+Non-Coolify hosts combine `compose.yaml` with `compose.standalone.yaml`. The override publishes TCP
+80/443 and UDP 443, uses `NINEFOLD_DOMAIN`, and persists Caddy certificate and configuration data.
+The base stack remains unchanged and has no published host ports.
+
+### 45.5 Initial resource limits
 
 | Service | CPU | Memory |
 |---|---:|---:|
 | Web | 0.5–1 core | 256–512 MiB |
 | Server | 1–2 cores | 512 MiB–1 GiB |
+| Gateway | 0.5 core | 128 MiB |
 
 Reserve at least 5 GiB disk for the SQLite volume.
 
 Tune after actual VPS details and load tests.
 
-### 45.5 Go server settings
+### 45.6 Go server settings
 
 Initial values:
 
@@ -2767,7 +2784,7 @@ master
 v0.x.y
 ```
 
-Production deploys immutable SHA or semantic-version tags, not only `latest`.
+Production deploys immutable Git tags or commit SHAs, not only `latest`.
 
 ---
 
@@ -2817,9 +2834,8 @@ CI must:
 Pull request
 → CI
 → merge to master
-→ build immutable images
-→ push to GitHub Container Registry
-→ Coolify deploy
+→ build and scan the three service images
+→ Coolify deploy immutable Git tag as one Compose resource
 → readiness false
 → migrations
 → server startup and recovery
@@ -2831,13 +2847,13 @@ Production images are not manually built on the VPS.
 
 ### 48.1 Rollback
 
-Retain previous web/server image pair.
+Retain the previous Compose version and its web/server image pair.
 
 Rollback:
 
 1. stop readiness;
 2. preserve snapshots;
-3. deploy previous image pair;
+3. deploy the previous Compose version and image pair;
 4. verify schema compatibility;
 5. recover Matches;
 6. restore readiness.
@@ -3055,6 +3071,7 @@ NINEFOLD_ALLOWED_ORIGINS
 NINEFOLD_COOKIE_SECRET
 NINEFOLD_REPLAY_SIGNING_KEY
 NINEFOLD_REPLAY_SIGNING_KEY_ID
+NINEFOLD_PROXY_SECRET
 NINEFOLD_ADMIN_PROXY_HEADER
 NINEFOLD_ADMIN_TRUSTED_PROXIES
 NINEFOLD_LOG_LEVEL
@@ -3064,12 +3081,25 @@ NINEFOLD_COMMAND_RECEIPT_RETENTION
 NINEFOLD_SHUTDOWN_TIMEOUT
 ```
 
+Deployment generation also emits:
+
+```text
+NINEFOLD_VERSION
+NINEFOLD_DOMAIN
+NINEFOLD_REPLAY_PUBLIC_KEY
+```
+
+`NINEFOLD_VERSION`, the replay key ID, and the raw base64 Ed25519 public key are required web image
+build arguments. A production web image fails to build when either replay trust input is missing or
+malformed. The development replay key is available only to non-production development/test builds.
+
 Requirements:
 
 - `NINEFOLD_ENVIRONMENT` is exactly `development`, `test`, or `production`;
 - production public and allowed-origin URLs use HTTPS;
 - the cookie secret is base64-encoded and decodes to at least 32 bytes;
 - the replay signing key is a base64-encoded PKCS#8 Ed25519 private key;
+- the proxy secret is base64-encoded and decodes to at least 32 bytes;
 - the replay signing key ID and administrator proxy header use bounded safe syntax;
 - trusted administrator proxies are explicit IP CIDRs; forwarded headers never expand this trust;
 - fail startup on missing mandatory values;

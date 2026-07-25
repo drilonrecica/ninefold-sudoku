@@ -1,0 +1,28 @@
+FROM golang:1.26.5-alpine3.23 AS build
+
+WORKDIR /src
+RUN go mod download github.com/caddyserver/caddy/v2@v2.11.4 \
+ && cp -R "$(go env GOMODCACHE)/github.com/caddyserver/caddy/v2@v2.11.4/." /src \
+ && chmod -R u+w /src
+RUN go get google.golang.org/grpc@v1.82.1 golang.org/x/net@v0.55.0
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/caddy ./cmd/caddy
+
+FROM alpine:3.23
+
+ARG VERSION=unknown
+LABEL org.opencontainers.image.title="Ninefold Sudoku gateway" \
+      org.opencontainers.image.version="${VERSION}"
+
+RUN apk upgrade --no-cache \
+ && apk add --no-cache ca-certificates \
+ && addgroup -S -g 10001 ninefold \
+ && adduser -S -D -H -u 10001 -G ninefold ninefold \
+ && mkdir -p /data /config \
+ && chown -R ninefold:ninefold /data /config
+
+COPY --from=build /out/caddy /usr/bin/caddy
+
+USER 10001:10001
+EXPOSE 80 443 443/udp 8080
+ENTRYPOINT ["caddy"]
+CMD ["run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]

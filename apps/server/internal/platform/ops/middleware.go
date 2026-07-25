@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"context"
 	"crypto/rand"
+	"crypto/subtle"
+	"encoding/base64"
 	"encoding/hex"
 	"log/slog"
 	"net"
@@ -16,10 +18,44 @@ import (
 )
 
 type adminIdentityKey struct{}
+type clientAddressKey struct{}
+
+const (
+	ProxySecretHeader   = "X-Ninefold-Proxy-Secret"
+	ClientAddressHeader = "X-Ninefold-Client-IP"
+)
 
 func AdminIdentity(ctx context.Context) string {
 	identity, _ := ctx.Value(adminIdentityKey{}).(string)
 	return identity
+}
+
+// ClientAddress returns the gateway-authenticated client IP, or the socket peer
+// when the request did not carry a valid gateway identity.
+func ClientAddress(r *http.Request) string {
+	if address, ok := r.Context().Value(clientAddressKey{}).(string); ok {
+		return address
+	}
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err == nil {
+		return host
+	}
+	return r.RemoteAddr
+}
+
+// ResolveClientAddress accepts the normalized address only from a gateway that
+// proves knowledge of the deployment proxy secret.
+func ResolveClientAddress(secret []byte, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		presented, err := base64.StdEncoding.DecodeString(r.Header.Get(ProxySecretHeader))
+		address, addressErr := netip.ParseAddr(strings.TrimSpace(r.Header.Get(ClientAddressHeader)))
+		if err == nil && addressErr == nil && len(presented) == len(secret) &&
+			subtle.ConstantTimeCompare(presented, secret) == 1 {
+			ctx := context.WithValue(r.Context(), clientAddressKey{}, address.Unmap().String())
+			r = r.WithContext(ctx)
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func AdminOnly(header string, trusted []netip.Prefix, next http.Handler) http.Handler {

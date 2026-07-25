@@ -166,6 +166,23 @@ func TestFailedRoomLookupUsesProgressivePrivateRateKey(t *testing.T) {
 	}
 }
 
+func TestRoomCreationRateLimitSeparatesClientAddresses(t *testing.T) {
+	handler, _, cleanup := newTestHandler(t)
+	defer cleanup()
+	now := time.Date(2026, time.July, 25, 12, 0, 0, 0, time.UTC)
+	for range 10 {
+		if !handler.allowRoomCreation("203.0.113.10", now) {
+			t.Fatal("first client was limited too early")
+		}
+	}
+	if handler.allowRoomCreation("203.0.113.10", now) {
+		t.Fatal("first client exceeded its hourly limit")
+	}
+	if !handler.allowRoomCreation("203.0.113.11", now) {
+		t.Fatal("second client incorrectly shared the first client's limit")
+	}
+}
+
 func TestJoinRoom(t *testing.T) {
 	_, r, cleanup := newTestHandler(t)
 	defer cleanup()

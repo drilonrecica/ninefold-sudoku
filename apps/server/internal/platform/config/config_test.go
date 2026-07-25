@@ -68,6 +68,13 @@ func TestParse(t *testing.T) {
 			wantErr: "at least 32 bytes",
 		},
 		{
+			name: "short proxy secret",
+			mutate: func(env map[string]string) {
+				env["NINEFOLD_PROXY_SECRET"] = base64.StdEncoding.EncodeToString([]byte("short"))
+			},
+			wantErr: "NINEFOLD_PROXY_SECRET",
+		},
+		{
 			name: "malformed signing key",
 			mutate: func(env map[string]string) {
 				env["NINEFOLD_REPLAY_SIGNING_KEY"] = base64.StdEncoding.EncodeToString([]byte("not-pkcs8"))
@@ -108,7 +115,8 @@ func TestParse(t *testing.T) {
 				}
 				for _, value := range cfg.Sanitized() {
 					if strings.Contains(value, env["NINEFOLD_COOKIE_SECRET"]) ||
-						strings.Contains(value, env["NINEFOLD_REPLAY_SIGNING_KEY"]) {
+						strings.Contains(value, env["NINEFOLD_REPLAY_SIGNING_KEY"]) ||
+						strings.Contains(value, env["NINEFOLD_PROXY_SECRET"]) {
 						t.Fatal("sanitized configuration exposed a secret")
 					}
 				}
@@ -140,6 +148,7 @@ func validEnvironment(t *testing.T) map[string]string {
 		"NINEFOLD_COOKIE_SECRET":             base64.StdEncoding.EncodeToString([]byte(strings.Repeat("c", 32))),
 		"NINEFOLD_REPLAY_SIGNING_KEY":        base64.StdEncoding.EncodeToString(der),
 		"NINEFOLD_REPLAY_SIGNING_KEY_ID":     "test-1",
+		"NINEFOLD_PROXY_SECRET":              base64.StdEncoding.EncodeToString([]byte(strings.Repeat("p", 32))),
 		"NINEFOLD_ADMIN_PROXY_HEADER":        "X-Ninefold-Admin",
 		"NINEFOLD_ADMIN_TRUSTED_PROXIES":     "127.0.0.0/8,::1/128",
 		"NINEFOLD_LOG_LEVEL":                 "debug",

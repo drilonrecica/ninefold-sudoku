@@ -12,7 +12,9 @@ FROM alpine:3.23
 ARG VERSION=unknown
 LABEL org.opencontainers.image.title="Ninefold Sudoku server" \
       org.opencontainers.image.version="${VERSION}"
-RUN addgroup -S -g 10001 ninefold && adduser -S -D -H -u 10001 -G ninefold ninefold
+RUN apk upgrade --no-cache \
+ && addgroup -S -g 10001 ninefold \
+ && adduser -S -D -H -u 10001 -G ninefold ninefold
 WORKDIR /app
 COPY --from=build --chown=ninefold:ninefold /out/ninefold-api /app/ninefold-api
 RUN mkdir /app/data && chown ninefold:ninefold /app/data

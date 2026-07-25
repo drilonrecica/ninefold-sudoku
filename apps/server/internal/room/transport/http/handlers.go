@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -24,6 +23,7 @@ import (
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/persistence/repository"
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/platform/config"
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/platform/idgen"
+	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/platform/ops"
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/room/actor"
 	roomdomain "github.com/drilonrecica/ninefold-sudoku/apps/server/internal/room/domain"
 	roomsession "github.com/drilonrecica/ninefold-sudoku/apps/server/internal/room/session"
@@ -128,7 +128,7 @@ func (h *Handler) CreateRoom(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, resp)
 		return
 	}
-	if !h.allowRoomCreation(r.RemoteAddr, time.Now()) {
+	if !h.allowRoomCreation(ops.ClientAddress(r), time.Now()) {
 		writeError(w, http.StatusTooManyRequests, shared.ErrRateLimited, "room creation rate limit exceeded")
 		return
 	}
@@ -223,14 +223,10 @@ func (h *Handler) CreateRoom(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) allowRoomCreation(remoteAddress string, now time.Time) bool {
-	host, _, err := net.SplitHostPort(remoteAddress)
-	if err != nil {
-		host = remoteAddress
-	}
 	h.createMu.Lock()
 	defer h.createMu.Unlock()
 	mac := hmac.New(sha256.New, h.config.CookieSecret)
-	_, _ = mac.Write([]byte(now.UTC().Format("2006-01-02") + "|" + host))
+	_, _ = mac.Write([]byte(now.UTC().Format("2006-01-02") + "|" + remoteAddress))
 	key := hex.EncodeToString(mac.Sum(nil))
 	window := h.creates[key]
 	if window.start.IsZero() || now.Sub(window.start) >= time.Hour {
@@ -247,7 +243,8 @@ func (h *Handler) allowRoomCreation(remoteAddress string, now time.Time) bool {
 
 func (h *Handler) PreviewRoom(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	if retry := h.lookupRetryAfter(r.RemoteAddr, time.Now()); retry > 0 {
+	clientAddress := ops.ClientAddress(r)
+	if retry := h.lookupRetryAfter(clientAddress, time.Now()); retry > 0 {
 		w.Header().Set("Retry-After", strconv.Itoa(retry))
 		writeError(w, http.StatusTooManyRequests, shared.ErrRateLimited, "room lookup temporarily blocked")
 		return
@@ -255,14 +252,14 @@ func (h *Handler) PreviewRoom(w http.ResponseWriter, r *http.Request) {
 	codeParam := chi.URLParam(r, "code")
 	code, err := shared.ParseRoomCode(codeParam)
 	if err != nil {
-		w.Header().Set("Retry-After", strconv.Itoa(h.recordFailedLookup(r.RemoteAddr, time.Now())))
+		w.Header().Set("Retry-After", strconv.Itoa(h.recordFailedLookup(clientAddress, time.Now())))
 		writeError(w, http.StatusBadRequest, shared.ErrRoomNotFound, "invalid room code")
 		return
 	}
 	gr, err := h.repo.GetRoomByCode(ctx, code.String())
 	if err != nil {
 		if repository.IsNoRows(err) {
-			w.Header().Set("Retry-After", strconv.Itoa(h.recordFailedLookup(r.RemoteAddr, time.Now())))
+			w.Header().Set("Retry-After", strconv.Itoa(h.recordFailedLookup(clientAddress, time.Now())))
 			writeError(w, http.StatusNotFound, shared.ErrRoomNotFound, "room not found")
 			return
 		}
@@ -270,11 +267,11 @@ func (h *Handler) PreviewRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if isTerminal(gr.State) {
-		w.Header().Set("Retry-After", strconv.Itoa(h.recordFailedLookup(r.RemoteAddr, time.Now())))
+		w.Header().Set("Retry-After", strconv.Itoa(h.recordFailedLookup(clientAddress, time.Now())))
 		writeError(w, http.StatusNotFound, shared.ErrRoomNotFound, "room not found")
 		return
 	}
-	h.clearLookupFailures(r.RemoteAddr, time.Now())
+	h.clearLookupFailures(clientAddress, time.Now())
 	participants, err := h.repo.ListActiveRoomParticipants(ctx, gr.ID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, shared.ErrPersistenceFailed, "database error")
@@ -303,12 +300,8 @@ func (h *Handler) PreviewRoom(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) lookupKey(remoteAddress string, now time.Time) string {
-	host, _, err := net.SplitHostPort(remoteAddress)
-	if err != nil {
-		host = remoteAddress
-	}
 	mac := hmac.New(sha256.New, h.config.CookieSecret)
-	_, _ = mac.Write([]byte(now.UTC().Format("2006-01-02") + "|" + host))
+	_, _ = mac.Write([]byte(now.UTC().Format("2006-01-02") + "|" + remoteAddress))
 	return hex.EncodeToString(mac.Sum(nil))
 }
 

@@ -64,6 +64,9 @@ func New(address, buildVersion string, cfg config.Config, db *sqlite.DB, repo *r
 
 	router := chi.NewRouter()
 	router.Use(metrics.Middleware)
+	router.Use(func(next http.Handler) http.Handler {
+		return ops.ResolveClientAddress(cfg.ProxySecret, next)
+	})
 	router.Use(func(next http.Handler) http.Handler { return ops.RequestLog(logger, next) })
 	router.Use(func(next http.Handler) http.Handler { return ops.BodyLimit(1<<20, next) })
 	router.Use(func(next http.Handler) http.Handler {

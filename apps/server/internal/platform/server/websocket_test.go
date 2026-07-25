@@ -17,8 +17,6 @@ import (
 	"nhooyr.io/websocket"
 	"nhooyr.io/websocket/wsjson"
 
-	shared "github.com/drilonrecica/ninefold-sudoku/apps/server/internal/domain"
-	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/persistence/gen"
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/persistence/repository"
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/platform/idgen"
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/puzzle/catalog"
@@ -355,48 +353,14 @@ func createCatalogPuzzle(t *testing.T, repo *repository.Repository) {
 		if record.Difficulty != "Easy" || record.Lifecycle != "Active" {
 			continue
 		}
-		id, err := shared.ParsePuzzleID(record.ID)
-		if err != nil {
-			t.Fatalf("puzzle id: %v", err)
-		}
-		puzzle := gen.Puzzle{
-			ID:                   id.String(),
-			Revision:             1,
-			State:                "Active",
-			Difficulty:           string(record.Difficulty),
-			HardestTechnique:     record.HardestTechnique,
-			QualityScore:         float64(record.Quality.ClueCount),
-			MultiplayerApproved:  1,
-			GeneratorVersion:     record.GeneratorVersion,
-			SolverVersion:        record.SolverVersion,
-			CanonicalFingerprint: record.CanonicalFingerprint,
-			Clues:                decimalGridBytes(t, record.Clues),
-			Solution:             decimalGridBytes(t, record.Solution),
-			CreatedAtMs:          time.Now().UnixMilli(),
-		}
-		if err := repo.CreatePuzzle(context.Background(), puzzle); err != nil {
-			t.Fatalf("create puzzle: %v", err)
+		if _, err := repo.GetPuzzle(context.Background(), record.ID, int64(record.Revision)); err != nil {
+			t.Fatalf("get seeded puzzle %s: %v", record.ID, err)
 		}
 		created++
 	}
 	if created < 2 {
 		t.Fatalf("expected at least two active Easy puzzles, got %d", created)
 	}
-}
-
-func decimalGridBytes(t *testing.T, grid string) []byte {
-	t.Helper()
-	if len(grid) != 81 {
-		t.Fatalf("invalid grid length: %d", len(grid))
-	}
-	out := make([]byte, len(grid))
-	for i, digit := range []byte(grid) {
-		if digit < '0' || digit > '9' {
-			t.Fatalf("invalid grid digit at %d", i)
-		}
-		out[i] = digit - '0'
-	}
-	return out
 }
 
 func readServerMessage(t *testing.T, ctx context.Context, conn *websocket.Conn, wantType string) realtime.ServerMessage {

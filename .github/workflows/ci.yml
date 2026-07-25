@@ -110,7 +110,7 @@ jobs:
         working-directory: apps/server
       - run: pnpm audit --audit-level high
       - name: Generate ephemeral production build inputs
-        run: go run ./apps/server/cmd/deployment-config -public-url https://ninefold.recica.dev -version 0.3.2 -output /tmp/ninefold-ci.env
+        run: go run ./apps/server/cmd/deployment-config -public-url https://ninefold.recica.dev -version 0.3.3 -output /tmp/ninefold-ci.env
       - name: Validate base and standalone Compose stacks
         run: |
           docker compose --env-file /tmp/ninefold-ci.env -f compose.yaml config --quiet

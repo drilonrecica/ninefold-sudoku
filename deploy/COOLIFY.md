@@ -10,7 +10,7 @@ From the repository root:
 ```sh
 go run ./apps/server/cmd/deployment-config \
   -public-url https://ninefold.recica.dev \
-  -version 0.3.2 \
+  -version 0.3.3 \
   -output .env.production
 ```
 
@@ -28,7 +28,7 @@ Create one resource from this repository with exactly these fields:
 | Build pack     | `Docker Compose`       |
 | Base directory | `/`                    |
 | Compose file   | `/compose.yaml`        |
-| Git reference  | immutable tag `v0.3.2` |
+| Git reference  | immutable tag `v0.3.3` |
 
 Paste every value from `.env.production` into the resource environment. Mark and lock these
 sensitive values:

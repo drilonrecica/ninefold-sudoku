@@ -15,8 +15,18 @@ func TestCommittedCatalog(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(records) < 5 {
+	if len(records) != 10 {
 		t.Fatalf("catalog record count = %d", len(records))
+	}
+	counts := make(map[shared.Difficulty]int)
+	for _, record := range records {
+		counts[shared.Difficulty(record.Difficulty)]++
+	}
+	expectedCounts := map[shared.Difficulty]int{
+		shared.DifficultyEasy:   3,
+		shared.DifficultyMedium: 3,
+		shared.DifficultyHard:   2,
+		shared.DifficultyExpert: 2,
 	}
 	for _, difficulty := range []shared.Difficulty{
 		shared.DifficultyEasy,
@@ -24,18 +34,17 @@ func TestCommittedCatalog(t *testing.T) {
 		shared.DifficultyHard,
 		shared.DifficultyExpert,
 	} {
+		if counts[difficulty] != expectedCounts[difficulty] {
+			t.Fatalf("%s catalog count = %d, want %d", difficulty, counts[difficulty], expectedCounts[difficulty])
+		}
 		puzzle, err := NewSelector(records).Select(difficulty, nil)
 		if err != nil || puzzle.Difficulty != difficulty {
 			t.Fatalf("select %s: %#v %v", difficulty, puzzle, err)
 		}
 		excluded := map[string]struct{}{puzzle.CanonicalFingerprint: {}}
 		alternative, alternativeErr := NewSelector(records).Select(difficulty, excluded)
-		if difficulty == shared.DifficultyEasy {
-			if alternativeErr != nil || alternative.CanonicalFingerprint == puzzle.CanonicalFingerprint {
-				t.Fatalf("expected distinct Easy rematch puzzle: %#v %v", alternative, alternativeErr)
-			}
-		} else if alternativeErr == nil {
-			t.Fatalf("excluded only %s puzzle was selected", difficulty)
+		if alternativeErr != nil || alternative.CanonicalFingerprint == puzzle.CanonicalFingerprint {
+			t.Fatalf("expected distinct %s rematch puzzle: %#v %v", difficulty, alternative, alternativeErr)
 		}
 	}
 	for _, record := range records {

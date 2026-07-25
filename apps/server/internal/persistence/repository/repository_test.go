@@ -667,11 +667,18 @@ func TestPublicReadMethodsDoNotReturnSolutions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list puzzles: %v", err)
 	}
-	if len(rows) != 1 {
-		t.Fatalf("expected 1 puzzle, got %d", len(rows))
+	found := false
+	for _, row := range rows {
+		if row.ID == puzzle.ID {
+			found = true
+			if string(row.Clues) != string(puzzle.Clues) {
+				t.Fatalf("clues should match")
+			}
+			break
+		}
 	}
-	if string(rows[0].Clues) != string(puzzle.Clues) {
-		t.Fatalf("clues should match")
+	if !found {
+		t.Fatalf("created puzzle %s not found in %d rows", puzzle.ID, len(rows))
 	}
 	// The generated list row struct does not include a Solution field, so the solution cannot leak.
 	// (Compilation check: gen.ListActivePuzzlesByDifficultyRow has no Solution field.)

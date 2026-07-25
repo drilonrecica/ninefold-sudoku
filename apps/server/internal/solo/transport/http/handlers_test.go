@@ -19,22 +19,21 @@ import (
 )
 
 const (
-	testPuzzleID = "019f93fe-59f5-7e2d-a543-c697931f766b"
-	testClues    = "040950800857043906000178400038062000675090024002435768000000000283007009019300000"
-	testSolution = "341956872857243916926178453438762195675891324192435768764589231283617549519324687"
+	testPuzzleID       = "019f93fe-59f5-7e2d-a543-c697931f766b"
+	otherEasyPuzzleID1 = "019f962c-2545-766f-b66f-81f8e200f266"
+	otherEasyPuzzleID2 = "019f9b5c-8c94-785b-9947-72c6f5998fde"
 )
 
 func TestSoloAssignmentProofAndVisibility(t *testing.T) {
 	router, record := testRouter(t)
 	assignment := createTestAssignment(t, router, "Guided")
-	if assignment.PuzzleID != testPuzzleID || assignment.Clues == testSolution ||
-		strings.Contains(assignment.AssignmentProof, testSolution) {
-		t.Fatalf("assignment exposed invalid data: %+v", assignment)
-	}
-
 	_, solution, err := transformed(record, assignment.TransformationSeed)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if assignment.PuzzleID != testPuzzleID || assignment.Clues == solution.String() ||
+		strings.Contains(assignment.AssignmentProof, solution.String()) {
+		t.Fatalf("assignment exposed invalid data: %+v", assignment)
 	}
 	values := []byte(assignment.Clues)
 	wrongCell := strings.IndexByte(assignment.Clues, '0')
@@ -92,13 +91,8 @@ func testRouter(t *testing.T) (http.Handler, gen.Puzzle) {
 		t.Fatal(err)
 	}
 	repo := repository.New(db)
-	record := gen.Puzzle{
-		ID: testPuzzleID, Revision: 1, State: "Active", Difficulty: "Easy",
-		HardestTechnique: "naked_single", QualityScore: 1, GeneratorVersion: "generator-v1",
-		SolverVersion: "logical-v1", CanonicalFingerprint: "fixture", CreatedAtMs: 1,
-		Clues: digits(testClues), Solution: digits(testSolution),
-	}
-	if err := repo.CreatePuzzle(context.Background(), record); err != nil {
+	record, err := repo.GetPuzzle(context.Background(), testPuzzleID, 1)
+	if err != nil {
 		t.Fatal(err)
 	}
 	router := chi.NewRouter()
@@ -109,7 +103,8 @@ func testRouter(t *testing.T) (http.Handler, gen.Puzzle) {
 func createTestAssignment(t *testing.T, router http.Handler, style string) assignmentResponse {
 	t.Helper()
 	response := post(t, router, "/api/v1/solo/puzzles", map[string]any{
-		"difficulty": "Easy", "playStyle": style, "recentPuzzleIds": []string{},
+		"difficulty": "Easy", "playStyle": style,
+		"recentPuzzleIds": []string{otherEasyPuzzleID1, otherEasyPuzzleID2},
 	})
 	if response.Code != http.StatusCreated {
 		t.Fatalf("assignment = %d %s", response.Code, response.Body.String())
@@ -131,12 +126,4 @@ func post(t *testing.T, router http.Handler, path string, body any) *httptest.Re
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, request)
 	return response
-}
-
-func digits(encoded string) []byte {
-	result := make([]byte, len(encoded))
-	for index, value := range []byte(encoded) {
-		result[index] = value - '0'
-	}
-	return result
 }

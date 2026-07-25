@@ -813,6 +813,11 @@ Total public catalog:
 1,750 puzzles
 ```
 
+The `0.3.3` closed-beta deployment temporarily seeds 10 reviewed test puzzles: 3 Easy, 3 Medium,
+2 Hard, and 2 Expert. This supports an initial match and one rematch at every difficulty but does
+not satisfy the development or public catalog targets. It must not be represented as the production
+catalog.
+
 ### 16.5 Repetition control
 
 Users should not encounter the same canonical puzzle repeatedly.

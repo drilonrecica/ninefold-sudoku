@@ -1,13 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 
-	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/persistence/gen"
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/persistence/migrate"
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/persistence/repository"
 	"github.com/drilonrecica/ninefold-sudoku/apps/server/internal/persistence/sqlite"
@@ -76,18 +75,18 @@ func main() {
 			fmt.Fprintf(os.Stderr, "migrate failed: %v\n", err)
 			os.Exit(1)
 		}
-		if err := seedE2ECatalog(context.Background(), repository.New(db), os.Args[2]); err != nil {
-			fmt.Fprintf(os.Stderr, "seed e2e catalog failed: %v\n", err)
+		if err := verifyE2ECatalog(context.Background(), repository.New(db), os.Args[2]); err != nil {
+			fmt.Fprintf(os.Stderr, "verify e2e catalog failed: %v\n", err)
 			os.Exit(1)
 		}
-		fmt.Println("seeded e2e puzzle catalog")
+		fmt.Println("verified e2e puzzle catalog")
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n", os.Args[1])
 		os.Exit(1)
 	}
 }
 
-func seedE2ECatalog(ctx context.Context, repo *repository.Repository, path string) error {
+func verifyE2ECatalog(ctx context.Context, repo *repository.Repository, path string) error {
 	records, err := catalog.ReadFile(path)
 	if err != nil {
 		return err
@@ -101,22 +100,21 @@ func seedE2ECatalog(ctx context.Context, repo *repository.Repository, path strin
 		if err != nil {
 			return fmt.Errorf("puzzle %s solution: %w", record.ID, err)
 		}
-		if err := repo.CreatePuzzle(ctx, gen.Puzzle{
-			ID:                   record.ID,
-			Revision:             int64(record.Revision),
-			State:                "Active",
-			Difficulty:           string(record.Difficulty),
-			HardestTechnique:     record.HardestTechnique,
-			QualityScore:         float64(record.Quality.LogicalStepCount),
-			MultiplayerApproved:  1,
-			GeneratorVersion:     record.GeneratorVersion,
-			SolverVersion:        record.SolverVersion,
-			CanonicalFingerprint: record.CanonicalFingerprint,
-			Clues:                clues,
-			Solution:             solution,
-			CreatedAtMs:          time.Now().UnixMilli(),
-		}); err != nil {
-			return err
+		puzzle, err := repo.GetPuzzle(ctx, record.ID, int64(record.Revision))
+		if err != nil {
+			return fmt.Errorf("get migrated puzzle %s: %w", record.ID, err)
+		}
+		if puzzle.State != record.Lifecycle ||
+			puzzle.Difficulty != string(record.Difficulty) ||
+			puzzle.HardestTechnique != record.HardestTechnique ||
+			puzzle.QualityScore != float64(record.Quality.LogicalStepCount) ||
+			puzzle.MultiplayerApproved != 1 ||
+			puzzle.GeneratorVersion != record.GeneratorVersion ||
+			puzzle.SolverVersion != record.SolverVersion ||
+			puzzle.CanonicalFingerprint != record.CanonicalFingerprint ||
+			!bytes.Equal(puzzle.Clues, clues) ||
+			!bytes.Equal(puzzle.Solution, solution) {
+			return fmt.Errorf("migrated puzzle %s does not match catalog", record.ID)
 		}
 	}
 	return nil

@@ -2,7 +2,7 @@
 
 **Document:** `docs/ARCHITECTURE.md`  
 **Status:** Canonical implementation architecture  
-**Current implementation scope:** Full MVP plus the `0.3.2` portable Compose deployment; deferred-feature architecture is provisional
+**Current implementation scope:** Full MVP plus the `0.3.3` closed-beta deployment; deferred-feature architecture is provisional
 **Product:** Ninefold Sudoku  
 **Public URL:** `https://ninefold.recica.dev`  
 **Repository:** `ninefold-sudoku`  
@@ -1766,6 +1766,10 @@ Puzzle generator
 Production game requests must not generate puzzles.
 
 They select from a pre-generated, verified catalog.
+
+Migration 17 seeds the temporary closed-beta catalog into fresh and existing databases. Seeded
+puzzle revisions are immutable and are intentionally retained by rollback migrations because
+historical matches and replays may reference them.
 
 ### 26.3 Generator command
 

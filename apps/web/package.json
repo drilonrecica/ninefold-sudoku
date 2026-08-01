@@ -19,7 +19,7 @@
     "test": "TZ=UTC LANG=en_US.UTF-8 vitest run"
   },
   "devDependencies": {
-    "@axe-core/playwright": "4.10.2",
+    "@axe-core/playwright": "4.12.1",
     "@eslint/js": "10.0.1",
     "@sveltejs/adapter-node": "5.5.7",
     "@sveltejs/kit": "2.70.1",

@@ -10,9 +10,10 @@ require (
 )
 
 require (
+	github.com/drilonrecica/ninefold-sudoku/contracts/generated/go v0.0.0-20260725225939-2d50e495a2ec
 	github.com/gowebpki/jcs v1.0.1
 	github.com/pressly/goose/v3 v3.24.1
-	modernc.org/sqlite v1.52.0
+	modernc.org/sqlite v1.55.0
 	nhooyr.io/websocket v1.8.17
 	pgregory.net/rapid v1.3.0
 )
@@ -26,8 +27,8 @@ require (
 	github.com/sethvargo/go-retry v0.3.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect
-	golang.org/x/sys v0.42.0 // indirect
-	modernc.org/libc v1.72.3 // indirect
+	golang.org/x/sys v0.46.0 // indirect
+	modernc.org/libc v1.74.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 )
